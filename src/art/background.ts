@@ -5,6 +5,7 @@
  * Static under reduced motion.
  */
 import { techniques } from '../techniques/registry';
+import { betterTechnique } from '../techniques/route';
 import type { Level } from '../techniques/types';
 import { fmt, makeRng } from '../techniques/util';
 import { FONTS, PALETTE } from '../theme';
@@ -26,7 +27,7 @@ function workedLines(count: number, seed: number): [string, string][] {
     const t = rng.pick(techniques);
     const p = t.generate(rng, rng.pick([1, 2] as Level[]));
     if (/[a-zA-Z]/.test(p.text.replace(/% of /, '').replace(/ mod /, '')) || p.tolerance !== undefined) continue;
-    if (p.text.length > 16) continue;
+    if (p.text.length > 16 || betterTechnique(p)) continue;
     out.push([p.text, fmt(p.answer)]);
   }
   return out;

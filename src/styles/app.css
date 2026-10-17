@@ -1188,3 +1188,126 @@
 .start-btn {
   min-height: 62px;
 }
+
+/* ---------- Start screen: actions and the book, nothing else above the fold ---------- */
+
+.first-screen {
+  display: flex;
+  flex-direction: column;
+  gap: 26px;
+  min-height: calc(100svh - 52px - 64px - env(safe-area-inset-bottom));
+  padding: 8px 0 12px;
+}
+
+@media (min-width: 760px) {
+  .first-screen {
+    min-height: calc(100svh - 52px);
+  }
+}
+
+.first-screen .actions {
+  display: grid;
+  gap: 10px;
+}
+
+.first-screen .start-btn {
+  margin: 0;
+  min-height: 60px;
+  flex-direction: row;
+}
+
+.first-screen .book {
+  margin: 0;
+  padding-top: 20px;
+}
+
+.first-screen .book p {
+  font-size: 16px;
+}
+
+.scroll-cue {
+  margin-top: auto;
+  align-self: center;
+  display: inline-flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  border: 0;
+  background: none;
+  font-family: var(--f-mono);
+  font-size: 12px;
+  color: var(--dim);
+  cursor: pointer;
+  padding: 8px 12px;
+}
+
+.scroll-cue span {
+  font-size: 16px;
+  animation: nudge 2.4s ease-in-out infinite;
+}
+
+@keyframes nudge {
+  0%,
+  100% {
+    transform: none;
+  }
+  50% {
+    transform: translateY(4px);
+  }
+}
+
+.why {
+  margin-top: 0;
+  scroll-margin-top: 12px;
+}
+
+/* ---------- Process demo ---------- */
+
+.demo {
+  margin: 4px 0 24px;
+  padding: 16px 14px 12px;
+  background: var(--raised);
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+  min-height: 300px;
+  transition: opacity 0.45s ease;
+}
+
+.demo.out {
+  opacity: 0;
+}
+
+.demo-name {
+  font-family: var(--f-head);
+  font-weight: 700;
+  font-size: 15px;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+
+.demo-stage .steps {
+  font-size: 20px;
+}
+
+.demo-stage .step {
+  transition:
+    opacity 0.4s ease,
+    background 0.3s;
+}
+
+.demo-stage .step.pending {
+  visibility: hidden;
+  opacity: 0;
+}
+
+.demo-stage .step.current {
+  background: var(--soft);
+}
+
+.demo-stage .step.last:not(.pending) .ex {
+  color: var(--accent);
+}
+
+.first-screen .start-btn {
+  gap: 10px;
+}

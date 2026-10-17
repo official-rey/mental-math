@@ -120,12 +120,19 @@ test('learn: start learning, open a technique in place, tick techniques and dril
   await expect(page.getByTestId('drill-picked')).toHaveCount(0);
 });
 
-test('landing: the why comes first for new visitors and moves down after a while', async ({ page }) => {
+test('landing: the first screen is the two buttons and the book; the why is below the fold', async ({ page }) => {
   await page.goto('/?e2e=1#/');
-  await expect(page.locator('.landing > section').first()).toHaveAttribute('data-testid', 'why');
-  await page.evaluate(() => localStorage.setItem('mm:v1:prefs', JSON.stringify({ visits: 20 })));
-  await page.reload();
-  await expect(page.locator('.landing > section').first()).toHaveClass(/landing-hero/);
-  // The why now follows the buttons and the book (the art closes the page after it).
-  await expect(page.locator('.landing > section').nth(2)).toHaveAttribute('data-testid', 'why');
+  const viewport = page.viewportSize()!;
+  for (const id of ['start-learning', 'start']) {
+    const box = (await page.getByTestId(id).boundingBox())!;
+    expect(box.y + box.height).toBeLessThan(viewport.height);
+  }
+  await expect(page.locator('.book-cover')).toBeInViewport();
+  const why = (await page.getByTestId('why').boundingBox())!;
+  expect(why.y).toBeGreaterThanOrEqual(viewport.height - 70);
+  // The demo plays a real procedure: steps appear one at a time.
+  await page.getByTestId('why').scrollIntoViewIfNeeded();
+  const shown = page.getByTestId('demo').locator('.step:not(.pending)');
+  const before = await shown.count();
+  await expect.poll(() => shown.count(), { timeout: 4000 }).toBeGreaterThan(before);
 });

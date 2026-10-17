@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { BONUS_MS, DrillSession, RAMP_STREAK, SPRINT_MS } from '../src/drill/engine';
 import type { DrillSpec, RunRecord } from '../src/drill/types';
 import { LocalStore } from '../src/storage/store';
+import { betterTechnique } from '../src/techniques/route';
 import { techniques } from '../src/techniques/registry';
 import { makeRng } from '../src/techniques/util';
 
@@ -187,5 +188,31 @@ describe('local store', () => {
     expect(await st.saveRun({ ...run(5, 1, 't'), mode: 'training' })).toEqual({ rank: null, isBest: false });
     await st.setPrefs({ muted: true, level: 3 });
     expect(await st.getPrefs()).toMatchObject({ muted: true, level: 3, mode: 'training' });
+  });
+});
+
+describe('problem routing', () => {
+  it('no card example is better served by another technique', () => {
+    for (const t of techniques) expect(betterTechnique(t.card.example), t.meta.id).toBeNull();
+  });
+
+  it('drills avoid problems another technique handles better, and avoid repeats', () => {
+    for (const t of techniques) {
+      for (const level of [1, 2, 3] as const) {
+        const s = new DrillSession(spec({ ids: [t.meta.id], level, mode: 'training' }), makeRng(level * 101), clock().now);
+        s.level = level;
+        const texts: string[] = [];
+        let routed = 0;
+        for (let i = 0; i < 120; i++) {
+          const p = i === 0 ? s.start() : s.advance();
+          if (betterTechnique(p)) routed++;
+          texts.push(p.text);
+        }
+        expect(routed, `${t.meta.id} L${level}`).toBeLessThanOrEqual(2);
+        // Any window of 30 consecutive problems has no repeats, unless the level has very few problems.
+        const window = new Set(texts.slice(0, 30));
+        if (window.size < 30) expect(window.size, `${t.meta.id} L${level} variety`).toBeGreaterThanOrEqual(5);
+      }
+    }
   });
 });

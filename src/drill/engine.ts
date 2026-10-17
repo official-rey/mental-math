@@ -1,6 +1,7 @@
 import { chainSource } from '../chain/generator';
 import { getTechnique } from '../techniques/registry';
 import type { Level, Problem, Rng, Step } from '../techniques/types';
+import { betterTechnique } from '../techniques/route';
 import { isCorrect, makeRng } from '../techniques/util';
 import { drillKey, drillName } from './spec';
 import type { DrillSpec, ProblemSource, RunEntry, RunRecord } from './types';
@@ -12,6 +13,8 @@ export const RAMP_STREAK = 3;
 /** Time a correct answer adds to a sprint; chains take longer, so they earn more. */
 export const BONUS_MS = 2_000;
 export const CHAIN_BONUS_MS = 4_000;
+/** How many recent problems a run avoids repeating. */
+const RECENT = 30;
 
 export function sourcesFor(spec: DrillSpec): ProblemSource[] {
   if (spec.kind === 'chain') return [chainSource];
@@ -46,6 +49,8 @@ export class DrillSession {
   private pausedAt: number | null = null;
   private pausedTotal = 0;
   private bonusTotal = 0;
+  /** Texts of the last few problems, to avoid repeats within a run. */
+  private recent: string[] = [];
   private streak = 0;
   /**
    * Level problems are generated at. Starts at I and climbs one level after every
@@ -66,13 +71,20 @@ export class DrillSession {
     return this.advance();
   }
 
-  /** Pick the next problem, avoiding an immediate repeat of the same text or technique. */
+  /**
+   * Pick the next problem: a different technique than last time (in mixed drills), nothing
+   * seen recently in this run, and nothing another technique handles better.
+   */
   advance(): Problem {
-    const prev = this.current;
     const pool = this.sources.length > 1 && this.source ? this.sources.filter((s) => s !== this.source) : this.sources;
     this.source = this.rng.pick(pool);
     let p = this.source.generate(this.rng, this.level);
-    for (let i = 0; i < 8 && prev && p.text === prev.text; i++) p = this.source.generate(this.rng, this.level);
+    const gen = () => this.source.generate(this.rng, this.level);
+    // Prefer fresh problems; small levels may run out, so repeats are only avoided when possible.
+    for (let i = 0; i < 24 && (this.recent.includes(p.text) || betterTechnique(p)); i++) p = gen();
+    for (let i = 0; i < 40 && betterTechnique(p); i++) p = gen();
+    this.recent.push(p.text);
+    if (this.recent.length > RECENT) this.recent.shift();
     this.current = p;
     this.shownAt = this.now();
     return p;

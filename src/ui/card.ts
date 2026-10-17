@@ -19,14 +19,13 @@ export function cardBody(t: Technique, state: { level: Level; mode: Mode }): HTM
     drillBtn.setAttribute('href', specToHash({ kind: 'technique', ids: [t.meta.id], level: state.level, mode: state.mode }));
   setHref();
 
-  const figure = h('figure', { class: 'figure' });
+  // The stepped example and the numbered picture carry the explanation; no extra prose.
+  const figure = h('figure', { class: 'figure', title: t.card.caption });
   figure.innerHTML = t.card.graphic();
-  figure.append(h('figcaption', null, t.card.caption));
 
   return h(
     'div',
     { class: 'card', 'data-technique': t.meta.id },
-    t.card.prose.map((p) => h('p', { class: 'prose' }, p)),
     renderStepper(t.steps(t.card.example)),
     figure,
     drillControls(

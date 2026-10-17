@@ -143,7 +143,7 @@ export async function learnView(parts: string[]): Promise<View> {
     'div',
     null,
     h('h1', { class: 'display' }, 'Learn'),
-    h('p', { class: 'lede' }, 'Open a technique to learn it. Tick the ones you know to add them to your drill.'),
+    h('p', { class: 'lede' }, 'Tap to learn. Tick to add to your drill.'),
     h('div', { class: 'chips', role: 'tablist', 'aria-label': 'Technique groups' }, chips),
     list,
     dock,

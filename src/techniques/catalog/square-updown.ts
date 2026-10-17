@@ -41,18 +41,18 @@ export default defineTechnique({
       'Multiply the two new numbers; one ends in 0, so it is a quick product.',
       'Square the distance you moved and add it on.',
     ],
-    example: make(47, 2),
+    example: make(38, 1),
     graphic: () =>
       chain({
-        start: '47²',
+        start: '38²',
         moves: [
-          { op: 'up 3, down 3', value: '50 × 44' },
-          { op: '5 × 44, add a 0', value: '2,200' },
-          { op: '+ 3² (9)', value: '2,209' },
+          { op: 'up 2, down 2', value: '40 × 36' },
+          { op: '4 × 36, add a 0', value: '1,440' },
+          { op: '+ 2² (4)', value: '1,444' },
         ],
-        label: 'Squaring 47: up 3 to 50 and down 3 to 44, 50 times 44 is 2,200, add 3 squared to get 2,209',
+        label: 'Squaring 38: up 2 to 40 and down 2 to 36, 40 times 36 is 1,440, add 2 squared to get 1,444',
       }),
-    caption: 'Up 3 and down 3, multiply, then add 3 squared.',
+    caption: 'Up 2 and down 2, multiply, then add 2 squared.',
   },
   levels,
   generate(rng, level) {
