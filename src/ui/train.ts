@@ -73,14 +73,14 @@ export async function trainView(): Promise<View> {
     h(
       'p',
       null,
-      'None of it is talent. It is a handful of techniques, practised until they are automatic. I made this so you can learn one in a minute, then drill it until it is yours.',
+      'None of it is talent. It is a handful of techniques, practised until they are automatic. So I built a place to pick up each one in about a minute, then practise it on problems made for it until it sticks.',
     ),
     h('p', { class: 'why-sign' }, `— ${DEV_CREDIT.replace('dev: ', '')}`),
   );
 
   const hero = h(
     'section',
-    { class: `landing-hero${plate ? '' : ' no-art'}` },
+    { class: 'landing-hero no-art' },
     h(
       'div',
       { class: 'hero-text' },
@@ -99,7 +99,6 @@ export async function trainView(): Promise<View> {
       ),
       h('nav', { class: 'hero-links', 'aria-label': 'Other drills' }, h('a', { href: '#/chain' }, 'Chain drills'), h('a', { href: '#/mixed' }, 'Custom mix')),
     ),
-    plate?.el,
   );
 
   const book = h(
@@ -122,7 +121,9 @@ export async function trainView(): Promise<View> {
     ),
   );
 
-  const content = reveal(h('div', { class: 'landing' }, seasoned ? [hero, book, why] : [why, hero, book]));
+  // The art closes the page quietly instead of competing with the buttons.
+  const coda = plate ? h('section', { class: 'coda' }, plate.el) : null;
+  const content = reveal(h('div', { class: 'landing' }, seasoned ? [hero, book, why] : [why, hero, book], coda));
 
   return {
     el: layout({ active: 'train' }, content),
