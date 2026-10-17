@@ -19,6 +19,8 @@ export interface Prefs {
   learnCategory: CategoryId;
   /** Last drill started, used by the Train screen's one-tap start. */
   last?: DrillSpec;
+  /** Times the Train screen has been opened; the landing layout changes after a while. */
+  visits: number;
 }
 
 export interface SaveResult {
@@ -60,6 +62,7 @@ export const DEFAULT_PREFS: Prefs = {
   haptics: true,
   mixed: [],
   learnCategory: 'addsub',
+  visits: 0,
 };
 
 /** Better runs sort first. Sprint: most correct, then accuracy. Twenty: most correct, then fastest. */

@@ -44,8 +44,8 @@ export function startArt(canvas: HTMLCanvasElement): ArtController {
     ctx.globalCompositeOperation = 'source-over';
     ctx.clearRect(0, 0, w, h);
     if (!enabled) return;
-    grid(CELL, PALETTE.rule, 0.45, 1);
-    grid(CELL * MAJOR, PALETTE.rule, 0.9, 1);
+    grid(CELL, PALETTE.rule, 0.3, 1);
+    grid(CELL * MAJOR, PALETTE.rule, 0.6, 1);
     // Fade the grid out behind the reading column.
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'destination-out';

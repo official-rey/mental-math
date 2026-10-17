@@ -78,9 +78,10 @@ test('sections: Learn groups, Stats, Settings', async ({ page }) => {
   await page.getByTestId('tab-learn').tap();
   await page.getByRole('tab', { name: /Divide/ }).tap();
   await expect(page).toHaveURL(/#\/learn\/div/);
-  await expect(page.getByRole('link', { name: /Short division/ })).toBeVisible();
-  await page.getByRole('link', { name: /Short division/ }).tap();
+  await page.getByTestId('open-short-division').tap();
+  await expect(page.getByTestId('open-short-division')).toHaveAttribute('aria-expanded', 'true');
   await expect(page.getByTestId('drill-this')).toBeVisible();
+  await expect(page).toHaveURL(/#\/learn\/div\/short-division/);
   await page.getByTestId('tab-stats').tap();
   await expect(page.getByText(/Nothing here yet/)).toBeVisible();
   await page.getByTestId('tab-settings').tap();
@@ -100,4 +101,28 @@ test('technique card: the worked example reveals one step at a time', async ({ p
   await expect(page.locator('.stepper-lines .step:not(.future)')).toHaveCount(3);
   await expect(page.locator('.stepper-lines .step.current .ex')).toHaveText('282');
   await expect(page.getByTestId('next-step')).toBeDisabled();
+});
+
+test('learn: start learning, open a technique in place, tick techniques and drill them', async ({ page }) => {
+  await page.goto('/?e2e=1#/');
+  await page.getByTestId('start-learning').tap();
+  await expect(page.getByTestId('drill-picked')).toBeHidden();
+  await page.getByRole('tab', { name: /Add & subtract/ }).tap();
+  await page.getByTestId('open-complements').tap();
+  await expect(page.locator('.tech.open .stepper')).toBeVisible();
+  await page.getByTestId('pick-complements').check();
+  await page.getByTestId('pick-lr-addition').check();
+  await expect(page.getByTestId('drill-picked')).toHaveText(/Drill 2 ticked techniques/);
+  await page.getByTestId('drill-picked').tap();
+  await expect(page.getByTestId('problem')).toHaveText(/[+−]/);
+  await expect(page.getByTestId('drill-picked')).toHaveCount(0);
+});
+
+test('landing: the why comes first for new visitors and moves down after a while', async ({ page }) => {
+  await page.goto('/?e2e=1#/');
+  await expect(page.locator('.landing > section').first()).toHaveAttribute('data-testid', 'why');
+  await page.evaluate(() => localStorage.setItem('mm:v1:prefs', JSON.stringify({ visits: 20 })));
+  await page.reload();
+  await expect(page.locator('.landing > section').first()).toHaveClass(/landing-hero/);
+  await expect(page.locator('.landing > section').last()).toHaveAttribute('data-testid', 'why');
 });
