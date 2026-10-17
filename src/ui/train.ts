@@ -14,7 +14,7 @@ const SEASONED_VISITS = 8;
 
 const BOOK_URL = 'https://archive.org/details/secretsofmentalm0000arth';
 
-const MODE_WORDS = { training: 'untimed', sprint: '60-second sprint', twenty: '20 problems' } as const;
+const MODE_WORDS = { training: 'untimed', sprint: 'sprint', twenty: '20 problems' } as const;
 
 /** Plain description of exactly what the Start button launches. */
 function whatStarts(s: DrillSpec): string {
@@ -27,7 +27,8 @@ function whatStarts(s: DrillSpec): string {
         : s.ids.length === d.ids.length && s.ids.every((id) => d.ids.includes(id))
           ? 'Foundation mix'
           : `Mix of ${s.ids.length} techniques`;
-  return `${what} · Level ${['', 'I', 'II', 'III'][s.level]} · ${MODE_WORDS[s.mode]}`;
+  const level = s.level > 1 ? `builds to Level ${['', 'I', 'II', 'III'][s.level]}` : 'Level I';
+  return `${what} · ${level} · ${MODE_WORDS[s.mode]}`;
 }
 
 export async function trainView(): Promise<View> {

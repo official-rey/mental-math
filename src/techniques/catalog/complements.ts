@@ -1,5 +1,5 @@
 import { defineTechnique } from '../define';
-import { numberLine } from '../svg';
+import { pieces } from '../svg';
 import type { Level, Levels, Problem, Step } from '../types';
 import { digits, fmt, nonRound } from '../util';
 
@@ -24,27 +24,31 @@ export default defineTechnique({
     category: 'addsub',
     tier: 'Foundation',
     order: 20,
-    idea: 'Every digit pairs to 9, except the last, which pairs to 10.',
+    idea: 'Write each digit’s partner to 9, left to right; for the last digit, write its partner to 10.',
   },
   card: {
     prose: [
-      'The complement is the distance up to the round number.',
-      'Read the digits left to right: each one pairs with its partner to make 9, and the last one makes 10.',
-      'Subtracting from a power of ten never needs a borrow this way.',
+      'Go through the number left to right. For each digit, write what it needs to make 9.',
+      'For the last digit, write what it needs to make 10 instead.',
+      'Read the written digits together as the answer; drop any zeros at the front.',
     ],
     example: make(1000, 372, 2),
     graphic: () =>
-      numberLine({
-        from: 0,
-        to: 1000,
-        marks: [{ at: 0, label: '0' }, { at: 372, label: '372' }, { at: 1000, label: '1,000', accent: true }],
-        hops: [
-          { from: 0, to: 372, label: '372', accent: false },
-          { from: 372, to: 1000, label: '628' },
+      pieces({
+        input: '1,000 − 372',
+        ops: [
+          { text: '9 − 3', out: '6' },
+          { text: '9 − 7', out: '2' },
+          { text: '10 − 2', out: '8' },
         ],
-        label: 'Number line from 0 to 1000: 372 plus its complement 628 reaches 1000',
+        answer: [
+          { text: '6', from: 0 },
+          { text: '2', from: 1 },
+          { text: '8', from: 2 },
+        ],
+        label: '1,000 minus 372: 3 needs 6 to make 9, 7 needs 2 to make 9, 2 needs 8 to make 10, so 628',
       }),
-    caption: '372 and 628 together fill the line to 1,000: 3+6 = 9, 7+2 = 9, 2+8 = 10.',
+    caption: 'Each digit’s partner to 9, the last one’s partner to 10, written in its place.',
   },
   levels,
   generate(rng, level) {
@@ -55,18 +59,18 @@ export default defineTechnique({
     const { base, n } = p.data;
     const ds = digits(n);
     const width = String(base).length - 1;
-    const padded = Array(width - ds.length).fill(0).concat(ds);
+    const padded: number[] = Array(width - ds.length).fill(0).concat(ds);
     const steps: Step[] = [{ op: '', expr: `${fmt(base)} − ${fmt(n)}` }];
+    const outs: number[] = [];
     padded.forEach((d, i) => {
       const last = i === padded.length - 1;
       const target = last ? 10 : 9;
-      steps.push({
-        op: '→',
-        expr: `${target} − ${d} = ${target - d}`,
-        note: `${PLACE[padded.length - 1 - i]}: pair to ${target}`,
-      });
+      outs.push(target - d);
+      steps.push({ op: '', expr: `${target} − ${d} = ${target - d}`, note: `${PLACE[padded.length - 1 - i]}: up to ${target}` });
     });
-    steps.push({ expr: fmt(base - n) });
+    const lead = outs.findIndex((d) => d !== 0);
+    const tail = lead === 0 ? '' : lead === 1 ? ', drop front 0' : ', drop front 0s';
+    steps.push({ expr: fmt(base - n), note: `write ${outs.join('')}${tail}` });
     return steps;
   },
 });

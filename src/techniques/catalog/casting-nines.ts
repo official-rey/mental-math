@@ -1,19 +1,11 @@
 import { defineTechnique } from '../define';
-import { path, svg, text } from '../svg';
+import { circle, line, path, svg, text } from '../svg';
 import type { Level, Levels, Problem, Rng, Step } from '../types';
 import { digits, fmt, nonRound } from '../util';
 
 const ID = 'casting-nines';
 const M = 9;
 const HINT = 'remainder 0–8';
-
-/** Check figure of n from its digit sum, with the working as a short note. */
-function check(n: number): { r: number; note: string } {
-  const ds = digits(n);
-  const s = ds.reduce((x, y) => x + y, 0);
-  const r = s % M;
-  return { r, note: `${ds.join('+')} = ${s}${s >= M ? ` → ${r}` : ''}` };
-}
 
 /** Cast out 9s, 0s and digit pairs that make 9; return what is dropped and what is left. */
 function castOut(n: number): { dropped: string[]; kept: number[] } {
@@ -36,43 +28,72 @@ function castOut(n: number): { dropped: string[]; kept: number[] } {
   return { dropped, kept: ds.filter((_, i) => !used[i]) };
 }
 
-/** Reduce a total to its remainder: one line if it is already below 9, else two. */
-function finish(steps: Step[], v: number, note: string): void {
-  const r = v % M;
-  if (v === r) {
-    steps.push({ expr: String(r), note });
-    return;
+/** Shrink a total below 9 by adding its digits; a 9 counts as 0. Returns the remainder. */
+function reduce(steps: Step[], v: number): number {
+  while (v > 9) {
+    const ds = digits(v);
+    const s = ds.reduce((x, y) => x + y, 0);
+    steps.push({ op: '', expr: `${ds.join(' + ')} = ${s}`, note: `add the digits of ${v}` });
+    v = s;
   }
-  steps.push({ expr: `${v} mod ${M}`, note });
-  steps.push({ expr: String(r), note: `${v} − ${v - r}` });
+  if (v === 9) {
+    steps.push({ op: '', expr: '9 − 9 = 0', note: 'a 9 counts as 0' });
+    v = 0;
+  }
+  return v;
+}
+
+/** Check figure of one operand: add its digits (skipping 9s and 0s), then shrink. */
+function figure(steps: Step[], n: number): number {
+  const ds = digits(n);
+  const kept = ds.filter((d) => d !== 0 && d !== 9);
+  const skip = kept.length < ds.length ? ', skip 9s/0s' : '';
+  if (kept.length === 0) {
+    steps.push({ op: '', expr: '0', note: `${fmt(n)}: all 9s and 0s` });
+    return 0;
+  }
+  if (kept.length === 1) {
+    steps.push({ op: '', expr: String(kept[0]), note: `${fmt(n)}: one digit left` });
+    return kept[0];
+  }
+  const s = kept.reduce((x, y) => x + y, 0);
+  steps.push({ op: '', expr: `${kept.join(' + ')} = ${s}`, note: `digits of ${fmt(n)}${skip}` });
+  return reduce(steps, s);
 }
 
 function solve(p: Problem): Step[] {
   const steps: Step[] = [{ op: '', expr: p.text }];
   if (p.level === 1) {
     const { dropped, kept } = castOut(p.data.N);
-    const note = dropped.length ? `drop ${dropped.join(', ')}` : 'digit sum';
-    if (kept.length <= 1) {
-      steps.push({ expr: String(kept.length ? kept[0] : 0), note });
-      return steps;
+    const nines = dropped.filter((d) => d === '9').length;
+    if (nines) steps.push({ op: '', expr: '9', note: nines > 1 ? 'cross out the 9s' : 'a 9: cross it out' });
+    for (const d of dropped) {
+      if (d.includes('+')) steps.push({ op: '', expr: `${d.replace('+', ' + ')} = 9`, note: 'makes 9: cross both out' });
     }
-    steps.push({ expr: `(${kept.join(' + ')}) mod ${M}`, note });
-    finish(steps, kept.reduce((x, y) => x + y, 0), 'add');
+    let r: number;
+    if (kept.length === 0) r = 0;
+    else if (kept.length === 1) r = kept[0];
+    else {
+      const s = kept.reduce((x, y) => x + y, 0);
+      steps.push({ op: '', expr: `${kept.join(' + ')} = ${s}`, note: 'add what is left' });
+      r = reduce(steps, s);
+    }
+    steps.push({ expr: String(r), note: kept.length > 1 ? 'the remainder' : kept.length ? 'only digit left' : 'nothing left' });
     return steps;
   }
   const ops = p.level === 2 ? [p.data.a, p.data.b, p.data.c] : [p.data.a, p.data.b];
-  const figs = ops.map((n) => {
-    const c = check(n);
-    steps.push({ op: '→', expr: `${fmt(n)} ≡ ${c.r}`, note: c.note });
-    return c.r;
-  });
+  const figs = ops.map((n) => figure(steps, n));
+  let r: number;
   if (p.level === 2) {
-    steps.push({ expr: `(${figs.join(' + ')}) mod ${M}`, note: 'check figures' });
-    finish(steps, figs.reduce((x, y) => x + y, 0), 'add');
+    const s = figs.reduce((x, y) => x + y, 0);
+    steps.push({ op: '', expr: `${figs.join(' + ')} = ${s}`, note: 'add the three figures' });
+    r = reduce(steps, s);
   } else {
-    steps.push({ expr: `(${figs.join(' × ')}) mod ${M}`, note: 'check figures' });
-    finish(steps, figs[0] * figs[1], 'multiply');
+    const s = figs[0] * figs[1];
+    steps.push({ op: '', expr: `${figs[0]} × ${figs[1]} = ${s}`, note: 'multiply the figures' });
+    r = reduce(steps, s);
   }
+  steps.push({ expr: String(r), note: 'the remainder' });
   return steps;
 }
 
@@ -98,21 +119,31 @@ const levels = {
 /** A 3- or 4-digit operand. */
 const operand = (rng: Rng) => (rng.chance(0.5) ? nonRound(rng, 100, 999) : nonRound(rng, 1000, 9999));
 
-/** 538,264: 5+4 and 3+6 drop out, 8 + 2 is left. */
+/** A circled stage number. */
+const stage = (x: number, y: number, n: number) => circle(x, y, 8, 'f-paper s-accent') + text(x, y, n, 't t-sm t-accent');
+
+/** 538,264: cross out the pairs that make 9, add what is left, shrink it. */
 function diagram(): string {
   const ds = [5, 3, 8, 2, 6, 4];
   const keep = [false, false, true, true, false, false];
-  const x = (i: number) => 70 + i * 40;
-  const y = 100;
+  const x = (i: number) => 90 + i * 36;
+  const y = 96;
   let body = '';
-  body += path(`M${x(0)},${y - 16} Q${(x(0) + x(5)) / 2},${y - 90} ${x(5)},${y - 16}`, 's-dim f-none');
-  body += text((x(0) + x(5)) / 2, y - 64, '9', 't t-sm t-dim');
-  body += path(`M${x(1)},${y - 16} Q${(x(1) + x(4)) / 2},${y - 48} ${x(4)},${y - 16}`, 's-dim f-none');
-  body += text((x(1) + x(4)) / 2, y - 42, '9', 't t-sm t-dim');
-  ds.forEach((d, i) => (body += text(x(i), y, d, keep[i] ? 't t-lg t-accent t-b' : 't t-lg t-dim')));
-  body += text(170, 145, '8 + 2 = 10 → 1', 't t-accent t-b');
-  body += text(170, 180, '10 ≡ 1 (mod 9): each digit counts once', 't t-sm t-dim');
-  return svg(340, 200, body, 'Digits of 538,264: 5 and 4 pair to 9, 3 and 6 pair to 9, leaving 8 plus 2, which is 10, remainder 1');
+  // Stage 1: pairs that make 9, joined by arcs and struck through.
+  body += stage(28, y, 1);
+  body += path(`M${x(0)},${y - 16} Q${(x(0) + x(5)) / 2},${y - 86} ${x(5)},${y - 16}`, 's-dim f-none');
+  body += text((x(0) + x(5)) / 2, y - 60, '9', 't t-sm t-dim');
+  body += path(`M${x(1)},${y - 16} Q${(x(1) + x(4)) / 2},${y - 46} ${x(4)},${y - 16}`, 's-dim f-none');
+  body += text((x(1) + x(4)) / 2, y - 38, '9', 't t-sm t-dim');
+  ds.forEach((d, i) => {
+    body += text(x(i), y, d, keep[i] ? 't t-lg t-b' : 't t-lg t-dim');
+    if (!keep[i]) body += line(x(i) - 9, y + 9, x(i) + 9, y - 9, 's-dim');
+  });
+  // Stage 2: add what is left. Stage 3: add its digits.
+  body += stage(28, 146, 2) + text(56, 146, '8 + 2 = 10', 't t-start');
+  body += stage(28, 186, 3) + text(56, 186, '1 + 0 = 1', 't t-start');
+  body += text(250, 186, 'remainder 1', 't t-accent t-b');
+  return svg(340, 210, body, '538,264: cross out 5 and 4, and 3 and 6, since each pair makes 9; add the leftover 8 and 2 to get 10; add 1 and 0 to get remainder 1');
 }
 
 export default defineTechnique({
@@ -122,17 +153,17 @@ export default defineTechnique({
     category: 'check',
     tier: 'Foundation',
     order: 10,
-    idea: 'A number and its digit sum leave the same remainder on division by 9.',
+    idea: 'Cross out 9s and digits that make 9, add the rest, and keep adding digits until one is left.',
   },
   card: {
     prose: [
-      'Since 10 ≡ 1 (mod 9), a number is congruent to its digit sum; drop 9s and digits that pair to 9.',
-      'Remainders respect + and ×, so a sum or product is checked from the operands’ check figures.',
-      'Matching check figures are necessary for a correct answer, not sufficient.',
+      'Cross out every 9, every 0, and any two digits that add up to 9.',
+      'Add the digits that are left. If the total has two digits, add those; a final 9 counts as 0.',
+      'To check a sum or product, do this to each number, then add or multiply the results and shrink again.',
     ],
     example: make(1, { N: 538264 }),
     graphic: diagram,
-    caption: '5+4 and 3+6 make 9 and drop out; 8 + 2 = 10 leaves 1, so 538,264 leaves 1.',
+    caption: 'Cross out the pairs that make 9, add what is left, then shrink it to one digit.',
   },
   levels,
   generate(rng, level) {

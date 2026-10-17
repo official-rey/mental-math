@@ -8,7 +8,7 @@ export const secs = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
 export const pct = (x: number) => `${Math.round(x * 100)}%`;
 
 export function scoreText(run: RunRecord): { main: string; suffix: string; caption: string } {
-  if (run.mode === 'sprint') return { main: String(run.correct), suffix: '', caption: 'correct in 60 seconds' };
+  if (run.mode === 'sprint') return { main: String(run.correct), suffix: '', caption: `correct · sprint lasted ${secs(run.totalMs)}` };
   if (run.mode === 'twenty') return { main: String(run.correct), suffix: '/20', caption: `correct in ${secs(run.totalMs)}` };
   return { main: String(run.correct), suffix: `/${run.attempted}`, caption: 'correct, untimed' };
 }

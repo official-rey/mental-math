@@ -1,5 +1,5 @@
 import { defineTechnique } from '../define';
-import { numberLine } from '../svg';
+import { chain } from '../svg';
 import type { Level, Levels, Problem, Step } from '../types';
 import { digits, fmt, nonRound } from '../util';
 
@@ -14,6 +14,8 @@ const levels = {
   2: { label: '3-digit − 2-digit', bounds: { a: [101, 999], b: [12, 99] } },
   3: { label: '3-digit − 3-digit', bounds: { a: [201, 999], b: [101, 998] } },
 } as const satisfies Levels;
+
+const PLACE = ['ones', 'tens', 'hundreds', 'thousands'];
 
 /** Nonzero place parts of n, largest first: 375 → [300, 70, 5]. */
 function parts(n: number): number[] {
@@ -36,30 +38,26 @@ export default defineTechnique({
     category: 'addsub',
     tier: 'Foundation',
     order: 15,
-    idea: 'Subtract the largest place first, then each smaller place, from one running total.',
+    idea: 'Take away the second number one place at a time, biggest place first, from one running total.',
   },
   card: {
     prose: [
-      'Break the number being subtracted into place parts and take them away from the largest down.',
-      'Every partial result is an ordinary number, so a borrow becomes crossing a ten on the way down.',
+      'Split the number you take away into its hundreds, tens and ones.',
+      'Take away the hundreds first, then the tens, then the ones.',
+      'Hold only the new total after each step. The last total is the answer.',
     ],
-    example: make(92, 36, 1),
+    example: make(724, 358, 3),
     graphic: () =>
-      numberLine({
-        from: 50,
-        to: 96,
-        marks: [
-          { at: 56, label: '56', accent: true },
-          { at: 62, label: '62' },
-          { at: 92, label: '92' },
+      chain({
+        start: '724',
+        moves: [
+          { op: '− 300', value: '424' },
+          { op: '− 50', value: '374' },
+          { op: '− 8', value: '366' },
         ],
-        hops: [
-          { from: 92, to: 62, label: '−30' },
-          { from: 62, to: 56, label: '−6' },
-        ],
-        label: 'Number line: from 92 back 30 to 62, then back 6 to 56',
+        label: 'Start at 724: take 300 to get 424, take 50 to get 374, take 8 to get 366',
       }),
-    caption: 'From 92, hop back 30 to 62, then 6 more to 56.',
+    caption: 'Start at 724 and take away 300, then 50, then 8.',
   },
   levels,
   generate(rng, level) {
@@ -75,12 +73,13 @@ export default defineTechnique({
   steps(p) {
     const { a, b } = p.data;
     const steps: Step[] = [{ op: '', expr: `${fmt(a)} − ${fmt(b)}` }];
-    let total = a, left = b;
+    let total = a;
     for (const part of parts(b)) {
-      total -= part;
-      left -= part;
-      steps.push({ expr: left ? `${fmt(total)} − ${fmt(left)}` : fmt(total), note: `take ${fmt(part)}` });
+      const next = total - part;
+      steps.push({ op: '', expr: `${fmt(total)} − ${fmt(part)} = ${fmt(next)}`, note: `take the ${PLACE[String(part).length - 1]}` });
+      total = next;
     }
+    steps.push({ expr: fmt(total), note: 'the last total' });
     return steps;
   },
 });

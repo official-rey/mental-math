@@ -1,12 +1,17 @@
 import { chainSource } from '../chain/generator';
 import { getTechnique } from '../techniques/registry';
-import type { Problem, Rng, Step } from '../techniques/types';
+import type { Level, Problem, Rng, Step } from '../techniques/types';
 import { isCorrect, makeRng } from '../techniques/util';
 import { drillKey, drillName } from './spec';
 import type { DrillSpec, ProblemSource, RunEntry, RunRecord } from './types';
 
 export const SPRINT_MS = 60_000;
 export const TWENTY = 20;
+/** Correct answers in a row at a level before the drill steps up toward the chosen level. */
+export const RAMP_STREAK = 3;
+/** Time a correct answer adds to a sprint; chains take longer, so they earn more. */
+export const BONUS_MS = 2_000;
+export const CHAIN_BONUS_MS = 4_000;
 
 export function sourcesFor(spec: DrillSpec): ProblemSource[] {
   if (spec.kind === 'chain') return [chainSource];
@@ -21,6 +26,10 @@ export interface Attempt {
   problem: Problem;
   input: string;
   ms: number;
+  /** Sprint time this answer added. */
+  bonusMs: number;
+  /** Set when this answer moved the drill up a level. */
+  levelUp?: Level;
 }
 
 /**
@@ -36,6 +45,13 @@ export class DrillSession {
   private endedAt: number | null = null;
   private pausedAt: number | null = null;
   private pausedTotal = 0;
+  private bonusTotal = 0;
+  private streak = 0;
+  /**
+   * Level problems are generated at. Starts at I and climbs one level after every
+   * RAMP_STREAK correct answers in a row, until it reaches the level the player chose.
+   */
+  level: Level = 1;
 
   constructor(
     readonly spec: DrillSpec,
@@ -55,8 +71,8 @@ export class DrillSession {
     const prev = this.current;
     const pool = this.sources.length > 1 && this.source ? this.sources.filter((s) => s !== this.source) : this.sources;
     this.source = this.rng.pick(pool);
-    let p = this.source.generate(this.rng, this.spec.level);
-    for (let i = 0; i < 8 && prev && p.text === prev.text; i++) p = this.source.generate(this.rng, this.spec.level);
+    let p = this.source.generate(this.rng, this.level);
+    for (let i = 0; i < 8 && prev && p.text === prev.text; i++) p = this.source.generate(this.rng, this.level);
     this.current = p;
     this.shownAt = this.now();
     return p;
@@ -75,8 +91,20 @@ export class DrillSession {
     const ms = Math.max(0, Math.round(this.now() - this.shownAt));
     const p = this.current;
     this.log.push({ technique: p.technique, text: p.text, answer: p.answer, input, ok, ms, ...(skipped ? { skipped } : {}) });
+    let bonusMs = 0;
+    if (ok && this.spec.mode === 'sprint' && this.remaining() > 0) {
+      bonusMs = p.technique === 'chain' ? CHAIN_BONUS_MS : BONUS_MS;
+      this.bonusTotal += bonusMs;
+    }
+    let levelUp: Level | undefined;
+    this.streak = ok ? this.streak + 1 : 0;
+    if (this.streak >= RAMP_STREAK && this.level < this.spec.level) {
+      this.level = (this.level + 1) as Level;
+      this.streak = 0;
+      levelUp = this.level;
+    }
     if (this.isFinished()) this.endedAt = this.now();
-    return { ok, problem: p, input, ms };
+    return { ok, problem: p, input, ms, bonusMs, ...(levelUp ? { levelUp } : {}) };
   }
 
   get paused(): boolean {
@@ -111,14 +139,19 @@ export class DrillSession {
     return end - this.startedAt - this.pausedTotal;
   }
 
+  /** Sprint clock: 60 s plus the bonus earned so far. */
+  timeLimit(): number {
+    return SPRINT_MS + this.bonusTotal;
+  }
+
   /** Milliseconds left in a sprint (0 when over); Infinity for other modes. */
   remaining(): number {
-    return this.spec.mode === 'sprint' ? Math.max(0, SPRINT_MS - this.elapsed()) : Infinity;
+    return this.spec.mode === 'sprint' ? Math.max(0, this.timeLimit() - this.elapsed()) : Infinity;
   }
 
   isFinished(): boolean {
     if (this.spec.mode === 'twenty') return this.log.length >= TWENTY;
-    if (this.spec.mode === 'sprint') return this.elapsed() >= SPRINT_MS;
+    if (this.spec.mode === 'sprint') return this.elapsed() >= this.timeLimit();
     return false;
   }
 
@@ -136,7 +169,7 @@ export class DrillSession {
     const attempted = this.log.length;
     const correct = this.correct;
     const answeredMs = this.log.reduce((a, e) => a + e.ms, 0);
-    const totalMs = this.spec.mode === 'sprint' ? Math.min(SPRINT_MS, Math.round(this.elapsed())) : answeredMs;
+    const totalMs = this.spec.mode === 'sprint' ? Math.round(Math.min(this.timeLimit(), this.elapsed())) : answeredMs;
     return {
       id: `${Date.now().toString(36)}-${Math.floor(this.rng.next() * 1e9).toString(36)}`,
       drillKey: drillKey(this.spec),

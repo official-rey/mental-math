@@ -1,5 +1,5 @@
 import { defineTechnique } from '../define';
-import { arrowHead, line, rect, svg, text } from '../svg';
+import { pieces } from '../svg';
 import type { Level, Levels, Problem, Step } from '../types';
 import { fmt } from '../util';
 
@@ -16,38 +16,6 @@ const levels = {
   3: { label: '3-digit ending in 5', bounds: { n: [205, 995], a: [20, 99] } },
 } as const satisfies Levels;
 
-/** 65² rearranged: move the bottom 5-strip to the side to get 60 × 70, plus the 5 × 5 corner. */
-function diagram(): string {
-  const A = 100, F = 24, x0 = 34, y0 = 34;
-  let b = rect(x0, y0, A, A, 'f-raised s-ink');
-  b += rect(x0 + A, y0, F, A, 'f-soft s-ink');
-  b += rect(x0, y0 + A, A, F, 'f-soft s-accent');
-  b += rect(x0 + A, y0 + A, F, F, 'f-none s-dim s-dash');
-  b += text(x0 + A / 2, y0 + A / 2, '60 × 60', 't t-sm');
-  b += text(x0 + A / 2, y0 + A + F / 2, '60 × 5', 't t-sm t-accent');
-  b += text(x0 + A + F / 2, y0 + A + F / 2, '25', 't t-sm t-dim');
-  b += text(x0 + A / 2, y0 - 14, '60', 't t-dim');
-  b += text(x0 + A + F / 2, y0 - 14, '5', 't t-dim');
-  b += text(x0 - 8, y0 + A / 2, '60', 't t-dim t-end');
-  b += text(x0 - 8, y0 + A + F / 2, '5', 't t-dim t-end');
-  b += text(x0 + (A + F) / 2, y0 + A + F + 26, '65²', 't t-sm');
-
-  const ay = y0 + A + F / 2;
-  b += line(x0 + A + F + 8, ay, x0 + A + F + 30, ay, 's-accent');
-  b += arrowHead(x0 + A + F + 34, ay, 1, 0);
-
-  const x1 = 200;
-  b += rect(x1, y0, A, A, 'f-raised s-ink');
-  b += rect(x1 + A, y0, F, A, 'f-soft s-ink');
-  b += rect(x1 + A + F, y0, F, A, 'f-soft s-accent');
-  b += rect(x1, y0 + A + 8, F, F, 'f-none s-dim s-dash');
-  b += text(x1 + A / 2, y0 + A / 2, '60 × 60', 't t-sm');
-  b += text(x1 + F / 2, y0 + A + 8 + F / 2, '25', 't t-sm t-dim');
-  b += text(x1 + A / 2 + F, y0 - 14, '70', 't t-accent t-b');
-  b += text(x1 + (A + 2 * F) / 2, y0 + A + F + 26, '60 × 70 + 25', 't t-sm');
-  return svg(356, 196, b, '65 squared rearranged into a 60 by 70 rectangle plus a 5 by 5 square');
-}
-
 export default defineTechnique({
   meta: {
     id: ID,
@@ -55,17 +23,30 @@ export default defineTechnique({
     category: 'mul',
     tier: 'Foundation',
     order: 50,
-    idea: '(10a + 5)² = 100 · a(a + 1) + 25: multiply a by its successor and append 25.',
+    idea: 'Drop the 5, multiply what is left by the next number up, then write 25 after it.',
   },
   card: {
     prose: [
-      'Strip the final 5 to get a; multiply a by a + 1.',
+      'Drop the final 5 and multiply what is left by the next number up: for 65, do 6 × 7.',
       'Write 25 after that product.',
-      'For 3-digit numbers, a is 2-digit and a(a + 1) is the only real work.',
+      'For 3-digit numbers, do the product in two parts: times the tens, then times the ones.',
     ],
     example: make(65, 1),
-    graphic: diagram,
-    caption: 'Moving the 60 × 5 strip from the bottom to the side turns 65² into 60 × 70 plus a 5 × 5 corner.',
+    graphic: () =>
+      pieces({
+        input: '65²',
+        ops: [
+          { text: '6 × 7', out: '42' },
+          { text: '5 × 5', out: '25' },
+        ],
+        answer: [
+          { text: '42', from: 0 },
+          { text: '25', from: 1 },
+        ],
+        result: '4,225',
+        label: 'Squaring 65: 6 times 7 gives 42, 5 times 5 gives 25, so 4,225',
+      }),
+    caption: 'Multiply the front by the next number up, then write 25 after it.',
   },
   levels,
   generate(rng, level) {
@@ -75,23 +56,21 @@ export default defineTechnique({
   steps(p) {
     const { n, a } = p.data;
     const b = a + 1, prod = a * b;
-    const steps: Step[] = [
-      { op: '', expr: `${n}²` },
-      { expr: `100 × ${a} × ${b} + 25`, note: `${a}, and ${a} + 1 = ${b}` },
-    ];
+    const steps: Step[] = [{ op: '', expr: `${n}²` }];
     if (a <= 9) {
-      steps.push({ expr: `100 × ${prod} + 25`, note: `${a}×${b}` });
+      steps.push({ op: '', expr: `${a} × ${b} = ${prod}`, note: `${a} times the next number` });
     } else {
       const t = b - (b % 10), u = b % 10;
+      steps.push({ op: '', expr: `${a} + 1 = ${b}`, note: 'the next number up' });
       if (u === 0) {
-        steps.push({ op: '→', expr: `${a} × ${b} = ${fmt(prod)}`, note: `${a}×${b / 10}, then ×10` });
+        steps.push({ op: '', expr: `${a} × ${b} = ${fmt(prod)}`, note: `${a} × ${b / 10}, add a 0` });
       } else {
-        steps.push({ op: '→', expr: `${a} × ${b} = ${fmt(a * t)} + ${fmt(a * u)}`, note: `${a}×${t}, ${a}×${u}` });
-        steps.push({ op: '→', expr: `${fmt(a * t)} + ${fmt(a * u)} = ${fmt(prod)}` });
+        steps.push({ op: '', expr: `${a} × ${t} = ${fmt(a * t)}`, note: `times the tens of ${b}` });
+        steps.push({ op: '', expr: `${a} × ${u} = ${fmt(a * u)}`, note: `times the ones of ${b}` });
+        steps.push({ op: '', expr: `${fmt(a * t)} + ${fmt(a * u)} = ${fmt(prod)}`, note: 'add the two parts' });
       }
-      steps.push({ expr: `100 × ${fmt(prod)} + 25` });
     }
-    steps.push({ expr: fmt(100 * prod + 25), note: 'append 25' });
+    steps.push({ expr: fmt(100 * prod + 25), note: `${fmt(prod)} then 25` });
     return steps;
   },
 });

@@ -1,5 +1,5 @@
 import { defineTechnique } from '../define';
-import { line, rect, svg, text } from '../svg';
+import { pieces } from '../svg';
 import type { Level, Levels, Problem, Step } from '../types';
 import { fmt, scaled } from '../util';
 
@@ -36,75 +36,65 @@ const levels = {
   3: { label: 'awkward rates, swaps', bounds: { r: [3, 96], y: [12, 480], swap: [0, 1] } },
 } as const satisfies Levels;
 
-/** Bar of ten 10% blocks for 84, with one block and a half picked out. */
-function diagram(): string {
-  const x0 = 20, w = 30, y = 52, h = 34;
-  let b = '';
-  for (let i = 0; i < 10; i++) b += rect(x0 + i * w, y, w, h, i === 0 ? 'f-soft s-accent' : 'f-raised s-ink');
-  b += rect(x0 + w, y, w / 2, h, 'f-soft s-accent');
-  b += text(x0, y - 28, '10% = 8.4', 't t-sm t-accent t-start');
-  b += text(x0 + w, y - 12, '5% = 4.2', 't t-sm t-accent t-start');
-  b += text(x0 + 10 * w, y - 12, '84', 't t-sm t-dim');
-  b += text(x0 + 5.5 * w, y + h + 13, 'each block 8.4', 't t-sm t-dim');
-  b += line(x0, y + h + 30, x0 + 1.5 * w, y + h + 30, 's-accent s-thick');
-  b += text(x0, y + h + 50, '15% = 8.4 + 4.2 = 12.6', 't t-accent t-start');
-  return svg(340, 154, b, 'A bar for 84 split into ten blocks of 8.4; one block plus half a block is 15%, which is 12.6');
-}
-
-/** Lines that build r% of y from 10% (or 1%), ending on the answer. */
+/** Lines that build r% of y from 10% (or 1%), one small operation each, ending on the answer. */
 function build(r: number, y: number, swap: number): Step[] {
   const v = toU(y);
   const P = (r10: number) => show(pctU(v, r10));
   const Y = money(y);
   const ans = P(Math.round(r * 10));
   const s: Step[] = [{ op: '', expr: `${r}% of ${Y}` }];
-  const ten = { op: '→', expr: `10% = ${P(100)}`, note: 'shift the point' };
-  const one = { op: '→', expr: `1% = ${P(10)}`, note: 'shift two places' };
+  const st = (expr: string, note: string): Step => ({ op: '', expr, note });
+  const ten = st(`${Y} ÷ 10 = ${P(100)}`, '10%: shift the point');
+  const half10 = st(`${P(100)} ÷ 2 = ${P(50)}`, '5%: half of 10%');
   if (swap) {
-    s.push({ expr: `${Y}% of ${r}`, note: 'x% of y = y% of x' });
     const d = y === 25 ? 4 : y === 50 ? 2 : 5;
-    const what = y === 25 ? 'a quarter' : y === 50 ? 'a half' : 'a fifth';
-    s.push({ expr: `${r} ÷ ${d}`, note: `${Y}% is ${what}` });
+    const what = y === 25 ? 'quarter' : y === 50 ? 'half' : 'fifth';
+    s.push(st(`${r} ÷ ${d} = ${ans}`, `swap: ${Y}% of ${r}, a ${what}`));
   } else if (r === 10) {
-    s.push({ expr: `${Y} ÷ 10`, note: 'shift the point' });
+    s.push(ten);
   } else if (r === 20) {
-    s.push(ten, { expr: `2 × ${P(100)}`, note: '20% = 2 × 10%' });
+    s.push(ten, st(`${P(100)} × 2 = ${P(200)}`, '20%: double 10%'));
   } else if (r === 5) {
-    s.push(ten, { expr: `${P(100)} ÷ 2`, note: 'half of 10%' });
+    s.push(ten, half10);
   } else if (r === 50) {
-    s.push({ expr: `${Y} ÷ 2`, note: '50% is half' });
+    s.push(st(`${Y} ÷ 2 = ${P(500)}`, '50%: half'));
   } else if (r === 25) {
-    s.push({ op: '→', expr: `50% = ${P(500)}`, note: 'half' }, { expr: `${P(500)} ÷ 2`, note: 'half again' });
+    s.push(st(`${Y} ÷ 2 = ${P(500)}`, '50%: half'), st(`${P(500)} ÷ 2 = ${P(250)}`, '25%: half again'));
   } else if (r === 15) {
-    s.push(ten, { op: '→', expr: `5% = ${P(50)}`, note: 'half of 10%' }, { expr: `${P(100)} + ${P(50)}` });
+    s.push(ten, half10, st(`${P(100)} + ${P(50)} = ${P(150)}`, '10% + 5%'));
   } else if (r === 18) {
     s.push(
       ten,
-      { op: '→', expr: `20% = ${P(200)}`, note: 'double 10%' },
-      { op: '→', expr: `2% = ${P(20)}`, note: '20% ÷ 10' },
-      { expr: `${P(200)} − ${P(20)}`, note: '20% − 2%' },
+      st(`${P(100)} × 2 = ${P(200)}`, '20%: double 10%'),
+      st(`${P(200)} ÷ 10 = ${P(20)}`, '2%: shift 20% once more'),
+      st(`${P(200)} − ${P(20)} = ${P(180)}`, '20% − 2%'),
     );
   } else if (r === 7) {
-    s.push(one, { expr: `7 × ${P(10)}` });
+    s.push(st(`${Y} ÷ 100 = ${P(10)}`, '1%: shift two places'), st(`${P(10)} × 7 = ${P(70)}`, '7 lots of 1%'));
   } else if (r === 12) {
-    s.push(ten, one, { op: '→', expr: `2% = ${P(20)}`, note: 'double 1%' }, { expr: `${P(100)} + ${P(20)}` });
+    s.push(
+      ten,
+      st(`${P(100)} ÷ 10 = ${P(10)}`, '1%: shift once more'),
+      st(`${P(10)} × 2 = ${P(20)}`, '2%: double 1%'),
+      st(`${P(100)} + ${P(20)} = ${P(120)}`, '10% + 2%'),
+    );
   } else if (r === 35) {
     s.push(
       ten,
-      { op: '→', expr: `30% = ${P(300)}`, note: '3 × 10%' },
-      { op: '→', expr: `5% = ${P(50)}`, note: 'half of 10%' },
-      { expr: `${P(300)} + ${P(50)}` },
+      st(`${P(100)} × 3 = ${P(300)}`, '30%: 3 lots of 10%'),
+      half10,
+      st(`${P(300)} + ${P(50)} = ${P(350)}`, '30% + 5%'),
     );
   } else {
     // 17.5% = 10% + 5% + 2.5%
     s.push(
       ten,
-      { op: '→', expr: `5% = ${P(50)}`, note: 'half of 10%' },
-      { op: '→', expr: `2.5% = ${P(25)}`, note: 'half of 5%' },
-      { expr: `${P(100)} + ${P(50)} + ${P(25)}` },
+      half10,
+      st(`${P(50)} ÷ 2 = ${P(25)}`, '2.5%: half of 5%'),
+      st(`${P(100)} + ${P(50)} + ${P(25)} = ${P(175)}`, '10% + 5% + 2.5%'),
     );
   }
-  s.push({ expr: ans });
+  s.push({ expr: ans, note: `${r}% of ${Y}` });
   return s;
 }
 
@@ -115,17 +105,31 @@ export default defineTechnique({
     category: 'est',
     tier: 'Foundation',
     order: 20,
-    idea: 'Get 10% by moving the decimal point, then build any rate from it.',
+    idea: 'Find 10% by shifting the decimal point, then halve, double or shift it again and add the pieces.',
   },
   card: {
     prose: [
-      '10% is one decimal shift; halve it for 5%, double it for 20%, shift again for 1%.',
-      'Assemble other rates from those pieces: 15% = 10% + 5%, 18% = 20% − 2%.',
-      'x% of y equals y% of x, so 8% of 25 is 25% of 8.',
+      'Shift the decimal point one place left to get 10%. Halve that for 5%, double it for 20%.',
+      'Shift once more for 1%. Add or subtract the pieces to reach the rate you want.',
+      'When the amount is 20, 25 or 50, swap the two: 8% of 25 is 25% of 8, a quarter of 8.',
     ],
     example: make(15, 84, 2),
-    graphic: diagram,
-    caption: 'Ten blocks of 8.4 make 84; one block and a half block give 15%.',
+    graphic: () =>
+      pieces({
+        input: '15% of 84',
+        ops: [
+          { text: '84 ÷ 10', out: '8.4' },
+          { text: '8.4 ÷ 2', out: '4.2' },
+        ],
+        answer: [
+          { text: '8.4', from: 0 },
+          { text: '+', from: null },
+          { text: '4.2', from: 1 },
+        ],
+        result: '12.6',
+        label: '15% of 84: shift the point to get 10%, 8.4; halve it to get 5%, 4.2; add them to get 12.6',
+      }),
+    caption: 'Get 10%, halve it for 5%, then add the two.',
   },
   levels,
   generate(rng, level) {

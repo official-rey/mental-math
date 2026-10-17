@@ -1,5 +1,5 @@
 import { defineTechnique } from '../define';
-import { rect, svg, text } from '../svg';
+import { chain } from '../svg';
 import type { Level, Levels, Problem, Rng, Step } from '../types';
 import { fmt, nonRound } from '../util';
 
@@ -53,21 +53,6 @@ function pickSplit(rng: Rng, b: number): number[] {
   return rng.pick(splits2(b));
 }
 
-/** a × b drawn as f2 stacked strips, each a × f1. */
-function diagram(): string {
-  const x0 = 70, y0 = 34, w = 200, sh = 24, n = 7;
-  let body = text(x0 + w / 2, 18, '47', 't t-dim');
-  for (let i = 0; i < n; i++) {
-    const first = i === 0;
-    body += rect(x0, y0 + i * sh, w, sh, first ? 'f-soft s-accent' : 'f-raised s-ink');
-    body += text(x0 + w / 2, y0 + i * sh + sh / 2, first ? '47 × 6 = 282' : '282', first ? 't t-sm t-accent t-b' : 't t-sm');
-  }
-  body += text(x0 - 8, y0 + sh / 2, '6', 't t-sm t-accent t-end');
-  body += text(28, y0 + (n * sh) / 2, '42', 't t-dim');
-  body += text(x0 + w + 26, y0 + (n * sh) / 2, '× 7', 't t-accent');
-  return svg(320, y0 + n * sh + 8, body, 'A 47 by 42 rectangle cut into 7 strips, each 47 by 6, worth 282');
-}
-
 export default defineTechnique({
   meta: {
     id: ID,
@@ -75,17 +60,25 @@ export default defineTechnique({
     category: 'mul',
     tier: 'Core',
     order: 90,
-    idea: 'Replace one factor by one-digit pieces and multiply by them in turn.',
+    idea: 'Split the second number into one-digit factors, then multiply by each factor in turn.',
   },
   card: {
     prose: [
-      'Write the friendlier factor as a product of one-digit numbers.',
-      'Multiply the other factor by each piece in turn, carrying only one number.',
-      'Every stage is a multiplication by a single digit.',
+      'Write the second number as one-digit factors: 42 = 6 × 7.',
+      'Multiply the first number by the first factor: 47 × 6 = 282.',
+      'Multiply that result by the next factor: 282 × 7 = 1,974.',
     ],
     example: make(47, [6, 7], 2),
-    graphic: diagram,
-    caption: '47 × 42 is seven strips of 47 × 6: find one strip, 282, then take seven of them.',
+    graphic: () =>
+      chain({
+        start: '47',
+        moves: [
+          { op: '× 6', value: '282' },
+          { op: '× 7', value: '1,974' },
+        ],
+        label: '47 times 42 with 42 as 6 times 7: 47 times 6 is 282, then 282 times 7 is 1,974',
+      }),
+    caption: 'With 42 as 6 × 7: times 6, then times 7.',
   },
   levels,
   generate(rng, level) {
@@ -109,15 +102,15 @@ export default defineTechnique({
     const fs = f3 > 1 ? [f1, f2, f3] : [f1, f2];
     const steps: Step[] = [
       { op: '', expr: `${a} × ${b}` },
-      { expr: [a, ...fs].join(' × '), note: `${b} = ${fs.join(' × ')}` },
+      { op: '', expr: `${fs.join(' × ')} = ${b}`, note: `split ${b} into digits` },
     ];
     let acc = a;
     fs.forEach((f, i) => {
       const prev = acc;
       acc *= f;
-      const rest = fs.slice(i + 1);
-      steps.push({ expr: [fmt(acc), ...rest].join(' × '), note: `${fmt(prev)} × ${f}` });
+      steps.push({ op: '', expr: `${fmt(prev)} × ${f} = ${fmt(acc)}`, note: i === 0 ? `times ${f}` : `then times ${f}` });
     });
+    steps.push({ expr: fmt(acc), note: 'answer' });
     return steps;
   },
 });

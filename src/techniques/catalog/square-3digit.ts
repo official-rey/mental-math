@@ -1,5 +1,5 @@
 import { defineTechnique } from '../define';
-import { arrowHead, line, rect, svg, text } from '../svg';
+import { chain } from '../svg';
 import type { Level, Levels, Problem, Rng, Step } from '../types';
 import { fmt, nonRound } from '../util';
 
@@ -33,45 +33,19 @@ function nearHundred(rng: Rng, d: number): number {
   return below ? 100 * k - d : 100 * k + d;
 }
 
-/** Side lines for d² when d is 2-digit: go up and down to a multiple of 10. */
+/** Steps for the distance squared; a 2-digit distance goes up and down again to a multiple of 10. */
 function smallSquare(d: number): Step[] {
   const r = d % 10;
+  if (d <= 9 || r === 0) return [{ op: '', expr: `${d}² = ${fmt(d * d)}`, note: 'square the distance' }];
   const up = r >= 5;
   const e = up ? 10 - r : r;
   const round = up ? d + e : d - e;
   const other = up ? d - e : d + e;
+  const prod = round * other;
   return [
-    { op: '→', expr: `${d}² = ${round} × ${other} + ${e}²`, note: up ? `up ${e}, down ${e}` : `down ${e}, up ${e}` },
-    { op: '→', expr: `${fmt(round * other)} + ${e * e} = ${fmt(round * other + e * e)}`, note: `${round}×${other}, ${e}²` },
+    { op: '', expr: `${round} × ${other} = ${fmt(prod)}`, note: `${d}²: ${up ? 'up' : 'down'} ${e}, ${up ? 'down' : 'up'} ${e}` },
+    { op: '', expr: `${fmt(prod)} + ${e * e} = ${fmt(prod + e * e)}`, note: `plus ${e}², so ${d}² = ${fmt(d * d)}` },
   ];
-}
-
-/** 596² with the bottom 4-strip stood up on the right: 600 × 592 plus a 4 × 4 overhang. */
-function diagram(): string {
-  const a = 596, d = 4;
-  const S = 110, D = 22, M = S - D, x0 = 36, y0 = 34;
-  let b = rect(x0, y0, S, M, 'f-raised s-ink');
-  b += rect(x0, y0 + M, S, D, 'f-soft s-accent');
-  b += text(x0 + S / 2, y0 - 14, a, 't t-dim');
-  b += text(x0 - 8, y0 + M / 2, a - d, 't t-dim t-end');
-  b += text(x0 - 8, y0 + M + D / 2, d, 't t-accent t-end');
-  b += text(x0 + S / 2, y0 + M + D / 2, `${a} × ${d}`, 't t-sm t-accent');
-  b += text(x0 + S / 2, y0 + S + 24, `${a}²`, 't t-sm');
-
-  const ay = y0 + M + D / 2;
-  b += line(x0 + S + 8, ay, x0 + S + 32, ay, 's-accent');
-  b += arrowHead(x0 + S + 36, ay, 1, 0);
-
-  const x1 = x0 + S + 60;
-  b += rect(x1, y0, S, M, 'f-raised s-ink');
-  b += rect(x1 + S, y0, D, M, 'f-soft s-accent');
-  b += rect(x1 + S, y0 + M, D, D, 'f-soft s-accent s-dash');
-  b += text(x1 + S + D / 2, y0 + M + D / 2, `${d}²`, 't t-sm t-accent');
-  b += text(x1 + (S + D) / 2, y0 - 14, a + d, 't t-accent t-b');
-  b += text(x1 - 8, y0 + M / 2, a - d, 't t-dim t-end');
-  b += text(x1 + (S + D) / 2, y0 + S + 24, `${a + d} × ${a - d} + ${d}²`, 't t-sm');
-  return svg(x1 + S + D + 14, y0 + S + 40, b,
-    '596 squared: the 596 by 4 strip moves to the side, making 600 by 592 with a 4 by 4 square left over');
 }
 
 export default defineTechnique({
@@ -81,17 +55,26 @@ export default defineTechnique({
     category: 'mul',
     tier: 'Advanced',
     order: 160,
-    idea: 'n² = (n + d)(n − d) + d², with d the distance to the nearest multiple of 100.',
+    idea: 'Go to the nearest hundred and the same distance the other way, multiply those, then add the distance squared.',
   },
   card: {
     prose: [
-      'Go up and down by d to the nearest hundred; that product is 1-digit × 3-digit, then zeros.',
-      'Square d with an earlier method: up and down again to a multiple of 10.',
-      'Add the two results.',
+      'Move the number to the nearest hundred, and move a copy the same distance the other way.',
+      'Multiply the two: one digit times the other number, then add 00.',
+      'Square the distance (up and down again if it has two digits) and add it on.',
     ],
     example: make(596, 1),
-    graphic: diagram,
-    caption: 'Standing the 596 × 4 strip on the side fills a 600 × 592 rectangle and leaves a 4 × 4 square over.',
+    graphic: () =>
+      chain({
+        start: '596²',
+        moves: [
+          { op: 'up 4, down 4', value: '600 × 592' },
+          { op: '6 × 592, add 00', value: '355,200' },
+          { op: '+ 4² (16)', value: '355,216' },
+        ],
+        label: 'Squaring 596: up 4 to 600 and down 4 to 592, 6 times 592 with 00 is 355,200, add 4 squared to get 355,216',
+      }),
+    caption: 'Up 4 and down 4, multiply, then add 4 squared.',
   },
   levels,
   generate(rng, level) {
@@ -105,15 +88,22 @@ export default defineTechnique({
     const k = round / 100, prod = round * other, sq = d * d;
     const steps: Step[] = [
       { op: '', expr: `${n}²` },
-      { expr: `${fmt(round)} × ${other} + ${d}²`, note: up ? `up ${d}, down ${d}` : `down ${d}, up ${d}` },
+      up
+        ? { op: '', expr: `${n} + ${d} = ${fmt(round)}`, note: 'up to the nearest hundred' }
+        : { op: '', expr: `${n} − ${d} = ${fmt(round)}`, note: 'down to the nearest hundred' },
+      up
+        ? { op: '', expr: `${n} − ${d} = ${other}`, note: `down the same ${d}` }
+        : { op: '', expr: `${n} + ${d} = ${other}`, note: `up the same ${d}` },
     ];
-    if (k > 1 && k < 10) {
+    if (k === 1 || k === 10) {
+      steps.push({ op: '', expr: `${other} × ${fmt(round)} = ${fmt(prod)}`, note: k === 1 ? 'add two 0s' : 'add three 0s' });
+    } else {
       const h = other - (other % 100), rest = other % 100;
-      steps.push({ op: '→', expr: `${k} × ${other} = ${fmt(k * other)}`, note: `${k}×${h}, ${k}×${rest}` });
+      steps.push({ op: '', expr: `${k} × ${other} = ${fmt(k * other)}`, note: rest ? `${k} × ${h}, then ${k} × ${rest}` : `${k} × ${h / 100}, add 00` });
+      steps.push({ op: '', expr: `${fmt(k * other)} × 100 = ${fmt(prod)}`, note: 'add two 0s' });
     }
-    if (d > 9) steps.push(...smallSquare(d));
-    const zeros = k === 10 ? 'append 000' : 'append 00';
-    steps.push({ expr: `${fmt(prod)} + ${fmt(sq)}`, note: d > 9 ? zeros : `${zeros}, ${d}²` });
+    steps.push(...smallSquare(d));
+    steps.push({ op: '', expr: `${fmt(prod)} + ${fmt(sq)}`, note: 'add the square on' });
     steps.push({ expr: fmt(prod + sq) });
     return steps;
   },

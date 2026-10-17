@@ -1,5 +1,5 @@
 import { defineTechnique } from '../define';
-import { rect, svg, text } from '../svg';
+import { chain } from '../svg';
 import type { Level, Levels, Problem, Step } from '../types';
 import { fmt, nonRound, numStr } from '../util';
 
@@ -73,22 +73,15 @@ const levels = {
   3: { label: '4-digit × 3-digit, 5-digit ÷ 2-digit', bounds: { kind: [0, 1], a: [1001, 99999], b: [11, 999] } },
 } as const satisfies Levels;
 
-/** Exact rectangle 476 × 236 inside the rounded 480 × 240, error strips exaggerated. */
-function diagram(): string {
-  const x = 52, y = 30, w = 240, h = 120, s = 13;
-  let b = '';
-  b += rect(x, y, w, h, 'f-soft s-accent');
-  b += rect(x, y, w - s, h - s, 'f-raised s-ink');
-  b += text(x + (w - s) / 2, y + (h - s) / 2 - 10, '476 × 236', 't t-sm t-dim');
-  b += text(x + (w - s) / 2, y + (h - s) / 2 + 10, '112,336', 't');
-  b += text(x + (w - s) / 2, 18, '476', 't t-sm t-dim');
-  b += text(x + w - s / 2, 18, '+4', 't t-sm t-accent');
-  b += text(x - 8, y + (h - s) / 2, '236', 't t-sm t-dim t-end');
-  b += text(x - 8, y + h - s / 2, '+4', 't t-sm t-accent t-end');
-  b += text(x + w + 8, y + h / 2, '≈1%', 't t-sm t-accent t-start');
-  b += text(x + (w - s) / 2, y + h + 14, '≈2%', 't t-sm t-accent');
-  b += text(x + w / 2, y + h + 38, '480 × 240 = 115,200', 't t-sm t-dim');
-  return svg(340, 200, b, 'The rounded 480 by 240 rectangle contains the exact 476 by 236 rectangle plus two thin strips worth about 1% and 2%');
+/** "476 + 4 = 480" or "236 − 6 = 230". */
+function roundStep(n: number, r: number, note: string): Step {
+  const up = r > n;
+  return { op: '', expr: `${fmt(n)} ${up ? '+' : '−'} ${fmt(Math.abs(r - n))} = ${fmt(r)}`, note };
+}
+
+/** How far a rounding moved the number, in whole percent. */
+function moveNote(n: number, r: number, pct: number): string {
+  return `round ${r > n ? 'up' : 'down'}, ${pct > 0 ? `about ${pct}%` : 'under 1%'}`;
 }
 
 export default defineTechnique({
@@ -98,17 +91,28 @@ export default defineTechnique({
     category: 'est',
     tier: 'Core',
     order: 10,
-    idea: 'Round each number to two significant figures, then undo the bias when the roundings compound.',
+    idea: 'Keep two leading digits of each number, multiply, then take off the overshoot if both went the same way.',
   },
   card: {
     prose: [
-      'Each rounding moves a product by roughly its own percentage; opposite moves largely cancel.',
-      'When both move the same way, take the combined percentage back off.',
-      'For a quotient, round the dividend and keep the 2-digit divisor exact.',
+      'Round each number to its first two digits and note roughly what percent you moved it.',
+      'Multiply the two-digit numbers and put the zeros back on.',
+      'Both moved up: take those percents off. Both down: add them on. To divide, round only the top number.',
     ],
     example: make(0, 476, 236, 2),
-    graphic: diagram,
-    caption: 'Rounding 476 × 236 up to 480 × 240 adds two thin strips, about 1% and 2% of the area.',
+    graphic: () =>
+      chain({
+        start: '476 × 236',
+        moves: [
+          { op: 'round both up', value: '480 × 240' },
+          { op: 'multiply', value: '115,200' },
+          { op: '− 3,500 (3%)', value: '111,700' },
+          { op: 'round', value: '112,000' },
+        ],
+        label:
+          'Estimating 476 times 236: round up to 480 times 240, multiply to 115,200, take off about 3% which is 3,500 to get 111,700, round to 112,000',
+      }),
+    caption: 'Round, multiply, then take back the few percent the rounding added.',
   },
   levels,
   generate(rng, level) {
@@ -138,33 +142,41 @@ export default defineTechnique({
     const ans = fmt(numStr(q.answer));
     const steps: Step[] = [{ op: '', expr: p.text }];
     if (kind === 1) {
-      steps.push({ op: '≈', expr: `${fmt(q.A)} ÷ ${fmt(b)}`, note: '2 sig figs' });
-      const check = fmt(numStr(b * q.answer));
-      steps.push({ op: '≈', expr: ans, note: `${b} × ${ans} = ${check}` });
+      steps.push(roundStep(a, q.A, 'keep 2 leading digits'));
+      steps.push({ op: '', expr: `${fmt(q.A)} ÷ ${b}`, note: 'divide to 3 figures' });
+      steps.push({ op: '', expr: `${b} × ${ans} = ${fmt(numStr(b * q.answer))}`, note: `check: close to ${fmt(q.A)}` });
+      steps.push({ op: '≈', expr: ans, note: 'the estimate' });
       return steps;
     }
-    steps.push({ op: '≈', expr: `${fmt(q.A)} × ${fmt(q.B)}`, note: '2 sig figs' });
-    if (Math.sign(q.A - a) * Math.sign(q.B - b) < 0) {
-      steps.push({ op: '→', expr: 'one up, one down', note: 'errors offset' });
-    }
+    steps.push(roundStep(a, q.A, moveNote(a, q.A, q.pa)));
+    if (q.B !== b) steps.push(roundStep(b, q.B, moveNote(b, q.B, q.pb)));
     const ma = mantissa(q.A), mb = mantissa(q.B);
-    steps.push({ expr: fmt(q.E), note: `${ma} × ${mb} = ${fmt(ma * mb)}` });
+    const z = Math.round(Math.log10(q.E / (ma * mb)));
+    steps.push({
+      op: '',
+      expr: `${fmt(q.A)} × ${fmt(q.B)} = ${fmt(q.E)}`,
+      note: `${ma} × ${mb}, then ${z} zero${z === 1 ? '' : 's'}`,
+    });
     let current = q.E;
+    let fixNote = '';
     if (q.dir !== 0) {
+      const k = q.pa + q.pb;
+      const one = q.E / 100;
+      const exact = (q.E * k) / 100;
+      const callIt = exact !== q.corr ? `, call it ${fmt(numStr(q.corr))}` : '';
+      steps.push({ op: '', expr: `${fmt(q.E)} ÷ 100 = ${fmt(numStr(one))}`, note: k === 1 ? `1%${callIt}` : '1%: shift two places' });
+      if (k > 1) steps.push({ op: '', expr: `${fmt(numStr(one))} × ${k} = ${fmt(numStr(exact))}`, note: `${k}%${callIt}` });
       steps.push({
-        op: '→',
-        expr: `both ${q.dir > 0 ? 'up' : 'down'}: ${q.pa}% + ${q.pb}%`,
-        note: `about ${q.pa + q.pb}% ${q.dir > 0 ? 'high' : 'low'}`,
+        op: '',
+        expr: `${fmt(q.E)} ${q.dir > 0 ? '−' : '+'} ${fmt(numStr(q.corr))} = ${fmt(numStr(q.C))}`,
+        note: q.dir > 0 ? 'both up: take it off' : 'both down: add it on',
       });
-      steps.push({
-        op: '≈',
-        expr: `${fmt(q.E)} ${q.dir > 0 ? '−' : '+'} ${fmt(numStr(q.corr))}`,
-        note: `${q.pa + q.pb}% of ${fmt(q.E)}`,
-      });
-      steps.push({ expr: fmt(numStr(q.C)) });
       current = q.C;
+    } else {
+      fixNote = Math.sign(q.A - a) * Math.sign(q.B - b) < 0 ? 'one up, one down: no fix' : 'no fix needed';
     }
-    if (current !== q.answer) steps.push({ op: '≈', expr: ans, note: '3 sig figs' });
+    if (current === q.answer) steps.push({ expr: ans, note: fixNote || 'the estimate' });
+    else steps.push({ op: '≈', expr: ans, note: fixNote ? 'no fix; round to 3 figures' : 'round to 3 figures' });
     return steps;
   },
   reference: (p) => truth(p.data.kind, p.data.a, p.data.b),

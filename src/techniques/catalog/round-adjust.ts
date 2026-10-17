@@ -1,6 +1,6 @@
 import { defineTechnique } from '../define';
-import { arrowHead, line, path, svg, text } from '../svg';
-import type { Level, Levels, Problem, Rng } from '../types';
+import { chain } from '../svg';
+import type { Level, Levels, Problem, Rng, Step } from '../types';
 import { fmt, nonRound } from '../util';
 
 const ID = 'round-adjust';
@@ -31,30 +31,6 @@ function operand(rng: Rng, lo: number, hi: number, r: number, sub: boolean): num
   return min + 1 > hi ? null : nonRound(rng, min, hi);
 }
 
-/** Overshoot then step back, drawn for 538 + 297 (spacing schematic). */
-function diagram(): string {
-  const y = 90;
-  const xa = 40, xr = 295, xs = 215;
-  let body = line(16, y, 326, y, 's-ink');
-  body += line(xa, y - 6, xa, y + 6, 's-ink');
-  body += line(xs, y - 6, xs, y + 6, 's-accent s-thick');
-  body += line(xr, y - 6, xr, y + 6, 's-ink');
-  body += text(xa, y + 20, '538', 't t-sm');
-  body += text(xs - 6, y + 16, '835', 't t-sm t-accent t-b t-end');
-  body += text(xr + 6, y + 16, '838', 't t-sm t-start');
-  // Overshoot: +300 above the line.
-  const mid1 = (xa + xr) / 2;
-  body += path(`M${xa},${y - 3} Q${mid1},10 ${xr},${y - 3}`, 's-accent f-none');
-  body += arrowHead(xr, y - 3, xr - mid1, y - 3 - 10);
-  body += text(mid1, 36, '+300', 't t-sm t-accent');
-  // Step back: −3 below the line.
-  const mid2 = (xr + xs) / 2;
-  body += path(`M${xr},${y + 3} Q${mid2},${y + 48} ${xs},${y + 3}`, 's-accent f-none');
-  body += arrowHead(xs, y + 3, xs - mid2, y + 3 - (y + 48));
-  body += text(mid2, y + 38, '−3', 't t-sm t-accent');
-  return svg(340, 140, body, 'Number line: 538 plus 300 overshoots to 838, then back 3 to 835');
-}
-
 export default defineTechnique({
   meta: {
     id: ID,
@@ -62,17 +38,25 @@ export default defineTechnique({
     category: 'addsub',
     tier: 'Foundation',
     order: 30,
-    idea: 'Move by the nearby round number, then correct by the small difference.',
+    idea: 'Round the second number up, add or take the round number, then fix by how much you rounded.',
   },
   card: {
     prose: [
-      'Write the awkward number as a round number minus a little: 297 = 300 − 3.',
-      'Add or subtract the round number, which changes only one or two digits.',
-      'Then undo the overshoot: take back what you added too much, give back what you took too much.',
+      'Round the second number up to the next ten or hundred and note how much you added: 297 is 3 short of 300.',
+      'Add (or take away) the round number.',
+      'Fix it: after adding, take that small amount back; after taking away, give it back.',
     ],
     example: make(538, 300, 3, false, 3),
-    graphic: diagram,
-    caption: 'For 538 + 297, hop 300 to 838, which is 3 too far, then step back to 835.',
+    graphic: () =>
+      chain({
+        start: '538',
+        moves: [
+          { op: '+ 300', value: '838' },
+          { op: '− 3', value: '835' },
+        ],
+        label: '538 plus 297: 297 is 3 short of 300, so add 300 to get 838, then take back 3 to get 835',
+      }),
+    caption: 'For 538 + 297: add 300, then take back the 3 you rounded up by.',
   },
   levels,
   generate(rng, level) {
@@ -94,14 +78,19 @@ export default defineTechnique({
   },
   steps(p) {
     const { a, b, r, d, sub } = p.data;
-    const op = sub ? '−' : '+', back = sub ? '+' : '−';
     const mid = sub ? a - r : a + r;
     const end = sub ? mid + d : mid - d;
-    return [
-      { op: '', expr: `${fmt(a)} ${op} ${fmt(b)}` },
-      { expr: `${fmt(a)} ${op} ${fmt(r)} ${back} ${d}`, note: `${fmt(b)} = ${fmt(r)} − ${d}` },
-      { expr: `${fmt(mid)} ${back} ${d}`, note: sub ? `take ${fmt(r)}` : `add ${fmt(r)}` },
-      { expr: fmt(end), note: sub ? `give back ${d}` : `take back ${d}` },
+    const steps: Step[] = [
+      { op: '', expr: `${fmt(a)} ${sub ? '−' : '+'} ${fmt(b)}` },
+      { op: '', expr: `${fmt(b)} + ${d} = ${fmt(r)}`, note: `round up: ${d} short` },
+      sub
+        ? { op: '', expr: `${fmt(a)} − ${fmt(r)} = ${fmt(mid)}`, note: `take ${fmt(r)}` }
+        : { op: '', expr: `${fmt(a)} + ${fmt(r)} = ${fmt(mid)}`, note: `add ${fmt(r)}` },
+      sub
+        ? { op: '', expr: `${fmt(mid)} + ${d} = ${fmt(end)}`, note: `took ${d} too many: give back` }
+        : { op: '', expr: `${fmt(mid)} − ${d} = ${fmt(end)}`, note: `added ${d} too many: take back` },
+      { expr: fmt(end), note: 'the fixed total' },
     ];
+    return steps;
   },
 });

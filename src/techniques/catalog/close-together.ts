@@ -1,6 +1,6 @@
 import { defineTechnique } from '../define';
-import { arrowHead, line, rect, svg, text } from '../svg';
-import type { Level, Levels, Problem, Rng } from '../types';
+import { pieces } from '../svg';
+import type { Level, Levels, Problem, Rng, Step } from '../types';
 import { fmt, nonRound } from '../util';
 
 const ID = 'close-together';
@@ -35,39 +35,6 @@ function offsets(rng: Rng, maxBig: number): [number, number] {
   return rng.chance(0.5) ? [small, big] : [big, small];
 }
 
-/** 43 × 48: the bottom 8-strip moves to the side, giving 40 × 51 plus the 3 × 8 corner. */
-function diagram(): string {
-  const Z = 90, A = 20, B = 30, x0 = 34, y0 = 34;
-  let s = rect(x0, y0, Z, Z, 'f-raised s-ink');
-  s += rect(x0 + Z, y0, A, Z, 'f-soft s-ink');
-  s += rect(x0, y0 + Z, Z, B, 'f-soft s-accent');
-  s += rect(x0 + Z, y0 + Z, A, B, 'f-none s-dim s-dash');
-  s += text(x0 + Z / 2, y0 + Z / 2, '40 × 40', 't t-sm');
-  s += text(x0 + Z / 2, y0 + Z + B / 2, '40 × 8', 't t-sm t-accent');
-  s += text(x0 + Z + A / 2, y0 + Z + B / 2, '24', 't t-sm t-dim');
-  s += text(x0 + Z / 2, y0 - 14, '40', 't t-dim');
-  s += text(x0 + Z + A / 2, y0 - 14, '3', 't t-dim');
-  s += text(x0 - 8, y0 + Z / 2, '40', 't t-dim t-end');
-  s += text(x0 - 8, y0 + Z + B / 2, '8', 't t-accent t-end');
-  s += text(x0 + (Z + A) / 2, y0 + Z + B + 22, '43 × 48', 't t-sm');
-
-  const ay = y0 + Z + B / 2;
-  s += line(x0 + Z + A + 8, ay, x0 + Z + A + 30, ay, 's-accent');
-  s += arrowHead(x0 + Z + A + 34, ay, 1, 0);
-
-  const x1 = 194;
-  s += rect(x1, y0, Z, Z, 'f-raised s-ink');
-  s += rect(x1 + Z, y0, A, Z, 'f-soft s-ink');
-  s += rect(x1 + Z + A, y0, B, Z, 'f-soft s-accent');
-  s += rect(x1 + Z, y0 + Z, A, B, 'f-none s-dim s-dash');
-  s += text(x1 + Z / 2, y0 + Z / 2, '40 × 40', 't t-sm');
-  s += text(x1 + Z + A / 2, y0 + Z + B / 2, '24', 't t-sm t-dim');
-  s += text(x1 + (Z + A + B) / 2, y0 - 14, '51', 't t-accent t-b');
-  s += text(x1 - 8, y0 + Z / 2, '40', 't t-dim t-end');
-  s += text(x1 + (Z + A + B) / 2, y0 + Z + B + 22, '40 × 51 + 3 × 8', 't t-sm');
-  return svg(348, 192, s, '43 by 48 rearranged into a 40 by 51 rectangle plus a 3 by 8 corner');
-}
-
 export default defineTechnique({
   meta: {
     id: ID,
@@ -75,17 +42,31 @@ export default defineTechnique({
     category: 'mul',
     tier: 'Core',
     order: 80,
-    idea: '(z + a)(z + b) = z(z + a + b) + ab, with z a round number just below both factors.',
+    idea: "Round number below both, times (first plus the second's extra); then add the two extras multiplied.",
   },
   card: {
     prose: [
-      'Pick a round z just below both factors; a and b are the overshoots.',
-      'Add one overshoot to the other factor and multiply by z; z + a + b is just x + b.',
-      'Then add the small product ab.',
+      'Find the round number just below both, and how far past it each number is (its extra).',
+      "Add the second number's extra to the first, and multiply that by the round number.",
+      'Multiply the two extras together and add that on.',
     ],
     example: make(40, 3, 8, 1),
-    graphic: diagram,
-    caption: 'The 40 × 8 strip under 43 × 48 moves to the side, making 40 × 51, with the 3 × 8 corner left over.',
+    graphic: () =>
+      pieces({
+        input: '43 × 48',
+        ops: [
+          { text: '43 + 8', out: '51' },
+          { text: '40 × 51', out: '2,040' },
+          { text: '3 × 8', out: '24' },
+        ],
+        answer: [
+          { text: '2,040', from: 1 },
+          { text: '+ 24', from: 2 },
+        ],
+        result: '2,064',
+        label: '43 times 48: 43 plus 8 is 51, 40 times 51 is 2,040, the extras 3 times 8 is 24, so 2,064',
+      }),
+    caption: "Add 48's extra to 43, multiply by 40, then add the extras multiplied.",
   },
   levels,
   generate(rng, level) {
@@ -100,13 +81,16 @@ export default defineTechnique({
     const s = x + b;
     const scale = z >= 100 ? 100 : 10;
     const lead = z / scale;
-    const zeros = scale === 100 ? '00' : '0';
-    const prodNote = lead === 1 ? `append ${zeros}, ${a}×${b}` : `${lead}×${s} = ${fmt(lead * s)}, ${a}×${b}`;
-    return [
+    const zeros = scale === 100 ? '00' : 'a 0';
+    const prodNote = lead === 1 ? (scale === 100 ? 'add two 0s' : `${s}, add a 0`) : `${lead} × ${s}, add ${zeros}`;
+    const steps: Step[] = [
       { op: '', expr: `${x} × ${y}` },
-      { expr: `${z} × ${s} + ${a} × ${b}`, note: `${x} + ${b} = ${s}` },
-      { expr: `${fmt(z * s)} + ${a * b}`, note: prodNote },
+      { op: '', expr: `${x} + ${b} = ${s}`, note: `${y} is ${b} past ${z}` },
+      { op: '', expr: `${z} × ${s} = ${fmt(z * s)}`, note: prodNote },
+      { op: '', expr: `${a} × ${b} = ${a * b}`, note: 'multiply the extras' },
+      { op: '', expr: `${fmt(z * s)} + ${a * b}`, note: 'add it on' },
       { expr: fmt(z * s + a * b) },
     ];
+    return steps;
   },
 });

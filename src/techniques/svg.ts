@@ -124,3 +124,92 @@ export function numberLine(o: NumberLineOptions): string {
   }
   return svg(W, H, body, o.label ?? 'Number line');
 }
+
+/* ---------- Process diagrams: how the numbers are worked, in order ---------- */
+
+const CHAR = { t: 8.6, lg: 11.6, xl: 15.8 };
+
+export interface ChainOptions {
+  /** Starting value, e.g. "476". */
+  start: string;
+  /** Each move applied to the running value, in order: { op: '+ 300', value: '776' }. */
+  moves: { op: string; value: string }[];
+  label: string;
+}
+
+/** A running total worked top to bottom: value, the move applied, the new value, … */
+export function chain(o: ChainOptions): string {
+  const W = 300, gap = 56, top = 26;
+  const H = top + o.moves.length * gap + 30;
+  const cx = 120;
+  const box = (y: number, v: string, final: boolean) => {
+    const w = Math.max(56, v.length * CHAR.lg + 22);
+    return (
+      rect(cx - w / 2, y - 16, w, 32, final ? 'f-soft s-accent' : 'f-raised s-ink') +
+      text(cx, y, v, final ? 't t-lg t-accent t-b' : 't t-lg')
+    );
+  };
+  let body = box(top, o.start, o.moves.length === 0);
+  o.moves.forEach((m, i) => {
+    const y0 = top + i * gap + 16, y1 = top + (i + 1) * gap - 16;
+    body += line(cx, y0, cx, y1 - 2, 's-accent') + arrowHead(cx, y1, 0, 1);
+    body += circle(cx + 28, (y0 + y1) / 2, 8, 'f-paper s-accent');
+    body += text(cx + 28, (y0 + y1) / 2, i + 1, 't t-sm t-accent');
+    body += text(cx + 44, (y0 + y1) / 2, m.op, 't t-accent t-start');
+    body += box(top + (i + 1) * gap, m.value, i === o.moves.length - 1);
+  });
+  return svg(W, H, body, o.label);
+}
+
+export interface PiecesOptions {
+  /** The problem, shown at the top. */
+  input: string;
+  /** Small operations done separately, in order: { text: '25 + 3', out: '28' }. */
+  ops: { text: string; out: string }[];
+  /** The answer's chunks, left to right; `from` is the index of the op that produced it (or null). */
+  answer: { text: string; from: number | null }[];
+  /** Final answer if it reads differently from the joined chunks (e.g. with a comma or a carry). */
+  result?: string;
+  label: string;
+}
+
+/** Separate small results slotted into place to form the answer. */
+export function pieces(o: PiecesOptions): string {
+  const W = 340;
+  const n = o.ops.length;
+  const slot = (W - 20) / n;
+  const yIn = 24, yOp = 82, yOut = 120, yAns = 178;
+  const H = o.result ? 236 : 210;
+  let body = text(W / 2, yIn, o.input, 't t-xl');
+  const opX: number[] = [];
+  o.ops.forEach((op, i) => {
+    const x = 10 + slot * (i + 0.5);
+    opX.push(x);
+    const w = Math.min(slot - 12, Math.max(64, op.text.length * CHAR.t + 20));
+    body += line(W / 2, yIn + 16, x, yOp - 20, 's-rule s-dash');
+    body += rect(x - w / 2, yOp - 15, w, 30, 'f-raised s-ink');
+    body += text(x, yOp, op.text, 't');
+    body += circle(x - w / 2, yOp - 15, 8, 'f-paper s-accent');
+    body += text(x - w / 2, yOp - 15, i + 1, 't t-sm t-accent');
+    body += text(x, yOut, op.out, 't t-lg t-accent t-b');
+  });
+  // Answer chunks side by side, centered.
+  const widths = o.answer.map((a) => Math.max(30, a.text.length * CHAR.lg + 14));
+  const total = widths.reduce((a, b) => a + b, 0);
+  let x = W / 2 - total / 2;
+  o.answer.forEach((a, i) => {
+    const w = widths[i];
+    const cx = x + w / 2;
+    const hot = a.from !== null;
+    body += rect(x, yAns - 17, w, 34, hot ? 'f-soft s-accent' : 'f-raised s-ink');
+    body += text(cx, yAns, a.text, hot ? 't t-lg t-b' : 't t-lg');
+    if (a.from !== null && opX[a.from] !== undefined) {
+      const sx = opX[a.from];
+      body += line(sx, yOut + 12, cx, yAns - 20, 's-accent');
+      body += arrowHead(cx, yAns - 18, cx - sx, yAns - 18 - (yOut + 12));
+    }
+    x += w;
+  });
+  if (o.result) body += text(W / 2, yAns + 40, `= ${o.result}`, 't t-lg t-b');
+  return svg(W, H, body, o.label);
+}

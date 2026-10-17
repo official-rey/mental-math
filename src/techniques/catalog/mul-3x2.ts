@@ -1,5 +1,5 @@
 import { defineTechnique } from '../define';
-import { areaModel } from '../svg';
+import { chain } from '../svg';
 import type { Level, Levels, Problem, Step } from '../types';
 import { fmt, nonRound } from '../util';
 
@@ -17,10 +17,11 @@ function make(a: number, b: number, level: Level): Problem {
   return { technique: ID, level, text: `${a} × ${b}`, answer: String(answer), data: { a, b } };
 }
 
-/** How a × T is found for a round T: one digit product, then a shift. */
+/** How a × T is found for a round T: a one-digit product, then zeros on the end. */
 function tensNote(a: number, t: number): string {
-  if (t === 10 || t === 100) return `${a} × ${t}`;
-  return `${a}×${t / 10} = ${fmt((a * t) / 10)}, ×10`;
+  if (t === 10) return 'add a 0';
+  if (t === 100) return 'add two 0s';
+  return `${a}×${t / 10} = ${fmt((a * t) / 10)}, add a 0`;
 }
 
 const levels = {
@@ -36,25 +37,25 @@ export default defineTechnique({
     category: 'mul',
     tier: 'Advanced',
     order: 150,
-    idea: 'Split the 2-digit factor at its tens: two 3-digit × 1-digit products, then one sum or difference.',
+    idea: 'Multiply by the tens, then by the ones, and add. Ending in 8 or 9: round up and subtract.',
   },
   card: {
     prose: [
-      'Split the 2-digit factor into tens and ones and multiply by each part.',
-      'If it ends in 8 or 9, round it up instead and subtract 1 or 2 copies.',
-      'Hold the larger partial product while the smaller one is formed.',
+      'Multiply by the tens: 853 × 4 = 3,412, add a 0 to get 34,120.',
+      'Multiply by the ones: 853 × 7 = 5,971, then add the two: 40,091.',
+      'If it ends in 8 or 9, round up to the next ten instead and take away 2 or 1 copies.',
     ],
     example: make(853, 47, 2),
     graphic: () =>
-      areaModel({
-        cols: [40, 7],
-        rows: [853],
-        cell: (_r, c) => fmt([34120, 5971][c]),
-        accent: [[0, 0]],
-        height: 150,
-        label: 'Area model: 853 by 47 split into 853 by 40 and 853 by 7',
+      chain({
+        start: '853 × 47',
+        moves: [
+          { op: '853 × 40', value: '34,120' },
+          { op: '+ 853 × 7', value: '40,091' },
+        ],
+        label: '853 times 47: 853 times 40 is 34,120, then add 853 times 7, 5,971, to reach 40,091',
       }),
-    caption: 'The 853 × 47 rectangle is an 853 × 40 block, 34,120, plus an 853 × 7 strip, 5,971.',
+    caption: 'Multiply by 40 first, then add on 853 × 7.',
   },
   levels,
   generate(rng, level) {
@@ -67,20 +68,21 @@ export default defineTechnique({
     const big = a * t, small = a * Math.abs(r);
     const steps: Step[] = [{ op: '', expr: `${a} × ${b}` }];
     if (r > 0) {
-      steps.push({ expr: `${a} × ${t} + ${a} × ${r}`, note: `${b} = ${t} + ${r}` });
-      steps.push({ expr: `${fmt(big)} + ${a} × ${r}`, note: tensNote(a, t) });
-      steps.push({ expr: `${fmt(big)} + ${fmt(small)}`, note: `${a} × ${r}` });
-      steps.push({ expr: fmt(big + small) });
-    } else if (r === -1) {
-      steps.push({ expr: `${a} × ${t} − ${a}`, note: `${b} = ${t} − 1` });
-      steps.push({ expr: `${fmt(big)} − ${a}`, note: tensNote(a, t) });
-      steps.push({ expr: fmt(big - small) });
+      steps.push({ op: '', expr: `${a} × ${t} = ${fmt(big)}`, note: tensNote(a, t) });
+      steps.push({ op: '', expr: `${a} × ${r} = ${fmt(small)}`, note: 'times the ones' });
+      steps.push({ op: '', expr: `${fmt(big)} + ${fmt(small)} = ${fmt(big + small)}`, note: 'add them' });
+      steps.push({ expr: fmt(big + small), note: 'answer' });
     } else {
       const d = -r;
-      steps.push({ expr: `${a} × ${t} − ${a} × ${d}`, note: `${b} = ${t} − ${d}` });
-      steps.push({ expr: `${fmt(big)} − ${a} × ${d}`, note: tensNote(a, t) });
-      steps.push({ expr: `${fmt(big)} − ${fmt(small)}`, note: `${a} × ${d}` });
-      steps.push({ expr: fmt(big - small) });
+      steps.push({ op: '', expr: `${b} + ${d} = ${t}`, note: 'round up' });
+      steps.push({ op: '', expr: `${a} × ${t} = ${fmt(big)}`, note: tensNote(a, t) });
+      if (d === 1) {
+        steps.push({ op: '', expr: `${fmt(big)} − ${a} = ${fmt(big - small)}`, note: `take away one ${a}` });
+      } else {
+        steps.push({ op: '', expr: `${a} × ${d} = ${fmt(small)}`, note: `${d} copies of ${a}` });
+        steps.push({ op: '', expr: `${fmt(big)} − ${fmt(small)} = ${fmt(big - small)}`, note: 'take them away' });
+      }
+      steps.push({ expr: fmt(big - small), note: 'answer' });
     }
     return steps;
   },

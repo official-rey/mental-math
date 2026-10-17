@@ -1,5 +1,5 @@
 import { defineTechnique } from '../define';
-import { arrowHead, line, svg, text } from '../svg';
+import { pieces } from '../svg';
 import type { Level, Levels, Problem, Rng, Step } from '../types';
 import { fmt } from '../util';
 
@@ -58,27 +58,6 @@ function level3(rng: Rng): [number, number] {
   }
 }
 
-function diagram(): string {
-  const xn = 100, xd = 220, r1 = 70, r2 = 112;
-  let body = text(160, 12, 'base 100', 't t-sm t-dim');
-  body += text(xn, 38, 'number', 't t-sm t-dim');
-  body += text(xd, 38, 'deficit', 't t-sm t-dim');
-  body += text(xn, r1, '97', 't t-lg');
-  body += text(xd, r1, '−3', 't t-lg');
-  body += text(xn, r2, '94', 't t-lg');
-  body += text(xd, r2, '−6', 't t-lg');
-  body += line(124, r1 + 6, 194, r2 - 8, 's-accent');
-  body += arrowHead(198, r2 - 6, 70, r2 - 14 - r1, 'f-accent');
-  body += text(258, (r1 + r2) / 2, '×', 't t-dim');
-  body += line(60, 136, 260, 136, 's-rule');
-  body += text(xn, 162, '91', 't t-lg t-accent t-b');
-  body += text(160, 162, '|', 't t-lg t-dim');
-  body += text(xd, 162, '18', 't t-lg t-b');
-  body += text(xn, 192, '97 − 6', 't t-sm t-dim');
-  body += text(xd, 192, '3 × 6', 't t-sm t-dim');
-  return svg(320, 206, body, 'Nikhilam layout for 97 times 94: deficits 3 and 6, left part 97 minus 6 is 91, right part 3 times 6 is 18, answer 9118');
-}
-
 export default defineTechnique({
   meta: {
     id: ID,
@@ -86,17 +65,32 @@ export default defineTechnique({
     category: 'mul',
     tier: 'Core',
     order: 120,
-    idea: '(B − x)(B − y) = B(B − x − y) + xy: cross-subtract a deficit, then multiply the deficits.',
+    idea: 'Find each distance from the base. Left part: cross-subtract a distance. Right part: multiply the distances.',
   },
   card: {
     prose: [
-      'Write each number’s distance from the base: below is a deficit, above is a surplus.',
-      'Left part: either number plus the other’s signed distance. Right part: the product of the distances.',
-      'The right part fills as many digits as the base has zeros; a negative one borrows from the left.',
+      'Find how far each number is from the base, 100 or 1,000.',
+      'Left part: take one number and subtract the other one’s distance (add it if that one is above).',
+      'Right part: multiply the distances, padded to two digits (three for 1,000). One above, one below: borrow.',
     ],
     example: make(97, 94, 100, 1),
-    graphic: diagram,
-    caption: 'Deficits 3 and 6 sit beside 97 and 94; 97 − 6 gives the hundreds, 3 × 6 the last two digits.',
+    graphic: () =>
+      pieces({
+        input: '97 × 94',
+        ops: [
+          { text: '100−97', out: '3' },
+          { text: '100−94', out: '6' },
+          { text: '97−6', out: '91' },
+          { text: '3×6', out: '18' },
+        ],
+        answer: [
+          { text: '91', from: 2 },
+          { text: '18', from: 3 },
+        ],
+        result: '9,118',
+        label: '97 times 94: distances 3 and 6 from 100, 97 minus 6 gives 91, 3 times 6 gives 18, so 9,118',
+      }),
+    caption: 'Get both distances, then build the left part and the right part from them.',
   },
   levels,
   generate(rng, level) {
@@ -114,26 +108,26 @@ export default defineTechnique({
     const width = String(base).length - 1;
     const pad = (n: number) => String(n).padStart(width, '0');
     const B = fmt(base);
-    const dev = (n: number, d: number): Step =>
+    const dist = (n: number, d: number): Step =>
       d < 0
-        ? { op: '→', expr: `${B} − ${fmt(n)} = ${-d}`, note: `${fmt(n)} is ${-d} below` }
-        : { op: '→', expr: `${fmt(n)} − ${B} = ${d}`, note: `${fmt(n)} is ${d} above` };
-    const steps: Step[] = [{ op: '', expr: `${fmt(x)} × ${fmt(y)}` }, dev(x, dx), dev(y, dy)];
+        ? { op: '', expr: `${B} − ${fmt(n)} = ${-d}`, note: `${fmt(n)} is ${-d} below` }
+        : { op: '', expr: `${fmt(n)} − ${B} = ${d}`, note: `${fmt(n)} is ${d} above` };
+    const steps: Step[] = [{ op: '', expr: `${fmt(x)} × ${fmt(y)}` }, dist(x, dx), dist(y, dy)];
     steps.push(
       dy < 0
-        ? { op: '→', expr: `${fmt(x)} − ${-dy} = ${fmt(left)}`, note: 'left: cross-subtract' }
-        : { op: '→', expr: `${fmt(x)} + ${dy} = ${fmt(left)}`, note: 'left: cross-add' },
+        ? { op: '', expr: `${fmt(x)} − ${-dy} = ${fmt(left)}`, note: 'left: cross-subtract' }
+        : { op: '', expr: `${fmt(x)} + ${dy} = ${fmt(left)}`, note: 'left: cross-add' },
     );
     const mag = Math.abs(right);
     if (right >= 0) {
-      steps.push({ op: '→', expr: `${Math.abs(dx)} × ${Math.abs(dy)} = ${mag}`, note: 'right: product' });
-      steps.push({ op: '→', expr: `${fmt(left)} | ${pad(mag)}`, note: 'left | right' });
+      steps.push({ op: '', expr: `${Math.abs(dx)} × ${Math.abs(dy)} = ${mag}`, note: pad(mag) === String(mag) ? 'right: multiply distances' : `right: write ${pad(mag)}` });
+      steps.push({ expr: fmt(value), note: `${fmt(left)} then ${pad(mag)}` });
     } else {
-      steps.push({ op: '→', expr: `${Math.abs(dx)} × ${Math.abs(dy)} = ${mag}`, note: `signs differ: −${mag}` });
-      steps.push({ op: '→', expr: `${fmt(left)} | −${pad(mag)}`, note: 'left | right' });
-      steps.push({ op: '→', expr: `${fmt(left - 1)} | ${pad(base - mag)}`, note: `borrow: ${B} − ${mag}` });
+      steps.push({ op: '', expr: `${Math.abs(dx)} × ${Math.abs(dy)} = ${mag}`, note: 'one above, one below' });
+      steps.push({ op: '', expr: `${fmt(left)} − 1 = ${fmt(left - 1)}`, note: 'borrow 1 from the left' });
+      steps.push({ op: '', expr: `${B} − ${mag} = ${base - mag}`, note: pad(base - mag) === String(base - mag) ? 'right part' : `right: write ${pad(base - mag)}` });
+      steps.push({ expr: fmt(value), note: `${fmt(left - 1)} then ${pad(base - mag)}` });
     }
-    steps.push({ expr: fmt(value), note: 'join the parts' });
     return steps;
   },
 });

@@ -1,5 +1,5 @@
 import { defineTechnique } from '../define';
-import { circle, line, path, svg, text } from '../svg';
+import { chain } from '../svg';
 import type { Level, Levels, Problem, Step } from '../types';
 import { fmt, scaled } from '../util';
 
@@ -51,30 +51,6 @@ const levels = {
   3: { label: 'rate to double, ×4', bounds: { kind: [2, 3], x: [2, 36], dp: [0, 1] } },
 } as const satisfies Levels;
 
-/** Growth at 6% a year: the curve passes ×2, ×4, ×8 at equal 12-year steps. */
-function diagram(): string {
-  const X0 = 44, X1 = 316, Y0 = 168, Y1 = 30;
-  const X = (t: number) => X0 + (t / 36) * (X1 - X0);
-  const Y = (v: number) => Y0 - ((v - 1) / 7) * (Y0 - Y1);
-  let b = line(X0, Y0, X1 + 6, Y0, 's-ink') + line(X0, Y0, X0, Y1 - 8, 's-ink');
-  let d = '';
-  for (let t = 0; t <= 36; t += 1) d += `${t ? 'L' : 'M'}${X(t).toFixed(1)},${Y(2 ** (t / 12)).toFixed(1)} `;
-  [12, 24, 36].forEach((t, i) => {
-    const v = 2 ** (i + 1);
-    b += line(X(t), Y0, X(t), Y(v), 's-dim s-dash');
-    b += line(X0, Y(v), X(t), Y(v), 's-dim s-dash');
-    b += text(X0 - 8, Y(v), `×${v}`, 't t-sm t-accent t-end');
-    b += text(X(t), Y0 + 14, String(t), 't t-sm');
-  });
-  b += text(X0 - 8, Y0, '×1', 't t-sm t-dim t-end');
-  b += text(X0, Y0 + 14, '0', 't t-sm t-dim');
-  b += path(d, 's-accent s-thick f-none');
-  [12, 24, 36].forEach((t, i) => (b += circle(X(t), Y(2 ** (i + 1)), 3.5, 'f-accent s-accent')));
-  [6, 18, 30].forEach((t) => (b += text(X(t), Y0 + 14, '12 y', 't t-sm t-dim')));
-  b += text(X1 + 6, Y0 + 30, 'years at 6%', 't t-sm t-dim t-end');
-  return svg(340, 210, b, 'Exponential growth at 6% a year: the amount doubles at 12, 24 and 36 years, equally spaced');
-}
-
 export default defineTechnique({
   meta: {
     id: ID,
@@ -82,17 +58,25 @@ export default defineTechnique({
     category: 'est',
     tier: 'Foundation',
     order: 40,
-    idea: 'At r% a year, money doubles in about 72 ÷ r years.',
+    idea: 'Divide 72 by the yearly rate to get the years it takes to double.',
   },
   card: {
     prose: [
-      'Doubling takes ln 2 ÷ ln(1 + r/100) ≈ 69.3 ÷ r years; 72 is used for its many divisors.',
-      'Read it backwards for the rate: doubling in n years needs about 72 ÷ n percent.',
-      'Doublings stack: ×4 takes twice as long, ×8 three times.',
+      'Divide 72 by the yearly rate: the result is the years until the money doubles.',
+      'Asked for the rate that doubles it in so many years? Divide 72 by the years instead.',
+      'To quadruple, double 72 to 144 first, then divide.',
     ],
     example: make(DOUBLE, 6, 0, 0, 1),
-    graphic: diagram,
-    caption: 'At 6% the curve reaches ×2, ×4 and ×8 at equal steps of 72 ÷ 6 = 12 years.',
+    graphic: () =>
+      chain({
+        start: '72',
+        moves: [
+          { op: '÷ 6, the rate', value: '12' },
+          { op: '× 2, for ×4', value: '24' },
+        ],
+        label: 'Rule of 72 at 6% a year: 72 divided by 6 is 12 years to double; twice that, 24 years, to quadruple',
+      }),
+    caption: 'Divide 72 by the rate for the years to double; twice as long gets you ×4.',
   },
   levels,
   generate(rng, level) {
@@ -112,23 +96,29 @@ export default defineTechnique({
   steps(p) {
     const { kind, x, dp } = p.data;
     const s: Step[] = [{ op: '', expr: p.text }];
-    const exact = numer(kind) % x === 0;
-    if (kind === QUAD) {
-      s.push({ expr: `2 × 72 ÷ ${x}`, note: 'two doublings' });
-      s.push({ expr: `144 ÷ ${x}` });
-    } else {
-      s.push({ expr: `72 ÷ ${x}`, note: kind === RATE ? 'rule of 72, reversed' : 'rule of 72' });
-    }
-    if (exact) {
-      s.push({ expr: String(numer(kind) / x) });
+    const top = numer(kind);
+    const by = kind === RATE ? 'divide 72 by the years' : 'divide by the rate';
+    const what = kind === RATE ? '% a year' : kind === QUAD ? 'years to quadruple' : 'years to double';
+    if (kind === QUAD) s.push({ op: '', expr: '72 × 2 = 144', note: 'two doublings' });
+    if (top % x === 0) {
+      s.push({ op: '', expr: `${top} ÷ ${x} = ${top / x}`, note: by });
+      s.push({ expr: String(top / x), note: what });
       return s;
     }
     const tenths = ruleValue(kind, x, 1);
     const t1 = scaled(tenths, 1);
     const back = x * tenths;
-    if (back === numer(kind) * 10) s.push({ expr: t1 });
-    else s.push({ op: '≈', expr: t1, note: `${x} × ${t1} = ${scaled(back, 1)}` });
-    if (!dp) s.push({ op: '≈', expr: String(ruleValue(kind, x, 0)), note: 'nearest year' });
+    if (back === top * 10) {
+      s.push({ op: '', expr: `${top} ÷ ${x} = ${t1}`, note: by });
+    } else {
+      s.push({ op: '', expr: `${top} ÷ ${x}`, note: by });
+      const guess = dp ? tenths : ruleValue(kind, x, 0);
+      const g = dp ? t1 : String(guess);
+      s.push({ op: '', expr: `${x} × ${g} = ${dp ? scaled(back, 1) : x * guess}`, note: `try ${g}: close to ${top}` });
+    }
+    const exactTenths = back === top * 10;
+    if (dp) s.push(exactTenths ? { expr: t1, note: what } : { op: '≈', expr: t1, note: what });
+    else s.push({ op: '≈', expr: String(ruleValue(kind, x, 0)), note: `${what}, rounded` });
     return s;
   },
   reference: (p) => truth(p.data.kind, p.data.x),

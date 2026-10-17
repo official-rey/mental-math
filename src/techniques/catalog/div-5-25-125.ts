@@ -1,5 +1,5 @@
 import { defineTechnique } from '../define';
-import { line, rect, svg, text } from '../svg';
+import { chain } from '../svg';
 import type { Level, Levels, Problem, Step } from '../types';
 import { fmt, nonRound, scaled } from '../util';
 
@@ -19,35 +19,18 @@ const levels = {
   3: { label: '3–4-digit ÷ 25 or 125', bounds: { n: [101, 9999], d: [25, 125] } },
 } as const satisfies Levels;
 
-const POINT = ['', 'point 1 left', 'point 2 left', 'point 3 left'];
-
-/** A square split into k × k cells with the top-left `s × s` block shaded. */
-function grid(x: number, y: number, size: number, k: number, s: number): string {
-  const c = size / k;
-  let body = rect(x, y, size, size, 'f-raised');
-  body += rect(x, y, c * s, c * s, 'f-accent');
-  for (let i = 1; i < k; i++) {
-    body += line(x + i * c, y, x + i * c, y + size, 's-rule s-thin');
-    body += line(x, y + i * c, x + size, y + i * c, 's-rule s-thin');
-  }
-  body += rect(x, y, size, size, 'f-none s-ink');
-  return body;
-}
+const PLACE = ['', 'point 1 place', 'point 2 places', 'point 3 places'];
 
 function graphic(): string {
-  let body = '';
-  body += grid(30, 16, 110, 5, 1);
-  body += grid(200, 16, 110, 10, 2);
-  body += text(170, 71, '=', 't t-xl');
-  body += text(85, 144, '1/25', 't t-b');
-  body += text(255, 144, '4/100', 't t-b');
-  body += text(170, 180, '37 ÷ 25 = 37 × 4 ÷ 100 = 1.48', 't t-accent');
-  return svg(
-    340,
-    196,
-    body,
-    'A square cut into 25 cells next to the same square cut into 100 cells: one twenty-fifth covers four hundredths, so 37 divided by 25 is 148 hundredths, 1.48',
-  );
+  return chain({
+    start: '37',
+    moves: [
+      { op: '× 2', value: '74' },
+      { op: '× 2', value: '148' },
+      { op: 'point 2 left', value: '1.48' },
+    ],
+    label: 'Dividing 37 by 25: 1, double 37 to 74; 2, double again to 148; 3, move the point two places left to get 1.48',
+  });
 }
 
 export default defineTechnique({
@@ -57,16 +40,17 @@ export default defineTechnique({
     category: 'div',
     tier: 'Foundation',
     order: 20,
-    idea: 'Dividing by 5, 25 or 125 is multiplying by 2, 4 or 8 and shifting the point.',
+    idea: 'For ÷5 double once, ÷25 double twice, ÷125 double three times; then move the point that many places left.',
   },
   card: {
     prose: [
-      '5 = 10/2, 25 = 100/4 and 125 = 1,000/8, so each division turns into a small multiplication.',
-      '÷5: double, then ÷10. ÷25: double twice, then ÷100. ÷125: double three times, then ÷1,000.',
+      'Double the number: once for ÷5, twice for ÷25, three times for ÷125.',
+      'Move the decimal point left: 1 place for ÷5, 2 for ÷25, 3 for ÷125.',
+      'Drop any zeros left at the end after the point.',
     ],
     example: make(37, 25, 2),
     graphic,
-    caption: 'One cell of 25 is the same area as four cells of 100, so dividing by 25 counts hundredths, four at a time.',
+    caption: 'Double, double again, then slide the point two places left.',
   },
   levels,
   generate(rng, level) {
@@ -77,16 +61,15 @@ export default defineTechnique({
   steps(p) {
     const { n, d } = p.data;
     const [k, places] = RULE[d];
-    const pow = 10 ** places;
     const steps: Step[] = [{ op: '', expr: `${fmt(n)} ÷ ${d}` }];
-    steps.push({ expr: `${fmt(n)} × ${k} ÷ ${fmt(pow)}`, note: `÷${d} = ×${k} ÷${fmt(pow)}` });
     let v = n;
     for (let i = 0; i < Math.log2(k); i++) {
-      steps.push({ op: '→', expr: `${fmt(v)} × 2 = ${fmt(v * 2)}`, note: i === 0 ? 'double' : 'double again' });
+      steps.push({ op: '', expr: `${fmt(v)} × 2 = ${fmt(v * 2)}`, note: ['double', 'double again', 'double a third time'][i] });
       v *= 2;
     }
-    steps.push({ expr: `${fmt(v)} ÷ ${fmt(pow)}` });
-    steps.push({ expr: fmt(scaled(v, places)), note: POINT[places] });
+    const ans = scaled(v, places);
+    const trimmed = !ans.includes('.') || ans.split('.')[1].length < places;
+    steps.push({ expr: fmt(ans), note: `${PLACE[places]} left${trimmed ? ', drop 0s' : ''}` });
     return steps;
   },
 });

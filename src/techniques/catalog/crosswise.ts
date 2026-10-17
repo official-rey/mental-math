@@ -1,5 +1,5 @@
 import { defineTechnique } from '../define';
-import { line, svg, text } from '../svg';
+import { pieces } from '../svg';
 import type { Level, Levels, Problem, Step } from '../types';
 import { digits, fmt, nonRound } from '../util';
 
@@ -18,25 +18,6 @@ const levels = {
 /** Digits of n from the right, padded to `len`. */
 const rev = (n: number, len: number) => digits(n).reverse().concat(Array(len).fill(0)).slice(0, len);
 
-/** Two-digit crosswise picture: right vertical, the cross, left vertical. */
-function diagram(): string {
-  const panels = ['vertically', 'crosswise', 'vertically'];
-  const pairs: [number, number][][] = [[[1, 1]], [[0, 1], [1, 0]], [[0, 0]]];
-  const top = [4, 3], bottom = [2, 7];
-  let body = '';
-  // Panels run right to left in the order you work them; draw them left to right as steps 1, 2, 3.
-  panels.forEach((name, k) => {
-    const ox = 14 + k * 110;
-    const xs = [ox + 26, ox + 70];
-    body += text(ox + 48, 14, `${k + 1}`, 't t-sm t-accent t-b');
-    top.forEach((d, i) => (body += text(xs[i], 44, d, 't t-lg')));
-    bottom.forEach((d, i) => (body += text(xs[i], 106, d, 't t-lg')));
-    for (const [i, j] of pairs[k]) body += line(xs[i], 58, xs[j], 92, 's-accent s-thick');
-    body += text(ox + 48, 134, name, 't t-sm t-dim');
-  });
-  return svg(344, 150, body, 'Vertically and crosswise: units times units, then the two cross products, then tens times tens');
-}
-
 export default defineTechnique({
   meta: {
     id: ID,
@@ -44,17 +25,32 @@ export default defineTechnique({
     category: 'mul',
     tier: 'Core',
     order: 140,
-    idea: 'Build the product one column at a time, right to left, from the digit pairs that land in it.',
+    idea: 'Right to left, one column at a time: ones × ones, then the two cross products, then tens × tens, carrying as you go.',
   },
   card: {
     prose: [
-      'Column k of the product collects every digit pair whose places add to k.',
-      'Units × units, then the two cross products, then tens × tens; carry as you go.',
-      'Longer numbers just add more crossings to the middle columns.',
+      'Right column: multiply the ones digits. Write the last digit and carry the rest.',
+      'Middle column: multiply crosswise, add both products and the carry. Write one digit, carry the rest.',
+      'Left column: multiply the tens digits, add the carry, and write the whole number.',
     ],
     example: make(43, 27, 2),
-    graphic: diagram,
-    caption: 'For 43 × 27: 3×7, then 4×7 + 3×2, then 4×2, each with the carry from before.',
+    graphic: () =>
+      pieces({
+        input: '43 × 27',
+        ops: [
+          { text: '3×7', out: '21' },
+          { text: '4×7+3×2+2', out: '36' },
+          { text: '4×2+3', out: '11' },
+        ],
+        answer: [
+          { text: '11', from: 2 },
+          { text: '6', from: 1 },
+          { text: '1', from: 0 },
+        ],
+        result: '1,161',
+        label: '43 times 27 by columns: 3 times 7 is 21, write 1 carry 2; 4 times 7 plus 3 times 2 plus 2 is 36, write 6 carry 3; 4 times 2 plus 3 is 11; answer 1,161',
+      }),
+    caption: 'Work the columns right to left; each one keeps a digit and passes its carry on.',
   },
   levels,
   generate(rng, level) {
@@ -94,7 +90,7 @@ export default defineTechnique({
         carry = nextCarry;
       }
     }
-    steps.push({ expr: fmt(Number(written.join(''))) });
+    steps.push({ expr: fmt(Number(written.join(''))), note: 'read the digits written' });
     return steps;
   },
 });

@@ -1,6 +1,7 @@
 import { defineTechnique } from '../define';
-import { arrowHead, circle, svg, text } from '../svg';
+import { arrowHead, circle, line, path, rect, svg, text } from '../svg';
 import type { Level, Levels, Problem, Step } from '../types';
+import { fmt } from '../util';
 
 const ID = 'decimal-patterns';
 const CYCLE = '142857';
@@ -45,30 +46,38 @@ const levels = {
   3: { label: 'improper n/7 and n/99', bounds: { n: [1, 98], d: [7, 99], places: [6, 6] } },
 } as const satisfies Levels;
 
+/** A circled stage number. */
+const badge = (x: number, y: number, i: number) => circle(x, y, 9, 'f-paper s-accent') + text(x, y, i, 't t-sm t-accent');
+
 function graphic(): string {
-  const cx = 170, cy = 100, R = 58, L = 88;
-  // Fraction whose decimal starts at each cycle digit.
-  const starts = ['1/7', '3/7', '2/7', '6/7', '4/7', '5/7'];
-  let body = circle(cx, cy, R, 'f-none s-rule');
+  // 5/7: 50 ÷ 7 = 7 r 1, so read 142857 starting at the 7.
+  const x0 = 70, w = 38, y = 112;
+  const hot = CYCLE.indexOf('7');
+  let body = '';
+  body += badge(40, 30, 1);
+  body += text(60, 30, '50 ÷ 7 = 7 r 1', 't t-start');
+  body += text(60, 52, 'first decimal is 7', 't t-sm t-dim t-start');
   for (let i = 0; i < 6; i++) {
-    const a = ((-90 + 60 * i + 30) * Math.PI) / 180;
-    body += arrowHead(cx + R * Math.cos(a), cy + R * Math.sin(a), -Math.sin(a), Math.cos(a), 'f-dim', 6);
+    const x = x0 + i * w;
+    body += rect(x, y - 17, w, 34, i === hot ? 'f-soft s-accent' : 'f-raised s-ink');
+    body += text(x + w / 2, y, CYCLE[i], i === hot ? 't t-lg t-accent t-b' : 't t-lg');
   }
-  for (let i = 0; i < 6; i++) {
-    const a = ((-90 + 60 * i) * Math.PI) / 180;
-    const hot = starts[i] === '5/7';
-    const x = cx + R * Math.cos(a), y = cy + R * Math.sin(a);
-    body += circle(x, y, 14, hot ? 'f-paper s-accent s-thick' : 'f-paper s-ink');
-    body += text(x, y, CYCLE[i], hot ? 't t-b t-accent' : 't');
-    body += text(cx + L * Math.cos(a), cy + L * Math.sin(a), starts[i], hot ? 't t-sm t-accent t-b' : 't t-sm t-dim');
-  }
-  body += text(cx, cy, '÷ 7', 't t-sm t-dim');
-  body += text(cx, 208, '5/7 = 0.714285…', 't t-accent');
+  const hx = x0 + hot * w + w / 2;
+  body += badge(40, y, 2);
+  body += line(hx, 62, hx, y - 24, 's-accent') + arrowHead(hx, y - 19, 0, 1);
+  body += text(hx - 6, 76, 'start here', 't t-sm t-accent t-end');
+  // Wrap from the end of the row back to its start.
+  const xe = x0 + 6 * w, ys = y + 17;
+  body += path(`M${hx},${ys} Q${hx},${ys + 30} ${(xe + x0) / 2},${ys + 30} T${x0 + w / 2},${ys + 4}`, 's-accent f-none s-dash');
+  body += arrowHead(x0 + w / 2, ys + 2, -2, -6, 'f-accent', 6);
+  body += text((xe + x0) / 2, ys + 44, 'then wrap round', 't t-sm t-dim');
+  body += badge(40, 214, 3);
+  body += text(60, 214, '5/7 = 0.714285…', 't t-lg t-accent t-b t-start');
   return svg(
-    340,
-    222,
+    320,
+    236,
     body,
-    'The digits 1 4 2 8 5 7 around a circle. Each seventh starts at a different digit: 1/7 at 1, 2/7 at 2, 3/7 at 4, 4/7 at 5, 5/7 at 7, 6/7 at 8. Reading from 7 gives 5/7 = 0.714285',
+    'Five sevenths: 1, 50 divided by 7 is 7 remainder 1, so the first decimal is 7; 2, find 7 in the row 1 4 2 8 5 7 and read from there, wrapping back to the start; 3, 5/7 is 0.714285 repeating',
   );
 }
 
@@ -79,17 +88,17 @@ export default defineTechnique({
     category: 'div',
     tier: 'Core',
     order: 40,
-    idea: 'n/9 repeats n, n/11 repeats 9n, and every seventh is the 142857 cycle from a different start.',
+    idea: 'Ninths repeat the top number, elevenths repeat 9 times it, and sevenths read 142857 from a new start.',
   },
   card: {
     prose: [
-      'n/9 = n × 0.111… repeats n; n/11 = 9n/99 repeats the two digits of 9n; n/99 repeats n itself.',
-      'Each proper seventh reads 142857 cyclically, starting at its first decimal: 10n ÷ 7, rounded down.',
-      'For a larger numerator split off the whole part first: 23/7 = 3 + 2/7.',
+      'Over 9, repeat the top digit. Over 99, repeat the top as two digits. Over 11, times it by 9 and repeat that.',
+      'Over 7, add a 0 to the top and divide by 7 for the first decimal, then read 142857 on from that digit.',
+      'If the top is bigger than the bottom, take off whole ones first and write them before the point.',
     ],
     example: make(5, 7, 6, 2),
     graphic,
-    caption: 'All six sevenths share one cycle; 50 ÷ 7 = 7 r 1 says 5/7 begins at the 7.',
+    caption: 'Find the first decimal, then read the 142857 row from there, wrapping round.',
   },
   levels,
   generate(rng, level) {
@@ -114,26 +123,22 @@ export default defineTechnique({
     const whole = Math.floor(n / d);
     const k = n - whole * d;
     if (whole > 0) {
-      steps.push({ op: '→', expr: `${n} = ${d} × ${whole} + ${k}`, note: `whole part ${whole}` });
-      steps.push({ expr: `${whole} + ${k}/${d}` });
+      steps.push({ op: '', expr: `${n} − ${whole * d} = ${k}`, note: `${whole} whole, ${k}/${d} left` });
     }
     const dec = patternDecimals(k, d, places);
-    if (d === 9) {
-      steps.push({ op: '→', expr: '1/9 = 0.111…', note: 'n/9 = n × 1/9' });
-      steps.push({ op: '→', expr: `${k} × 0.111… = 0.${repeat(String(k), 3)}…`, note: `repeat ${k}` });
-    } else if (d === 11) {
-      steps.push({ op: '→', expr: `${k}/11 = ${9 * k}/99`, note: 'times 9/9' });
-      steps.push({ op: '→', expr: `${9 * k}/99 = 0.${repeat(pad2(9 * k), 4)}…`, note: `repeat ${pad2(9 * k)}` });
-    } else if (d === 99) {
-      steps.push({ op: '→', expr: '1/99 = 0.0101…', note: 'n/99 = n × 1/99' });
-      steps.push({ op: '→', expr: `${k}/99 = 0.${repeat(pad2(k), 4)}…`, note: `repeat ${pad2(k)}` });
+    let how: string;
+    if (d === 9) how = `repeat ${k}`;
+    else if (d === 99) how = `repeat ${pad2(k)}`;
+    else if (d === 11) {
+      steps.push({ op: '', expr: `${k} × 9 = ${9 * k}`, note: 9 * k < 10 ? 'times 9, write as 09' : 'times 9' });
+      how = `repeat ${pad2(9 * k)}`;
     } else {
       const first = Math.floor((10 * k) / 7);
-      steps.push({ op: '→', expr: `${10 * k} ÷ 7 = ${first} r ${10 * k - 7 * first}`, note: `first decimal ${first}` });
-      steps.push({ op: '→', expr: `${k}/7 = 0.${rotate(first)}…`, note: `142857 from the ${first}` });
-      if (places > 6) steps.push({ op: '→', expr: `${rotate(first)} ${dec.slice(6)}`, note: 'wrap around' });
+      steps.push({ op: '', expr: `${10 * k} ÷ 7 = ${first} r ${10 * k - 7 * first}`, note: `first decimal ${first}` });
+      steps.push({ op: '', expr: rotate(first), note: `142857 read from the ${first}` });
+      how = places > 6 ? 'wrap round again' : 'six digits';
     }
-    steps.push({ op: '≈', expr: `${whole}.${dec}`, note: `first ${places} decimals` });
+    steps.push({ expr: fmt(`${whole}.${dec}`), note: whole > 0 ? `${whole}, point, ${how}` : how });
     return steps;
   },
   reference(p) {

@@ -1,5 +1,5 @@
 import { defineTechnique } from '../define';
-import { areaModel } from '../svg';
+import { chain } from '../svg';
 import type { Level, Levels, Problem } from '../types';
 import { fmt, nonRound } from '../util';
 
@@ -22,24 +22,25 @@ export default defineTechnique({
     category: 'mul',
     tier: 'Foundation',
     order: 10,
-    idea: 'Multiply the tens, then add the ones product: big part first.',
+    idea: 'Multiply the tens first, then the ones, and add the small product on.',
   },
   card: {
     prose: [
-      'Split the 2-digit number into tens and ones.',
-      'Say the tens product out loud, then add the small product onto it.',
-      'You produce digits in the order you speak them, so nothing is held backwards.',
+      'Multiply the tens part by the single digit: 40 × 6 = 240.',
+      'Multiply the ones digit by it: 7 × 6 = 42.',
+      'Add the small product onto the big one: 240 + 42 = 282.',
     ],
     example: make(47, 6, 1),
     graphic: () =>
-      areaModel({
-        cols: [40, 7],
-        rows: [6],
-        accent: [[0, 0]],
-        height: 150,
-        label: 'Area model: 47 by 6 split into 40 by 6 and 7 by 6',
+      chain({
+        start: '47 × 6',
+        moves: [
+          { op: '40 × 6', value: '240' },
+          { op: '+ 7 × 6', value: '282' },
+        ],
+        label: '47 times 6: first 40 times 6 is 240, then add 7 times 6, 42, to reach 282',
       }),
-    caption: 'A 47 × 6 rectangle is a 40 × 6 piece plus a 7 × 6 piece.',
+    caption: 'Do the tens first, then add the ones product to it.',
   },
   levels,
   generate(rng, level) {
@@ -49,10 +50,13 @@ export default defineTechnique({
   steps(p) {
     const { a, b } = p.data;
     const tens = a - (a % 10), ones = a % 10;
+    const big = tens * b, small = ones * b;
     return [
       { op: '', expr: `${a} × ${b}` },
-      { expr: `${fmt(tens * b)} + ${ones * b}`, note: `${tens}×${b}, ${ones}×${b}` },
-      { expr: fmt(a * b) },
+      { op: '', expr: `${tens} × ${b} = ${fmt(big)}`, note: 'tens first' },
+      { op: '', expr: `${ones} × ${b} = ${small}`, note: 'then the ones' },
+      { op: '', expr: `${fmt(big)} + ${small} = ${fmt(big + small)}`, note: 'add them' },
+      { expr: fmt(a * b), note: 'answer' },
     ];
   },
 });

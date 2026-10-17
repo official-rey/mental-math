@@ -1,26 +1,25 @@
 import { defineTechnique } from '../define';
-import { line, rect, svg, text } from '../svg';
+import { arrowHead, circle, line, rect, svg, text } from '../svg';
 import type { Level, Levels, Problem, Step } from '../types';
 import { digits, fmt, nonRound } from '../util';
 
 const ID = 'times-11';
 
-/** Build n × 11 digit by digit from the right: each inner digit is a neighbouring pair's sum. */
-function solve(n: number): { value: number; lines: Step[] } {
+/** Build the answer digit by digit from the right: each inner digit is a neighbouring pair's sum. */
+function solve(n: number): { value: number; lines: Step[]; out: number[] } {
   const ds = digits(n);
-  const lines: Step[] = [];
   const last = ds[ds.length - 1];
+  const lines: Step[] = [{ op: '', expr: String(last), note: 'last digit stays' }];
   const out: number[] = [last];
-  lines.push({ op: '→', expr: String(last), note: 'last digit stays' });
   let carry = 0;
   for (let i = ds.length - 1; i > 0; i--) {
     const l = ds[i - 1], r = ds[i];
     const s = l + r + carry;
     const next = Math.floor(s / 10);
     lines.push({
-      op: '→',
+      op: '',
       expr: `${l} + ${r}${carry ? ` + ${carry}` : ''} = ${s}`,
-      note: `write ${s % 10}${next ? `, carry ${next}` : ''}`,
+      note: next ? `write ${s % 10}, carry ${next}` : `write ${s}`,
     });
     out.unshift(s % 10);
     carry = next;
@@ -28,11 +27,11 @@ function solve(n: number): { value: number; lines: Step[] } {
   const first = ds[0] + carry;
   lines.push(
     carry
-      ? { op: '→', expr: `${ds[0]} + ${carry} = ${first}`, note: `write ${first}` }
-      : { op: '→', expr: String(first), note: 'first digit stays' },
+      ? { op: '', expr: `${ds[0]} + ${carry} = ${first}`, note: 'first digit plus the carry' }
+      : { op: '', expr: String(first), note: 'first digit stays' },
   );
   out.unshift(first);
-  return { value: Number(out.join('')), lines };
+  return { value: Number(out.join('')), lines, out };
 }
 
 function make(n: number, level: Level): Problem {
@@ -45,25 +44,32 @@ const levels = {
   3: { label: '3-digit × 11', bounds: { n: [101, 999] } },
 } as const satisfies Levels;
 
-/** 47 × 11 as 470 + 47: the tens column collects both digits. */
+/** 47 × 11 worked right to left: keep the 7, add 4 + 7 (write 1, carry 1), then 4 + 1. */
 function diagram(): string {
-  const xs = [150, 180, 210];
-  let b = rect(165, 18, 30, 114, 'f-soft s-accent', 4);
-  b += text(xs[0], 36, 4, 't t-lg');
-  b += text(xs[1], 36, 7, 't t-lg');
-  b += text(xs[2], 36, 0, 't t-lg t-dim');
-  b += text(112, 70, '+', 't t-lg');
-  b += text(xs[1], 70, 4, 't t-lg');
-  b += text(xs[2], 70, 7, 't t-lg');
-  b += line(104, 90, 226, 90, 's-ink');
-  b += text(xs[0], 112, 5, 't t-lg');
-  b += text(xs[1], 112, 1, 't t-lg t-accent t-b');
-  b += text(xs[2], 112, 7, 't t-lg');
-  b += text(244, 36, '47 × 10', 't t-sm t-dim t-start');
-  b += text(244, 70, '47 × 1', 't t-sm t-dim t-start');
-  b += text(244, 112, '47 × 11', 't t-sm t-dim t-start');
-  b += text(170, 152, 'tens: 4 + 7 = 11, carry 1', 't t-sm t-accent');
-  return svg(340, 168, b, '47 times 11 as 470 plus 47; the tens column holds 4 plus 7');
+  const X = [70, 170, 270];
+  const yOp = 92, yAns = 162;
+  let b = text(170, 28, '47 × 11', 't t-xl');
+  const stages = [
+    { x: X[2], t: '7', out: '7', tag: 'last' },
+    { x: X[1], t: '4 + 7', out: '1', tag: 'pair' },
+    { x: X[0], t: '4 + 1', out: '5', tag: 'first + carry' },
+  ];
+  stages.forEach((s, i) => {
+    const w = 64;
+    b += text(s.x, 58, s.tag, 't t-sm t-dim');
+    b += rect(s.x - w / 2, yOp - 15, w, 30, 'f-raised s-ink');
+    b += text(s.x, yOp, s.t, 't');
+    b += circle(s.x - w / 2, yOp - 15, 8, 'f-paper s-accent');
+    b += text(s.x - w / 2, yOp - 15, i + 1, 't t-sm t-accent');
+    b += line(s.x, yOp + 17, s.x, yAns - 22, 's-accent') + arrowHead(s.x, yAns - 18, 0, 1);
+    b += rect(s.x - 17, yAns - 17, 34, 34, 'f-soft s-accent');
+    b += text(s.x, yAns, s.out, 't t-lg t-accent t-b');
+  });
+  // The pair makes 11: write 1, carry 1 into the first digit.
+  b += line(X[1] - 24, yAns, X[0] + 28, yAns, 's-accent s-dash') + arrowHead(X[0] + 22, yAns, -1, 0);
+  b += text((X[0] + X[1]) / 2, yAns - 14, 'carry 1', 't t-sm t-accent');
+  b += text(170, yAns + 46, '= 517', 't t-lg t-b');
+  return svg(340, 226, b, '47 times 11 from the right: keep 7, then 4 plus 7 is 11 so write 1 and carry 1, then 4 plus 1 is 5, giving 517');
 }
 
 export default defineTechnique({
@@ -73,17 +79,17 @@ export default defineTechnique({
     category: 'mul',
     tier: 'Foundation',
     order: 30,
-    idea: 'Keep the outer digits; each digit between them is the sum of a neighbouring pair.',
+    idea: 'Keep the last digit, add neighbouring pairs for the middle, add any carry to the first digit.',
   },
   card: {
     prose: [
-      'n × 11 = 10n + n: the number added to a copy of itself shifted one place.',
-      'So the outer digits survive and every inner column holds two neighbouring digits.',
-      'Work from the right so that a pair summing to 10 or more carries left.',
+      'Write the last digit of the number as the last digit of the answer.',
+      'Moving left, add each pair of neighbouring digits; write the ones digit and carry any 1.',
+      'Finish with the first digit, plus any carry.',
     ],
     example: make(47, 2),
     graphic: diagram,
-    caption: 'Adding 470 and 47 puts 4 + 7 in the tens column; the 1 of 11 carries into the hundreds.',
+    caption: 'Work from the right: keep the 7, add the pair, carry the 1 onto the first digit.',
   },
   levels,
   generate(rng, level) {
@@ -103,6 +109,6 @@ export default defineTechnique({
   steps(p) {
     const { n } = p.data;
     const { value, lines } = solve(n);
-    return [{ op: '', expr: `${n} × 11` }, ...lines, { expr: fmt(value) }];
+    return [{ op: '', expr: `${n} × 11` }, ...lines, { expr: fmt(value), note: 'read them left to right' }];
   },
 });

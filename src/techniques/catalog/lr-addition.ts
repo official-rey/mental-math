@@ -1,5 +1,5 @@
 import { defineTechnique } from '../define';
-import { numberLine } from '../svg';
+import { chain } from '../svg';
 import type { Level, Levels, Problem, Step } from '../types';
 import { digits, fmt, nonRound } from '../util';
 
@@ -14,6 +14,8 @@ const levels = {
   2: { label: '3-digit + 2-digit', bounds: { a: [101, 999], b: [12, 99] } },
   3: { label: '3-digit + 3-digit', bounds: { a: [101, 999], b: [101, 999] } },
 } as const satisfies Levels;
+
+const PLACE = ['ones', 'tens', 'hundreds', 'thousands'];
 
 /** Nonzero place parts of n, largest first: 358 → [300, 50, 8]. */
 function parts(n: number): number[] {
@@ -36,34 +38,26 @@ export default defineTechnique({
     category: 'addsub',
     tier: 'Foundation',
     order: 10,
-    idea: 'Add the largest place first, then each smaller place, keeping one running total.',
+    idea: 'Add the second number one place at a time, biggest place first, keeping one running total.',
   },
   card: {
     prose: [
-      'Split the second number by place value and add the parts from the largest down.',
-      'You hold one running total at a time, and it already starts with the leading digits of the answer.',
-      'A carry just updates that total; nothing is written down and fixed later.',
+      'Split the second number into its hundreds, tens and ones.',
+      'Add the hundreds to the first number, then add the tens, then the ones.',
+      'Hold only the new total after each add. The last total is the answer.',
     ],
     example: make(476, 358, 3),
     graphic: () =>
-      numberLine({
-        // Schematic spacing: hops shrink in order but are not to scale, so the small one stays visible.
-        from: 0,
-        to: 100,
-        marks: [
-          { at: 0, label: '476' },
-          { at: 58, label: '776' },
-          { at: 86, label: '826' },
-          { at: 100, label: '834', accent: true },
+      chain({
+        start: '476',
+        moves: [
+          { op: '+ 300', value: '776' },
+          { op: '+ 50', value: '826' },
+          { op: '+ 8', value: '834' },
         ],
-        hops: [
-          { from: 0, to: 58, label: '+300' },
-          { from: 58, to: 86, label: '+50' },
-          { from: 86, to: 100, label: '+8' },
-        ],
-        label: 'Number line: 476 plus 300 is 776, plus 50 is 826, plus 8 is 834',
+        label: 'Start at 476: add 300 to get 776, add 50 to get 826, add 8 to get 834',
       }),
-    caption: 'Start at 476 and hop 300, then 50, then 8, landing on 834.',
+    caption: 'Start at 476 and add 300, then 50, then 8, one place at a time.',
   },
   levels,
   generate(rng, level) {
@@ -77,12 +71,13 @@ export default defineTechnique({
   steps(p) {
     const { a, b } = p.data;
     const steps: Step[] = [{ op: '', expr: `${fmt(a)} + ${fmt(b)}` }];
-    let total = a, left = b;
+    let total = a;
     for (const part of parts(b)) {
-      total += part;
-      left -= part;
-      steps.push({ expr: left ? `${fmt(total)} + ${fmt(left)}` : fmt(total), note: `add ${fmt(part)}` });
+      const next = total + part;
+      steps.push({ op: '', expr: `${fmt(total)} + ${fmt(part)} = ${fmt(next)}`, note: `add the ${PLACE[String(part).length - 1]}` });
+      total = next;
     }
+    steps.push({ expr: fmt(total), note: 'the last total' });
     return steps;
   },
 });

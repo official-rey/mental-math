@@ -1,4 +1,4 @@
-import { DrillSession, SPRINT_MS, TWENTY } from '../drill/engine';
+import { DrillSession, TWENTY, type Attempt } from '../drill/engine';
 import { sound } from '../drill/sound';
 import { drillName, parseSpec, ROMAN } from '../drill/spec';
 import type { DrillSpec } from '../drill/types';
@@ -49,6 +49,8 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
   let feedbackTimer = 0;
 
   // ----- Elements -----
+  const levelTag = h('div', { class: 'level-tag', 'data-testid': 'level' });
+  const bonus = h('span', { class: 'bonus mono', 'aria-live': 'polite' });
   const stat = h('div', { class: 'drill-stat mono', 'data-testid': 'stat' });
   const bar = h('i');
   const progress = h('div', { class: 'progress', 'aria-hidden': 'true' }, bar);
@@ -97,13 +99,13 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
       'header',
       { class: 'drill-bar' },
       h('a', { class: 'iconbtn', href: backHref(spec), 'aria-label': 'Quit drill', html: ICONS.close }),
-      h('div', { class: 'drill-title' }, drillName(spec), h('span', { class: 'dim' }, ` · ${ROMAN[spec.level]}`)),
-      stat,
+      h('div', { class: 'drill-title' }, drillName(spec)),
+      h('div', { class: 'stat-wrap' }, stat, bonus),
       doneBtn,
       soundToggle(),
     ),
     progress,
-    h('main', { class: 'drill-stage' }, tag, problem, hint, hintSteps, form, feedback, solution, pausedCover),
+    h('main', { class: 'drill-stage' }, levelTag, tag, problem, hint, hintSteps, form, feedback, solution, pausedCover),
     dock,
   );
 
@@ -114,7 +116,7 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
     if (spec.mode === 'sprint') {
       const left = session.remaining();
       stat.textContent = `${Math.ceil(left / 1000)}s · ✓${ok}`;
-      bar.style.width = `${(100 * (SPRINT_MS - left)) / SPRINT_MS}%`;
+      bar.style.width = `${(100 * session.elapsed()) / session.timeLimit()}%`;
       if (left <= 0 && state !== 'done') end();
     } else if (spec.mode === 'twenty') {
       stat.textContent = `${Math.min(log.length + 1, TWENTY)}/${TWENTY} · ${secs(session.elapsed())}s`;
@@ -143,6 +145,21 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
     solution.replaceChildren();
     dock.hidden = false;
     input.focus();
+  }
+
+  /** "Level I → III" while the drill is still climbing to the chosen level, then just the level. */
+  function paintLevel() {
+    const cur = session.level, target = spec.level;
+    levelTag.textContent = cur < target ? `Level ${ROMAN[cur]}, building to ${ROMAN[target]}` : `Level ${ROMAN[cur]}`;
+  }
+
+  /** Brief "+2 s" beside the clock when a correct sprint answer adds time. */
+  function showBonus(a: Attempt) {
+    if (!a.bonusMs) return;
+    bonus.textContent = `+${a.bonusMs / 1000} s`;
+    bonus.classList.remove('pop');
+    void bonus.offsetWidth;
+    bonus.classList.add('pop');
   }
 
   /** Shrink the problem until it fits on one line, so expressions never break mid-way. */
@@ -212,7 +229,9 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
     paintStats();
     if (a.ok) {
       sound.correct();
-      flash(`✓ ${fmt(a.problem.answer)}`, 'ok');
+      flash(a.levelUp ? `✓ ${fmt(a.problem.answer)} · up to Level ${ROMAN[a.levelUp]}` : `✓ ${fmt(a.problem.answer)}`, 'ok');
+      showBonus(a);
+      paintLevel();
       input.classList.add('is-ok');
       return next();
     }
@@ -306,6 +325,7 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
       app.art?.pause();
       document.body.classList.add('drilling');
       session.start();
+      paintLevel();
       showProblem();
       paintStats();
       timer = window.setInterval(paintStats, 100);

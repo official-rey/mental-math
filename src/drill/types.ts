@@ -4,7 +4,7 @@ export type Mode = 'training' | 'sprint' | 'twenty';
 
 export const MODES: { id: Mode; label: string; short: string }[] = [
   { id: 'training', label: 'Training', short: 'Train' },
-  { id: 'sprint', label: '60-second sprint', short: '60 s' },
+  { id: 'sprint', label: 'Sprint (60 s, +2 s per correct)', short: 'Sprint' },
   { id: 'twenty', label: '20 problems', short: '20 ×' },
 ];
 

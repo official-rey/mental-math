@@ -62,14 +62,27 @@ function block(s: Step, i: number, last: boolean): HTMLElement {
   });
   return h(
     'div',
-    { class: `step${last ? ' last' : ''}${op !== '=' && i > 0 ? ' side' : ''}`, role: 'listitem', 'data-i': String(i), 'aria-label': `${op} ${s.expr}`.trim() },
+    { class: `step${last ? ' last' : ''}${op === '→' ? ' side' : ''}`, role: 'listitem', 'data-i': String(i), 'aria-label': `${op} ${s.expr}`.trim() },
     cells,
     h('span', { class: 'nt', style: { gridRow: `1 / span ${lines.length}` } }, s.note ?? ''),
   );
 }
 
+/**
+ * When the step before the answer already ends in "= answer", the bare answer line would only
+ * repeat it: fold it away and let that step close the column (keeping both notes).
+ */
+export function fold(steps: Step[]): Step[] {
+  if (steps.length < 3) return steps;
+  const last = steps[steps.length - 1], prev = steps[steps.length - 2];
+  if ((last.op ?? '=') !== '=' || !prev.expr.endsWith(` = ${last.expr}`)) return steps;
+  const note = [prev.note, last.note].filter((n) => n && n !== 'answer').join('; ');
+  return [...steps.slice(0, -2), { ...prev, note: note || undefined }];
+}
+
 function blocks(steps: Step[], markLast: boolean): HTMLElement[] {
-  return steps.map((s, i) => block(s, i, markLast && i === steps.length - 1));
+  const shown = fold(steps);
+  return shown.map((s, i) => block(s, i, markLast && i === shown.length - 1));
 }
 
 /** Worked solution in column form: the math stacked and right-aligned, each step's note beside it. */
@@ -81,7 +94,8 @@ export function renderSteps(steps: Step[], opts: { markLast?: boolean } = {}): H
  * The same layout revealed one step at a time. The current step is highlighted with its note
  * beside it; later steps are not shown yet.
  */
-export function renderStepper(steps: Step[]): HTMLElement {
+export function renderStepper(input: Step[]): HTMLElement {
+  const steps = fold(input);
   const lines = blocks(steps, true);
   const list = h('div', { class: 'steps stepper-lines', role: 'list' }, lines);
   const counter = h('span', { class: 'stepper-count mono', 'aria-live': 'polite' });

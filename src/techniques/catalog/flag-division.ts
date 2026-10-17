@@ -1,5 +1,5 @@
 import { defineTechnique } from '../define';
-import { line, svg, text } from '../svg';
+import { circle, line, svg, text } from '../svg';
 import type { Level, Levels, Problem, Rng, Step } from '../types';
 import { digits, fmt } from '../util';
 
@@ -99,34 +99,37 @@ function pick(rng: Rng, level: Level): Problem {
   }
 }
 
+/** A circled stage number. */
+const badge = (x: number, y: number, i: number) => circle(x, y, 9, 'f-paper s-accent') + text(x, y, i, 't t-sm t-accent');
+
 function graphic(): string {
-  // 7,866 ÷ 23 = 342: main 2, flag 3.
-  const xs = [118, 168, 218, 286];
+  // 7,866 ÷ 23 = 342: divide by 2, flag 3.
+  const xs = [112, 182, 252, 322];
   const dividend = [7, 8, 6, 6];
   const rem = ['', '1', '1', '0'];
-  const quot = ['3', '4', '2', '0'];
-  const work = ['7', '18 − 9', '16 − 12', '6 − 6'];
+  const quot = ['3', '4', '2', ''];
+  const take = ['', '18 − 3×3', '16 − 3×4', '6 − 3×2'];
+  const work = ['7 ÷ 2', '9 ÷ 2', '4 ÷ 2', '0'];
   let body = '';
-  body += text(40, 76, 2, 't t-xl');
-  body += text(58, 56, 3, 't t-lg t-accent t-b');
-  body += text(46, 112, 'flag', 't t-sm t-accent');
-  body += line(78, 44, 316, 44, 's-ink s-thick');
-  body += line(78, 44, 78, 104, 's-ink s-thick');
-  body += line(78, 104, 316, 104, 's-ink');
-  body += line(252, 36, 252, 150, 's-dim s-dash');
+  body += text(38, 70, 2, 't t-xl');
+  body += text(56, 50, 3, 't t-lg t-accent t-b');
+  body += text(44, 104, 'flag', 't t-sm t-accent');
+  body += line(76, 40, 350, 40, 's-ink s-thick');
+  body += line(76, 40, 76, 96, 's-ink s-thick');
+  body += line(288, 32, 288, 186, 's-dim s-dash');
   xs.forEach((x, i) => {
-    body += text(x, 76, dividend[i], 't t-xl');
-    if (rem[i]) body += text(x - 15, 64, rem[i], 't t-sm t-accent t-b');
-    body += text(x, 128, quot[i], i === 3 ? 't t-lg t-dim' : 't t-lg t-b');
-    body += text(x, 166, work[i], 't t-sm t-dim');
+    body += text(x, 20, quot[i] || 'rem.', quot[i] ? 't t-xl t-b t-accent' : 't t-sm t-dim');
+    body += text(x, 70, dividend[i], 't t-xl');
+    if (rem[i]) body += text(x - 16, 58, rem[i], 't t-sm t-accent t-b');
+    body += badge(x, 124, i + 1);
+    if (take[i]) body += text(x, 150, take[i], 't t-sm t-accent');
+    body += text(x, 172, work[i], 't t-sm');
   });
-  body += text(168, 20, 'quotient digits', 't t-sm t-dim');
-  body += text(286, 20, 'rem.', 't t-sm t-dim');
   return svg(
-    340,
-    182,
+    360,
+    192,
     body,
-    'Straight division of 7,866 by 23: main digit 2 with flag 3 raised. Columns 7, 8, 6 give quotient digits 3, 4, 2 with small remainders 1, 1 carried; each working value subtracts 3 times the previous quotient digit; the last column gives remainder 0',
+    'Flag division of 7,866 by 23, dividing by 2 with flag 3. Column 1: 7 divided by 2 is 3, carry 1. Column 2: 18 minus 3 times 3 is 9, divided by 2 is 4, carry 1. Column 3: 16 minus 3 times 4 is 4, divided by 2 is 2. Column 4: 6 minus 3 times 2 is 0, nothing left. The answer is 342',
   );
 }
 
@@ -137,17 +140,17 @@ export default defineTechnique({
     category: 'div',
     tier: 'Advanced',
     order: 50,
-    idea: 'Divide by the tens digit only, correcting each column by the units digit times the last quotient digit.',
+    idea: 'Divide by the tens digit only; before each next division, take off the units digit times the last answer digit.',
   },
   card: {
     prose: [
-      'Write d = 10m + f: divide by the main digit m, and treat f as a flag that is paid for one column later.',
-      'Each column: carried remainder and next digit, minus f × the previous quotient digit, then ÷ m.',
-      'If the next column would go negative, lower the quotient digit by 1 and add m to the remainder.',
+      'Divide by the tens digit of the divisor only; its units digit is the flag, kept aside.',
+      'Carry each remainder in front of the next digit, take off flag × the last answer digit, then divide.',
+      'If the next column would go below zero, write one less and carry the bigger remainder.',
     ],
     example: make(7866, 23, 2),
     graphic,
-    caption: 'For 7,866 ÷ 23: divide by 2, carry the small remainders, and subtract 3 × the last quotient digit each time.',
+    caption: 'Numbered columns in order: carry, take off the flag times the last digit, divide by 2.',
   },
   levels,
   generate: pick,
@@ -155,25 +158,38 @@ export default defineTechnique({
     const { n, d } = p.data;
     const w = run(n, d);
     const steps: Step[] = [{ op: '', expr: `${fmt(n)} ÷ ${d}` }];
-    steps.push({ op: '→', expr: `main ${w.m}, flag ${w.f}` });
-    for (const c of w.cols) {
-      const expr = c === w.cols[0] ? `${c.w}` : `${c.gross} − ${w.f}×${c.prevQ} = ${c.w}`;
-      const div = c.q === c.q0 ? `${c.q} r ${c.r}` : `${c.q0} r ${c.r0} → ${c.q} r ${c.r}`;
-      steps.push({ op: '→', expr, note: `÷${w.m}: ${div}` });
-    }
+    const carried = (g: number) => `carry ${Math.floor(g / 10)} in front of ${g % 10}`;
+    const divide = (c: Column, note: string) => {
+      const lowered = c.q !== c.q0;
+      steps.push({
+        op: '',
+        expr: `${c.w} ÷ ${w.m} = ${c.q} r ${c.r}`,
+        note: lowered ? `${c.q0} too big, write ${c.q}` : note,
+      });
+    };
+    w.cols.forEach((c, i) => {
+      if (i === 0) {
+        divide(c, `÷ ${w.m} only, flag ${w.f}`);
+        return;
+      }
+      steps.push({ op: '', expr: `${w.f} × ${c.prevQ} = ${c.minus}`, note: 'flag × last answer digit' });
+      steps.push({ op: '', expr: `${c.gross} − ${c.minus} = ${c.w}`, note: carried(c.gross) });
+      divide(c, c.r ? `write ${c.q}, carry ${c.r}` : `write ${c.q}, nothing to carry`);
+    });
     const L = w.last;
-    steps.push({ op: '→', expr: `${L.gross} − ${w.f}×${L.prevQ} = ${L.R}`, note: `remainder ${L.R}` });
+    steps.push({ op: '', expr: `${w.f} × ${L.prevQ} = ${L.minus}`, note: 'flag × last answer digit' });
+    steps.push({ op: '', expr: `${L.gross} − ${L.minus} = ${L.R}`, note: '0 left, so it divides' });
     const qs = w.cols.map((c) => c.q);
     if (qs.some((q) => q > 9)) {
-      const terms = qs.map((q, i) => {
-        const place = 10 ** (qs.length - 1 - i);
-        return place === 1 ? `${q}` : `${q}×${fmt(place)}`;
-      });
-      steps.push({ expr: terms.join(' + '), note: 'a digit over 9 carries' });
+      let acc = qs[0];
+      for (const q of qs.slice(1)) {
+        steps.push({ op: '', expr: `${fmt(acc * 10)} + ${q} = ${fmt(acc * 10 + q)}`, note: q > 9 ? 'digit over 9 carries' : 'next digit' });
+        acc = acc * 10 + q;
+      }
+      steps.push({ expr: fmt(w.quotient), note: 'the answer' });
     } else {
-      steps.push({ op: '→', expr: qs.join(' '), note: 'quotient digits' });
+      steps.push({ expr: fmt(w.quotient), note: `digits ${qs.join(', ')}` });
     }
-    steps.push({ expr: fmt(w.quotient) });
     return steps;
   },
 });

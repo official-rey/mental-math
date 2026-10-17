@@ -1,5 +1,5 @@
 import { defineTechnique } from '../define';
-import { arrowHead, line, rect, svg, text } from '../svg';
+import { chain } from '../svg';
 import type { Level, Levels, Problem, Step } from '../types';
 import { fmt, nonRound, scaled } from '../util';
 
@@ -15,33 +15,6 @@ const levels = {
   3: { label: '2–3-digit × 25', bounds: { n: [12, 999], m: [25, 25] } },
 } as const satisfies Levels;
 
-/** 48 × 5 cut in half and restacked as 24 × 10. */
-function diagram(): string {
-  const L = 160, H = 30, x0 = 22, y0 = 62;
-  let b = rect(x0, y0, L / 2, H, 'f-raised s-ink');
-  b += rect(x0 + L / 2, y0, L / 2, H, 'f-soft s-accent');
-  b += line(x0 + L / 2, y0 - 6, x0 + L / 2, y0 + H + 6, 's-accent s-dash');
-  b += text(x0 + L / 4, y0 + H / 2, '24 × 5', 't t-sm');
-  b += text(x0 + (3 * L) / 4, y0 + H / 2, '24 × 5', 't t-sm t-accent');
-  b += text(x0 + L / 2, y0 - 18, '48', 't t-dim');
-  b += text(x0 - 8, y0 + H / 2, '5', 't t-dim t-end');
-  b += text(x0 + L / 2, y0 + H + 30, '48 × 5', 't t-sm');
-
-  const ay = y0 + H / 2;
-  b += line(x0 + L + 8, ay, x0 + L + 34, ay, 's-accent');
-  b += arrowHead(x0 + L + 38, ay, 1, 0);
-
-  const x1 = 232, y1 = y0 + H / 2 - H;
-  b += rect(x1, y1, L / 2, H, 'f-raised s-ink');
-  b += rect(x1, y1 + H, L / 2, H, 'f-soft s-accent');
-  b += text(x1 + L / 4, y1 + H / 2, '24 × 5', 't t-sm');
-  b += text(x1 + L / 4, y1 + (3 * H) / 2, '24 × 5', 't t-sm t-accent');
-  b += text(x1 + L / 4, y1 - 14, '24', 't t-dim');
-  b += text(x1 + L / 2 + 8, y1 + H, '10', 't t-accent t-start');
-  b += text(x1 + L / 4, y0 + H + 30, '24 × 10 = 240', 't t-sm');
-  return svg(344, 150, b, 'A 48 by 5 strip cut in half and stacked into a 24 by 10 rectangle');
-}
-
 export default defineTechnique({
   meta: {
     id: ID,
@@ -49,17 +22,25 @@ export default defineTechnique({
     category: 'mul',
     tier: 'Foundation',
     order: 40,
-    idea: 'Multiply by 5, 50 or 25 by halving or quartering, then shifting the decimal point.',
+    idea: 'Halve the number, then shift: one place for × 5, two for × 50. For × 25, halve twice and shift two.',
   },
   card: {
     prose: [
-      '5 = 10 ÷ 2, 50 = 100 ÷ 2 and 25 = 100 ÷ 4.',
-      'Halve the other factor (twice for 25), then shift one or two places.',
-      'An odd number halves to a .5 or .25, which the shift absorbs.',
+      'Halve the number. For × 25, halve it again.',
+      'Shift one place left for × 5 (add a 0), two places for × 50 or × 25 (add 00).',
+      'If halving left a .5 or .25, the shift moves those digits into the answer.',
     ],
     example: make(48, 5, 1),
-    graphic: diagram,
-    caption: 'Cutting a 48 × 5 strip in half and stacking the halves gives 24 × 10: same area, easier sum.',
+    graphic: () =>
+      chain({
+        start: '48 × 5',
+        moves: [
+          { op: '÷ 2 (halve)', value: '24' },
+          { op: '× 10 (add a 0)', value: '240' },
+        ],
+        label: '48 times 5: halve 48 to get 24, then add a 0 to get 240',
+      }),
+    caption: 'Halve first, then add a zero.',
   },
   levels,
   generate(rng, level) {
@@ -79,23 +60,19 @@ export default defineTechnique({
   steps(p) {
     const { n, m } = p.data;
     const half = scaled(n * 5, 1);
-    if (m === 25) {
-      const quarter = scaled(n * 25, 2);
-      return [
-        { op: '', expr: `${fmt(n)} × 25` },
-        { expr: `${fmt(n)} ÷ 4 × 100`, note: '25 = 100 ÷ 4' },
-        { expr: `${fmt(half)} ÷ 2 × 100`, note: `half of ${fmt(n)}` },
-        { expr: `${fmt(quarter)} × 100`, note: `half of ${fmt(half)}` },
-        { expr: fmt(n * 25), note: 'shift two places' },
-      ];
-    }
-    const shift = m === 5 ? 10 : 100;
     const steps: Step[] = [
       { op: '', expr: `${fmt(n)} × ${m}` },
-      { expr: `${fmt(n)} ÷ 2 × ${shift}`, note: `${m} = ${shift} ÷ 2` },
-      { expr: `${fmt(half)} × ${shift}`, note: `half of ${fmt(n)}` },
-      { expr: fmt(n * m), note: m === 5 ? 'shift one place' : 'shift two places' },
+      { op: '', expr: `${fmt(n)} ÷ 2 = ${fmt(half)}`, note: `halve ${fmt(n)}` },
     ];
+    if (m === 25) {
+      steps.push({ op: '', expr: `${fmt(half)} ÷ 2 = ${fmt(scaled(n * 25, 2))}`, note: 'halve again' });
+    }
+    const two = m !== 5;
+    const whole = Number.isInteger(two ? n * m / 100 : n * m / 10);
+    const note = two
+      ? whole ? 'shift two places: add 00' : 'shift the point two places'
+      : whole ? 'shift one place: add 0' : 'shift the point one place';
+    steps.push({ expr: fmt(n * m), note });
     return steps;
   },
 });

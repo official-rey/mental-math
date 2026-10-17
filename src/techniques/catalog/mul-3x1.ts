@@ -1,5 +1,5 @@
 import { defineTechnique } from '../define';
-import { areaModel } from '../svg';
+import { chain } from '../svg';
 import type { Level, Levels, Problem, Step } from '../types';
 import { digits, fmt, nonRound } from '../util';
 
@@ -29,25 +29,26 @@ export default defineTechnique({
     category: 'mul',
     tier: 'Foundation',
     order: 20,
-    idea: 'Hundreds, tens, ones: three partial products folded into one running total.',
+    idea: 'Multiply the hundreds, then add on the tens product, then the ones product.',
   },
   card: {
     prose: [
-      'Multiply the hundreds first and hold that number.',
-      'Add the tens product onto it, then the ones product.',
-      'Only one running total is ever kept in mind.',
+      'Multiply the hundreds by the digit and hold the result: 400 × 6 = 2,400.',
+      'Add the tens product onto it: 80 × 6 = 480, so 2,880.',
+      'Add the ones product last: 7 × 6 = 42, so 2,922.',
     ],
     example: make(487, 6, 2),
     graphic: () =>
-      areaModel({
-        cols: [400, 80, 7],
-        rows: [6],
-        cell: (_r, c) => fmt([2400, 480, 42][c]),
-        accent: [[0, 0]],
-        height: 150,
-        label: 'Area model: 487 by 6 split into 400 by 6, 80 by 6 and 7 by 6',
+      chain({
+        start: '487 × 6',
+        moves: [
+          { op: '400 × 6', value: '2,400' },
+          { op: '+ 80 × 6', value: '2,880' },
+          { op: '+ 7 × 6', value: '2,922' },
+        ],
+        label: '487 times 6: 400 times 6 is 2,400, add 80 times 6 to get 2,880, add 7 times 6 to get 2,922',
       }),
-    caption: 'The 487 × 6 rectangle is three columns: 2,400, 480 and 42, added from the left.',
+    caption: 'One running total: hundreds first, then add the tens, then the ones.',
   },
   levels,
   generate(rng, level) {
@@ -61,21 +62,17 @@ export default defineTechnique({
   steps(p) {
     const { a, b } = p.data;
     const ps = parts(a);
-    const prods = ps.map((v) => v * b);
-    const steps: Step[] = [
-      { op: '', expr: `${a} × ${b}` },
-      { expr: prods.map(fmt).join(' + '), note: ps.map((v) => `${v}×${b}`).join(', ') },
-    ];
-    let run = prods[0];
-    for (let i = 1; i < prods.length - 1; i++) {
-      const prev = run;
-      run += prods[i];
-      steps.push({
-        expr: [run, ...prods.slice(i + 1)].map(fmt).join(' + '),
-        note: `${fmt(prev)} + ${fmt(prods[i])}`,
-      });
-    }
-    steps.push({ expr: fmt(prods.reduce((s, v) => s + v, 0)) });
+    const names = ['hundreds', 'tens', 'ones'];
+    const name = (v: number) => names[3 - String(v).length] ?? 'ones';
+    const steps: Step[] = [{ op: '', expr: `${a} × ${b}` }];
+    let run = 0;
+    ps.forEach((v, i) => {
+      const prod = v * b;
+      steps.push({ op: '', expr: `${v} × ${b} = ${fmt(prod)}`, note: i === 0 ? `${name(v)} first` : `${name(v)} product` });
+      if (i > 0) steps.push({ op: '', expr: `${fmt(run)} + ${fmt(prod)} = ${fmt(run + prod)}`, note: 'add to the total' });
+      run += prod;
+    });
+    steps.push({ expr: fmt(run), note: 'answer' });
     return steps;
   },
 });

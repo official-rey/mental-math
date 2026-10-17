@@ -1092,3 +1092,64 @@
   white-space: normal;
   text-align: center;
 }
+
+/* Separate consecutive steps so each reads as its own small sum. */
+.steps .step + .step {
+  margin-top: 6px;
+}
+
+/* ---------- Drill: level ramp and sprint bonus ---------- */
+
+.level-tag {
+  font-weight: 400;
+}
+
+.stat-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.bonus {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ok);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.bonus.pop {
+  animation: bonus-pop 0.9s ease-out;
+}
+
+@keyframes bonus-pop {
+  0% {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  20% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* A folded final step ends on its result line: make that line the answer. */
+.steps .last .ex {
+  font-weight: 400;
+}
+
+.steps .last .ex:last-of-type {
+  font-weight: 600;
+}
+
+.drill-stage .level-tag {
+  font-family: var(--f-mono);
+  font-size: 12.5px;
+  color: var(--dim);
+}

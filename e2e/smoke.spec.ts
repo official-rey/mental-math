@@ -36,13 +36,14 @@ test('completes a 20-problem run and records it', async ({ page }) => {
 test('training: hints reveal steps one at a time; a miss shows the full solution', async ({ page }) => {
   await page.goto('/?e2e=1#/drill?k=technique&ids=complements&l=2&m=training');
   await page.getByTestId('hint').tap();
-  await expect(page.getByTestId('hint-steps').locator('.ex')).toHaveCount(2);
+  await expect(page.getByTestId('hint-steps').locator('.step')).toHaveCount(2);
   await page.getByTestId('hint').tap();
-  await expect(page.getByTestId('hint-steps').locator('.ex')).toHaveCount(3);
+  await expect(page.getByTestId('hint-steps').locator('.step')).toHaveCount(3);
   await answer(page, false);
   const solution = page.getByTestId('solution');
   await expect(solution).toBeVisible();
-  await expect(solution.locator('.steps .ex').first()).toHaveText(/1,000 − \d+/);
+  // Level II was chosen, but drills start at Level I: 100 − a 2-digit number.
+  await expect(solution.locator('.steps .step').first()).toHaveText(/^100\s*−\s*\d+$/);
   await expect(page.getByTestId('keypad')).toBeHidden();
   await page.getByTestId('next').tap();
   await expect(solution).toBeHidden();
@@ -94,12 +95,13 @@ test('sections: Learn groups, Stats, Settings', async ({ page }) => {
 test('technique card: the worked example reveals one step at a time', async ({ page }) => {
   await page.goto('/?e2e=1#/t/mul-2x1');
   const lines = page.locator('.stepper-lines .step');
-  await expect(lines).toHaveCount(3);
+  await expect(lines).toHaveCount(4);
   await expect(page.locator('.stepper-lines .step:not(.future)')).toHaveCount(2);
-  await expect(page.locator('.stepper-lines .step.current .nt')).toHaveText('40×6, 7×6');
+  await expect(page.locator('.stepper-lines .step.current .nt')).toHaveText('tens first');
   await page.getByTestId('next-step').tap();
-  await expect(page.locator('.stepper-lines .step:not(.future)')).toHaveCount(3);
-  await expect(page.locator('.stepper-lines .step.current .ex')).toHaveText('282');
+  await page.getByTestId('next-step').tap();
+  await expect(page.locator('.stepper-lines .step:not(.future)')).toHaveCount(4);
+  await expect(page.locator('.stepper-lines .step.current .ex').last()).toHaveText('282');
   await expect(page.getByTestId('next-step')).toBeDisabled();
 });
 
@@ -124,5 +126,6 @@ test('landing: the why comes first for new visitors and moves down after a while
   await page.evaluate(() => localStorage.setItem('mm:v1:prefs', JSON.stringify({ visits: 20 })));
   await page.reload();
   await expect(page.locator('.landing > section').first()).toHaveClass(/landing-hero/);
-  await expect(page.locator('.landing > section').last()).toHaveAttribute('data-testid', 'why');
+  // The why now follows the buttons and the book (the art closes the page after it).
+  await expect(page.locator('.landing > section').nth(2)).toHaveAttribute('data-testid', 'why');
 });

@@ -1,5 +1,5 @@
 import { defineTechnique } from '../define';
-import { rect, svg, text } from '../svg';
+import { chain } from '../svg';
 import type { Level, Levels, Problem, Step } from '../types';
 import { fmt, scaled } from '../util';
 
@@ -45,28 +45,6 @@ const levels = {
 
 const RANGE: Record<Level, [number, number]> = { 1: [10, 99], 2: [101, 999], 3: [1000, 9999] };
 
-/** Square of side 7 plus two strips of width x (exaggerated) and the dropped corner. */
-function diagram(): string {
-  const x0 = 24, y0 = 26, S = 120, w = 14;
-  let b = '';
-  b += rect(x0, y0, S, S, 'f-raised s-ink');
-  b += rect(x0 + S, y0, w, S, 'f-soft s-accent');
-  b += rect(x0, y0 + S, S, w, 'f-soft s-accent');
-  b += rect(x0 + S, y0 + S, w, w, 'f-none s-dim s-dash');
-  b += text(x0 + S / 2, y0 + S / 2, '49', 't t-lg');
-  b += text(x0 + S / 2, y0 - 12, '7', 't t-sm t-dim');
-  b += text(x0 + S + w / 2, y0 - 12, 'x', 't t-sm t-accent');
-  b += text(x0 + S + w + 6, y0 + S / 2, '7x', 't t-sm t-accent t-start');
-  b += text(x0 + S / 2, y0 + S + w + 12, '7x', 't t-sm t-accent');
-  const tx = 196;
-  b += text(tx, 40, '53 = 49 + 4', 't t-sm t-start');
-  b += text(tx, 64, '2 × 7x ≈ 4', 't t-sm t-start');
-  b += text(tx, 88, 'x ≈ 4 ÷ 14 ≈ 0.29', 't t-sm t-accent t-start');
-  b += text(tx, 112, '√53 ≈ 7.29', 't t-sm t-start');
-  b += text(tx, 136, 'corner x² dropped', 't t-sm t-dim t-start');
-  return svg(340, 184, b, 'A 7 by 7 square of area 49 with two strips of width x along two sides; together they make 53, ignoring the tiny corner');
-}
-
 export default defineTechnique({
   meta: {
     id: ID,
@@ -74,17 +52,26 @@ export default defineTechnique({
     category: 'est',
     tier: 'Core',
     order: 30,
-    idea: 'From the nearest square a², add the leftover divided by 2a.',
+    idea: 'Start from the nearest square root, then add the leftover divided by twice that root.',
   },
   card: {
     prose: [
-      'Find the perfect square a² nearest to N and the leftover d = N − a².',
-      'Then √N ≈ a + d ÷ 2a; d may be negative.',
-      'The estimate runs slightly high, by about d² ÷ 8a³.',
+      'Find the perfect square closest to the number and take its root.',
+      'Subtract to get the leftover, then divide it by twice the root.',
+      'Add that to the root; if the number was below the square, subtract instead.',
     ],
     example: make(53, 1),
-    graphic: diagram,
-    caption: 'Growing a 7 × 7 square by x on two sides adds about 14x, so 14x = 4 and the corner is negligible.',
+    graphic: () =>
+      chain({
+        start: '53',
+        moves: [
+          { op: '− 49 (7 × 7)', value: '4' },
+          { op: '÷ 14 (twice 7)', value: '0.29' },
+          { op: '+ 7', value: '7.29' },
+        ],
+        label: 'Square root of 53: take off 49, which is 7 squared, leaving 4; divide by 14, twice 7, to get 0.29; add 7 to get 7.29',
+      }),
+    caption: 'Take off the nearest square, divide the leftover by twice its root, add the root back.',
   },
   levels,
   generate(rng, level) {
@@ -101,17 +88,22 @@ export default defineTechnique({
   steps(p) {
     const N = p.data.N;
     const { a, d, qh, sh, at } = plan(N);
-    const sign = d > 0 ? '+' : '−';
+    const sq = a * a;
     const q = scaled(qh, 2);
     const s: Step[] = [
       { op: '', expr: `√${fmt(N)}` },
-      { op: '→', expr: `${a}² = ${fmt(a * a)}`, note: 'nearest square' },
-      { op: '→', expr: `d = ${fmt(N)} − ${fmt(a * a)} = ${d < 0 ? '−' : ''}${Math.abs(d)}`, note: 'leftover' },
-      { op: '≈', expr: `${a} ${sign} ${Math.abs(d)} ÷ ${2 * a}`, note: 'a + d ÷ 2a' },
-      { op: '≈', expr: `${a} ${sign} ${q}`, note: '2 decimals' },
-      { expr: scaled(sh, 2) },
+      { op: '', expr: `${a} × ${a} = ${fmt(sq)}`, note: 'nearest square' },
+      d > 0
+        ? { op: '', expr: `${fmt(N)} − ${fmt(sq)} = ${d}`, note: 'leftover' }
+        : { op: '', expr: `${fmt(sq)} − ${fmt(N)} = ${-d}`, note: `${-d} short of the square` },
+      { op: '', expr: `${a} × 2 = ${2 * a}`, note: 'twice the root' },
+      { op: '', expr: `${Math.abs(d)} ÷ ${2 * a}`, note: 'leftover ÷ twice the root' },
+      { op: '≈', expr: q, note: 'round to 2 decimals' },
+      d > 0
+        ? { op: '', expr: `${a} + ${q} = ${scaled(sh, 2)}`, note: 'add to the root' }
+        : { op: '', expr: `${a} − ${q} = ${scaled(sh, 2)}`, note: 'short, so subtract' },
     ];
-    if (sh !== at * 10) s.push({ op: '≈', expr: `${Math.floor(at / 10)}.${at % 10}`, note: '1 decimal place' });
+    s.push(sh === at * 10 ? { expr: scaled(at, 1), note: 'already 1 decimal' } : { op: '≈', expr: scaled(at, 1), note: 'to 1 decimal place' });
     return s;
   },
   reference: (p) => Math.sqrt(p.data.N),

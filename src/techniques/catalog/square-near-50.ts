@@ -1,6 +1,6 @@
 import { defineTechnique } from '../define';
-import { areaModel } from '../svg';
-import type { Level, Levels, Problem } from '../types';
+import { pieces } from '../svg';
+import type { Level, Levels, Problem, Step } from '../types';
 import { fmt, nonRound } from '../util';
 
 const ID = 'square-near-50';
@@ -33,24 +33,31 @@ export default defineTechnique({
     category: 'mul',
     tier: 'Core',
     order: 60,
-    idea: '(50 ± d)² = 100(25 ± d) + d²: the hundreds are 25 ± d, and d² fills the last two digits.',
+    idea: 'First digits: 25 plus the distance from 50. Last two digits: the distance squared.',
   },
   card: {
     prose: [
-      'Since 2 · 50 · d = 100d, the cross term only moves the hundreds: they become 25 ± d.',
-      'Append d² as two digits, carrying if d ≥ 10.',
-      'Near 500 the same holds with 250 ± d thousands and d² as three digits.',
+      'Find how far the number is from 50.',
+      'Add that distance to 25 (subtract it if you are below 50). These are the first digits.',
+      'Square the distance and write it as the last two digits. Near 500, start from 250 and use three digits.',
     ],
     example: make(53, 1),
     graphic: () =>
-      areaModel({
-        cols: [50, 3],
-        rows: [50, 3],
-        cell: (r, c) => ['2,500', '150', '150', '9'][r * 2 + c],
-        accent: [[0, 1], [1, 0]],
-        label: 'Area model: 53 squared as 50 squared, two 50 by 3 strips, and a 3 by 3 corner',
+      pieces({
+        input: '53²',
+        ops: [
+          { text: '53 − 50', out: '3' },
+          { text: '25 + 3', out: '28' },
+          { text: '3²', out: '09' },
+        ],
+        answer: [
+          { text: '28', from: 1 },
+          { text: '09', from: 2 },
+        ],
+        result: '2,809',
+        label: 'Squaring 53: distance 3 from 50, 25 plus 3 gives 28, 3 squared gives 09, so 2,809',
       }),
-    caption: '53² is 2,500 plus two 50 × 3 strips, together 3 hundreds, plus the 3 × 3 corner.',
+    caption: 'Get the distance, then build each half of the answer from it.',
   },
   levels,
   generate(rng, level) {
@@ -64,18 +71,23 @@ export default defineTechnique({
   steps(p) {
     const { n } = p.data;
     const { base, up, d, unit, head } = parts(n);
-    const sign = up ? '+' : '−';
-    const sq = d * d;
     const width = unit === 100 ? 2 : 3;
-    const tail =
-      sq < 10 ** width
-        ? `append ${String(sq).padStart(width, '0')}`
-        : `append ${String(sq % 100).padStart(2, '0')}, carry ${Math.floor(sq / 100)}`;
-    return [
+    const sq = d * d;
+    const steps: Step[] = [
       { op: '', expr: `${n}²` },
-      { expr: `${fmt(unit)} × (${base / 2} ${sign} ${d}) + ${d}²`, note: `${n} = ${base} ${sign} ${d}` },
-      { expr: `${fmt(unit)} × ${head} + ${sq}`, note: `${base / 2} ${sign} ${d}, ${d}²` },
-      { expr: fmt(unit * head + sq), note: tail },
+      { op: '', expr: up ? `${n} − ${base} = ${d}` : `${base} − ${n} = ${d}`, note: `distance from ${base}` },
+      { op: '', expr: `${base / 2} ${up ? '+' : '−'} ${d} = ${head}`, note: up ? 'first digits: add it' : 'first digits: below, so subtract' },
     ];
+    if (sq < 10 ** width) {
+      steps.push({ op: '', expr: `${d}² = ${String(sq).padStart(width, '0')}`, note: `last ${width} digits` });
+      steps.push({ expr: fmt(unit * head + sq), note: `${head} then ${String(sq).padStart(width, '0')}` });
+    } else {
+      const keep = String(sq % 10 ** width).padStart(width, '0');
+      const carry = Math.floor(sq / 10 ** width);
+      steps.push({ op: '', expr: `${d}² = ${sq}`, note: `write ${keep}, carry ${carry}` });
+      steps.push({ op: '', expr: `${head} + ${carry} = ${head + carry}`, note: 'add the carry' });
+      steps.push({ expr: fmt(unit * head + sq), note: `${head + carry} then ${keep}` });
+    }
+    return steps;
   },
 });

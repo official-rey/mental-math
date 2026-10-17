@@ -1,5 +1,5 @@
 import { defineTechnique } from '../define';
-import { areaModel } from '../svg';
+import { chain } from '../svg';
 import type { Level, Levels, Problem } from '../types';
 import { fmt, nonRound } from '../util';
 
@@ -10,10 +10,11 @@ function make(a: number, b: number, level: Level): Problem {
   return { technique: ID, level, text: `${a} × ${b}`, answer: String(a * tens + a * ones), data: { a, b } };
 }
 
-/** How a × T is found for a round T: one digit product, then a shift. */
+/** How a × T is found for a round T: a one-digit product, then zeros on the end. */
 function tensNote(a: number, t: number): string {
-  if (t === 10 || t === 100) return `${a} × ${t}`;
-  return `${a}×${t / 10} = ${fmt((a * t) / 10)}, ×10`;
+  if (t === 10) return 'add a 0';
+  if (t === 100) return 'add two 0s';
+  return `${a}×${t / 10} = ${fmt((a * t) / 10)}, add a 0`;
 }
 
 const levels = {
@@ -29,25 +30,25 @@ export default defineTechnique({
     category: 'mul',
     tier: 'Core',
     order: 100,
-    idea: 'Split one factor into tens and ones: two 2-digit × 1-digit products, then one sum.',
+    idea: 'Multiply by the tens of the second number, then by its ones, and add the two.',
   },
   card: {
     prose: [
-      'Break the second factor into its tens and its ones.',
-      'Multiply by the tens (a digit product, then a zero), then by the ones.',
-      'Add the two partial products.',
+      'Multiply by the tens: 47 × 5 = 235, add a 0 to get 2,350.',
+      'Multiply by the ones: 47 × 3 = 141.',
+      'Add the two results: 2,350 + 141 = 2,491.',
     ],
     example: make(47, 53, 2),
     graphic: () =>
-      areaModel({
-        cols: [50, 3],
-        rows: [47],
-        cell: (_r, c) => fmt([2350, 141][c]),
-        accent: [[0, 0]],
-        height: 150,
-        label: 'Area model: 47 by 53 split into 47 by 50 and 47 by 3',
+      chain({
+        start: '47 × 53',
+        moves: [
+          { op: '47 × 50', value: '2,350' },
+          { op: '+ 47 × 3', value: '2,491' },
+        ],
+        label: '47 times 53: 47 times 50 is 2,350, then add 47 times 3, 141, to reach 2,491',
       }),
-    caption: 'The 47 × 53 rectangle is a 47 × 50 block, 2,350, plus a 47 × 3 strip, 141.',
+    caption: 'Multiply by 50 first, then add on 47 × 3.',
   },
   levels,
   generate(rng, level) {
@@ -62,10 +63,10 @@ export default defineTechnique({
     const big = a * tens, small = a * ones;
     return [
       { op: '', expr: `${a} × ${b}` },
-      { expr: `${a} × ${tens} + ${a} × ${ones}`, note: `${b} = ${tens} + ${ones}` },
-      { expr: `${fmt(big)} + ${a} × ${ones}`, note: tensNote(a, tens) },
-      { expr: `${fmt(big)} + ${fmt(small)}`, note: `${a} × ${ones}` },
-      { expr: fmt(big + small) },
+      { op: '', expr: `${a} × ${tens} = ${fmt(big)}`, note: tensNote(a, tens) },
+      { op: '', expr: `${a} × ${ones} = ${fmt(small)}`, note: 'times the ones' },
+      { op: '', expr: `${fmt(big)} + ${fmt(small)} = ${fmt(big + small)}`, note: 'add them' },
+      { expr: fmt(big + small), note: 'answer' },
     ];
   },
 });

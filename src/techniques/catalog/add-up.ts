@@ -1,6 +1,6 @@
 import { defineTechnique } from '../define';
-import { numberLine, text } from '../svg';
-import type { Level, Levels, Problem, Rng } from '../types';
+import { circle, numberLine, text } from '../svg';
+import type { Level, Levels, Problem, Rng, Step } from '../types';
 import { fmt, nonRound } from '../util';
 
 const ID = 'add-up';
@@ -46,6 +46,32 @@ function pair(rng: Rng, lo: number, hi: number, gap: number, unit: number, bMin:
   }
 }
 
+/** A circled stage number. */
+const stage = (x: number, y: number, n: number) => circle(x, y, 8, 'f-paper s-accent') + text(x, y, n, 't t-sm t-accent');
+
+/** 625 − 386 as two hops up from 386, numbered, with the hops added at the bottom. */
+function diagram(): string {
+  const line = numberLine({
+    // Schematic spacing so the short first hop stays readable.
+    from: 0,
+    to: 100,
+    height: 160,
+    marks: [
+      { at: 0, label: '386' },
+      { at: 22, label: '400' },
+      { at: 100, label: '625' },
+    ],
+    hops: [
+      { from: 0, to: 22, label: '+14' },
+      { from: 22, to: 100, label: '+225' },
+    ],
+    label: 'From 386 hop up 14 to 400, then hop up 225 to 625, then add the hops: 14 plus 225 is 239',
+  });
+  // Hop label positions follow numberLine's layout (width 340, line at 60% height).
+  const extra = stage(34, 64, 1) + stage(172, 52, 2) + stage(100, 142, 3) + text(176, 142, '14 + 225 = 239', 't t-accent t-b');
+  return line.replace('</svg>', extra + '</svg>');
+}
+
 export default defineTechnique({
   meta: {
     id: ID,
@@ -53,33 +79,17 @@ export default defineTechnique({
     category: 'addsub',
     tier: 'Core',
     order: 40,
-    idea: 'Find a difference as the distance up from the smaller number, through a round stop.',
+    idea: 'Count up from the smaller number to a round number, then on to the bigger one, and add the hops.',
   },
   card: {
     prose: [
-      'Start at the number being subtracted and count up to a round number, then on to the target.',
-      'The difference is the sum of the hops, and no column ever needs a borrow.',
-      'It pays off when the two numbers sit on either side of a round number.',
+      'Start at the number you take away and count up to the next round number.',
+      'Count up from that round number to the bigger number.',
+      'Add the two hops together. That total is the answer.',
     ],
     example: make(625, 386, 2),
-    graphic: () =>
-      numberLine({
-        // Schematic spacing so the short first hop stays readable.
-        from: 0,
-        to: 100,
-        height: 150,
-        marks: [
-          { at: 0, label: '386' },
-          { at: 22, label: '400' },
-          { at: 100, label: '625' },
-        ],
-        hops: [
-          { from: 0, to: 22, label: '+14' },
-          { from: 22, to: 100, label: '+225' },
-        ],
-        label: 'Number line: from 386 up 14 to 400, then up 225 to 625; the difference is 239',
-      }).replace('</svg>', text(170, 136, '14 + 225 = 239', 't t-accent t-b') + '</svg>'),
-    caption: 'From 386, hop 14 to 400 and 225 to 625: the gap is 14 + 225 = 239.',
+    graphic: diagram,
+    caption: 'Hop from 386 up to 400, hop on to 625, then add the two hops.',
   },
   levels,
   generate(rng, level) {
@@ -97,12 +107,13 @@ export default defineTechnique({
     const { a, b } = p.data;
     const stop = stopPoint(a, b);
     const h1 = stop - b, h2 = a - stop;
-    return [
+    const steps: Step[] = [
       { op: '', expr: `${fmt(a)} − ${fmt(b)}` },
-      { op: '→', expr: `${fmt(b)} + ${fmt(h1)} = ${fmt(stop)}`, note: `up to ${fmt(stop)}` },
-      { op: '→', expr: `${fmt(stop)} + ${fmt(h2)} = ${fmt(a)}`, note: `up to ${fmt(a)}` },
-      { expr: `${fmt(h1)} + ${fmt(h2)}`, note: 'add the hops' },
-      { expr: fmt(h1 + h2) },
+      { op: '', expr: `${fmt(b)} + ${fmt(h1)} = ${fmt(stop)}`, note: `hop up to ${fmt(stop)}` },
+      { op: '', expr: `${fmt(stop)} + ${fmt(h2)} = ${fmt(a)}`, note: `hop on to ${fmt(a)}` },
+      { op: '', expr: `${fmt(h1)} + ${fmt(h2)} = ${fmt(h1 + h2)}`, note: 'add the two hops' },
+      { expr: fmt(h1 + h2), note: 'the total of the hops' },
     ];
+    return steps;
   },
 });

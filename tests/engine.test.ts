@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { DrillSession, SPRINT_MS } from '../src/drill/engine';
+import { BONUS_MS, DrillSession, RAMP_STREAK, SPRINT_MS } from '../src/drill/engine';
 import type { DrillSpec, RunRecord } from '../src/drill/types';
 import { LocalStore } from '../src/storage/store';
 import { techniques } from '../src/techniques/registry';
@@ -31,21 +31,67 @@ describe('drill session', () => {
     expect(r.totalMs).toBe(30000);
   });
 
-  it('a sprint ends at 60 seconds', () => {
+  it('a sprint with no correct answers ends at 60 seconds', () => {
     const c = clock();
     const s = new DrillSession(spec({ mode: 'sprint' }), makeRng(2), c.now);
     s.start();
     let n = 0;
-    while (!s.isFinished()) {
+    for (;;) {
       c.tick(2500);
       if (s.isFinished()) break;
-      s.submit(s.current.answer);
+      s.submit('wrong');
       s.advance();
       n++;
     }
     s.finish();
     expect(n).toBe(Math.floor((SPRINT_MS - 1) / 2500));
     expect(s.result().totalMs).toBe(SPRINT_MS);
+  });
+
+  it('each correct sprint answer adds time to the clock', () => {
+    const c = clock();
+    const s = new DrillSession(spec({ mode: 'sprint' }), makeRng(9), c.now);
+    s.start();
+    for (let i = 0; i < 5; i++) {
+      c.tick(1000);
+      const a = s.submit(s.current.answer);
+      expect(a.bonusMs).toBe(BONUS_MS);
+      s.advance();
+    }
+    s.submit('wrong');
+    expect(s.timeLimit()).toBe(SPRINT_MS + 5 * BONUS_MS);
+    expect(s.remaining()).toBe(SPRINT_MS + 5 * BONUS_MS - 5000);
+    c.tick(SPRINT_MS);
+    expect(s.isFinished()).toBe(false);
+    c.tick(5 * BONUS_MS);
+    expect(s.isFinished()).toBe(true);
+  });
+
+  it('a higher level starts at Level I and climbs after streaks of correct answers', () => {
+    const c = clock();
+    const s = new DrillSession(spec({ level: 3, mode: 'training' }), makeRng(10), c.now);
+    const levels: number[] = [s.start().level];
+    const answer = (ok: boolean) => {
+      const a = s.submit(ok ? s.current.answer : 'wrong');
+      levels.push(s.advance().level);
+      return a;
+    };
+    for (let i = 0; i < RAMP_STREAK - 1; i++) answer(true);
+    expect(answer(true).levelUp).toBe(2);
+    answer(true);
+    answer(false); // a miss restarts the streak
+    for (let i = 0; i < RAMP_STREAK - 1; i++) answer(true);
+    expect(s.level).toBe(2);
+    expect(answer(true).levelUp).toBe(3);
+    for (let i = 0; i < 6; i++) expect(answer(true).levelUp).toBeUndefined();
+    expect(levels.slice(0, RAMP_STREAK)).toEqual([1, 1, 1]);
+    expect(levels[levels.length - 1]).toBe(3);
+    expect(s.result().level).toBe(3);
+  });
+
+  it('Level I drills start at Level I with no ramp', () => {
+    const s = new DrillSession(spec({ level: 1 }), makeRng(11), clock().now);
+    expect(s.start().level).toBe(1);
   });
 
   it('pausing stops the sprint clock and the problem timer', () => {
@@ -61,7 +107,7 @@ describe('drill session', () => {
     c.tick(2_000);
     s.submit(s.current.answer);
     expect(s.log[0].ms).toBe(12_000);
-    expect(s.remaining()).toBe(48_000);
+    expect(s.remaining()).toBe(48_000 + BONUS_MS);
   });
 
   it('skips are logged as misses with the technique id', () => {
