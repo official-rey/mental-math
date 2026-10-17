@@ -142,3 +142,80 @@ export function timesTableName(k: number): string {
   if (Math.abs(k - r) > 0.04) return '';
   return ({ 2: 'cardioid', 3: 'nephroid', 4: '3 cusps', 5: '4 cusps' } as Record<number, string>)[r] ?? `${r - 1} cusps`;
 }
+
+/** Integers laid on a square spiral from the center; primes are marked. Diagonal streaks appear. */
+export function drawUlam(
+  ctx: CanvasRenderingContext2D,
+  o: { cx: number; cy: number; size: number; side: number; progress?: number; colors: Ink; alpha?: number },
+) {
+  const total = o.side * o.side;
+  const shown = Math.floor(total * (o.progress ?? 1));
+  const cell = o.size / o.side;
+  let x = 0, y = 0, dx = 1, dy = 0, run = 1, left = 1, turns = 0;
+  ctx.save();
+  ctx.globalAlpha = o.alpha ?? 1;
+  for (let n = 1; n <= shown; n++) {
+    const px = o.cx + x * cell, py = o.cy + y * cell;
+    if (isPrime(n)) {
+      ctx.fillStyle = n % 4 === 1 ? o.colors.accent : o.colors.ink;
+      ctx.beginPath();
+      ctx.arc(px, py, Math.max(0.8, cell * 0.4), 0, TAU);
+      ctx.fill();
+    }
+    x += dx;
+    y += dy;
+    if (--left === 0) {
+      [dx, dy] = [dy, -dx];
+      turns++;
+      if (turns % 2 === 0) run++;
+      left = run;
+    }
+  }
+  ctx.restore();
+}
+
+let sieve = new Uint8Array(0);
+
+/** Primality from a cached sieve (grown on demand). */
+export function isPrime(n: number): boolean {
+  if (n >= sieve.length) {
+    const size = Math.max(n + 1, sieve.length * 2, 1024);
+    sieve = new Uint8Array(size).fill(1);
+    sieve[0] = sieve[1] = 0;
+    for (let i = 2; i * i < size; i++) if (sieve[i]) for (let j = i * i; j < size; j += i) sieve[j] = 0;
+  }
+  return sieve[n] === 1;
+}
+
+/** Pascal's triangle with the entries not divisible by p filled: Sierpinski-like patterns. */
+export function drawPascal(
+  ctx: CanvasRenderingContext2D,
+  o: { cx: number; top: number; size: number; rows: number; p: number; progress?: number; colors: Ink; alpha?: number },
+) {
+  const shownRows = Math.floor(o.rows * (o.progress ?? 1));
+  const cell = o.size / o.rows;
+  let row = [1];
+  ctx.save();
+  ctx.globalAlpha = o.alpha ?? 1;
+  for (let n = 0; n < shownRows; n++) {
+    const y = o.top + n * cell * 0.9;
+    for (let k = 0; k <= n; k++) {
+      const r = row[k];
+      if (r === 0) continue;
+      const x = o.cx + (k - n / 2) * cell;
+      ctx.fillStyle = r === 1 ? o.colors.accent : o.colors.ink;
+      ctx.globalAlpha = (o.alpha ?? 1) * (r === 1 ? 0.9 : 0.55);
+      ctx.beginPath();
+      ctx.moveTo(x, y - cell * 0.42);
+      ctx.lineTo(x + cell * 0.45, y + cell * 0.36);
+      ctx.lineTo(x - cell * 0.45, y + cell * 0.36);
+      ctx.closePath();
+      ctx.fill();
+    }
+    const next = [1];
+    for (let k = 1; k <= n; k++) next.push((row[k - 1] + row[k]) % o.p);
+    next.push(1);
+    row = next;
+  }
+  ctx.restore();
+}

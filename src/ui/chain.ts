@@ -7,7 +7,7 @@ import { drillControls } from './controls';
 import { h, reveal } from './dom';
 import type { View } from './router';
 import { layout } from './shell';
-import { renderSteps } from './steps';
+import { renderStepper } from './steps';
 
 const SYM: Record<string, string> = { '+': '+', '−': '−', '×': '×', '÷': '÷', '^': 'x²', mod: 'mod' };
 
@@ -68,13 +68,11 @@ export async function chainView(): Promise<View> {
     h(
       'article',
       { class: 'card' },
-      h('div', { class: 'kicker' }, 'Drill mode'),
       h('h1', { class: 'display' }, 'Chain drills'),
       h('p', { class: 'lede' }, 'One expression, several operations, one answer typed at the end.'),
       h('p', { class: 'prose' }, 'Parentheses first, then squares, then × and ÷, then + and −, each left to right.'),
       h('p', { class: 'prose' }, 'Every intermediate result is a whole number and every division comes out exact.'),
-      h('div', { class: 'kicker example-label' }, 'Example'),
-      renderSteps(chainSteps(example)),
+      renderStepper(chainSteps(example)),
       figure,
       drillControls(
         state,

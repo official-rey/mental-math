@@ -33,7 +33,9 @@ export function soundToggle(): HTMLButtonElement {
 export function topbar(opts: { back?: { href: string; label: string }; active?: Section } = {}): HTMLElement {
   const left = opts.back
     ? h('a', { class: 'iconbtn back', href: opts.back.href, html: `${ICONS.back}<span>${opts.back.label}</span>` })
-    : h('a', { class: 'wordmark', href: '#/' }, 'Mental Math');
+    : opts.active === 'train'
+      ? h('span')
+      : h('a', { class: 'wordmark', href: '#/' }, 'Mental Math');
   const nav = h(
     'nav',
     { class: 'topnav', 'aria-label': 'Sections' },

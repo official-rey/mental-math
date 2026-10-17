@@ -6,7 +6,7 @@ import { drillControls } from './controls';
 import { h, reveal } from './dom';
 import type { View } from './router';
 import { layout } from './shell';
-import { renderSteps } from './steps';
+import { renderStepper } from './steps';
 
 export async function cardView(parts: string[]): Promise<View> {
   const t = getTechnique(parts[0] ?? '');
@@ -33,13 +33,11 @@ export async function cardView(parts: string[]): Promise<View> {
     h(
       'article',
       { class: 'card', 'data-technique': t.meta.id },
-      h('div', { class: 'kicker' }, cat.name),
       h('h1', { class: 'display' }, t.meta.name),
-      h('div', { class: 'meta' }, h('span', { class: `badge tier-${t.meta.tier.toLowerCase()}` }, t.meta.tier)),
+      h('div', { class: 'meta' }, h('span', { class: `badge tier-${t.meta.tier.toLowerCase()}` }, t.meta.tier), h('span', { class: 'dim' }, cat.name)),
       h('p', { class: 'lede' }, t.meta.idea),
       t.card.prose.map((p) => h('p', { class: 'prose' }, p)),
-      h('div', { class: 'kicker example-label' }, 'Example'),
-      renderSteps(t.steps(t.card.example)),
+      renderStepper(t.steps(t.card.example)),
       figure,
       drillControls(
         state,

@@ -52,7 +52,7 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
   const stat = h('div', { class: 'drill-stat mono', 'data-testid': 'stat' });
   const bar = h('i');
   const progress = h('div', { class: 'progress', 'aria-hidden': 'true' }, bar);
-  const tag = h('div', { class: 'drill-tag kicker' });
+  const tag = h('div', { class: 'drill-tag' });
   const problem = h('div', { class: 'problem', 'data-testid': 'problem', role: 'status', 'aria-live': 'polite' });
   const hint = h('div', { class: 'problem-hint mono' });
   const hintSteps = h('div', { class: 'hint-steps', 'data-testid': 'hint-steps' });
@@ -72,7 +72,7 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
   const feedback = h('div', { class: 'feedback mono', 'aria-live': 'polite', 'data-testid': 'feedback' });
   const solution = h('div', { class: 'solution', hidden: true, 'data-testid': 'solution' });
   const resumeBtn = h('button', { class: 'btn ink', type: 'button', 'data-testid': 'resume', onclick: () => togglePause() }, 'Resume', h('span', { class: 'arrow' }, '→'));
-  const pausedCover = h('div', { class: 'paused-cover', hidden: true }, h('div', { class: 'kicker' }, 'Paused'), h('p', { class: 'dim' }, 'The clock is stopped.'), resumeBtn);
+  const pausedCover = h('div', { class: 'paused-cover', hidden: true }, h('h2', null, 'Paused'), h('p', { class: 'dim' }, 'The clock is stopped.'), resumeBtn);
 
   // Tools: hints and answers while training; pause and skip when timed.
   const tools: HTMLButtonElement[] = [];
@@ -97,7 +97,7 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
       'header',
       { class: 'drill-bar' },
       h('a', { class: 'iconbtn', href: backHref(spec), 'aria-label': 'Quit drill', html: ICONS.close }),
-      h('div', { class: 'drill-title kicker' }, `${drillName(spec)} · ${ROMAN[spec.level]}`),
+      h('div', { class: 'drill-title' }, drillName(spec), h('span', { class: 'dim' }, ` · ${ROMAN[spec.level]}`)),
       stat,
       doneBtn,
       soundToggle(),
@@ -194,7 +194,7 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
     hintSteps.replaceChildren();
     dock.hidden = true;
     solution.replaceChildren(
-      h('div', { class: 'solution-head' }, h('span', { class: 'kicker' }, 'Answer'), h('span', { class: 'mono solution-answer' }, fmt(answer))),
+      h('div', { class: 'solution-head' }, h('span', { class: 'dim' }, 'Answer'), h('span', { class: 'mono solution-answer' }, fmt(answer))),
       renderSteps(steps),
       h('button', { class: 'btn ink block big', type: 'button', 'data-testid': 'next', onclick: () => next() }, 'Next', h('span', { class: 'arrow' }, '↵')),
     );

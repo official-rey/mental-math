@@ -91,8 +91,8 @@ export async function resultsView(parts: string[]): Promise<View> {
     h(
       'div',
       { class: 'results', 'data-testid': 'results' },
-      h('div', { class: 'kicker' }, modeLabel(run)),
       h('h1', { class: 'display' }, run.drillName),
+      h('p', { class: 'dim result-mode' }, modeLabel(run)),
       h(
         'div',
         { class: 'score' },
@@ -122,7 +122,7 @@ export async function resultsView(parts: string[]): Promise<View> {
         ? h(
             'section',
             null,
-            h('h2', { class: 'section-head kicker' }, 'Best runs on this device'),
+            h('h2', { class: 'section-head' }, 'Best runs on this device'),
             h(
               'table',
               { class: 'board', 'data-testid': 'leaderboard' },
@@ -149,7 +149,7 @@ export async function resultsView(parts: string[]): Promise<View> {
         ? h(
             'section',
             null,
-            h('h2', { class: 'section-head kicker' }, 'Missed'),
+            h('h2', { class: 'section-head' }, 'Missed'),
             h(
               'ul',
               { class: 'misses mono' },

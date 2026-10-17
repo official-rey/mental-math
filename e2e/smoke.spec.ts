@@ -89,3 +89,15 @@ test('sections: Learn groups, Stats, Settings', async ({ page }) => {
   await expect(page.getByTestId('keypad')).toHaveCount(0);
   await expect(page.getByTestId('answer')).toHaveAttribute('inputmode', 'decimal');
 });
+
+test('technique card: the worked example reveals one step at a time', async ({ page }) => {
+  await page.goto('/?e2e=1#/t/mul-2x1');
+  const lines = page.locator('.stepper-lines .step');
+  await expect(lines).toHaveCount(3);
+  await expect(page.locator('.stepper-lines .step:not(.future)')).toHaveCount(2);
+  await expect(page.locator('.stepper-lines .step.current .nt')).toHaveText('40×6, 7×6');
+  await page.getByTestId('next-step').tap();
+  await expect(page.locator('.stepper-lines .step:not(.future)')).toHaveCount(3);
+  await expect(page.locator('.stepper-lines .step.current .ex')).toHaveText('282');
+  await expect(page.getByTestId('next-step')).toBeDisabled();
+});

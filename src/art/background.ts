@@ -1,21 +1,13 @@
 /**
- * Margin art on one fixed canvas. It draws only in the empty side margins of wide screens
- * (never behind content): a golden-angle seed head on the left, a harmonograph on the right.
- * Narrow screens get no background art; the Train page has its own art plate instead.
+ * Background: faint graph paper drifting slowly on one fixed canvas. The grid fades out
+ * behind the content column so text always sits on clean paper. Static under reduced motion.
  */
 import { PALETTE } from '../theme';
-import { drawHarmonograph, drawPhyllotaxis, HARMONOGRAPHS } from './figures';
 
-/** Content column width (matches --measure plus the 16 px gutters). */
-const COLUMN = 720 + 32;
-const MIN_MARGIN = 230;
-
-const TRACE_MS = 30000;
-const HOLD_MS = 8000;
-const FADE_MS = 3000;
-const CYCLE = TRACE_MS + HOLD_MS + FADE_MS;
-
-const COLORS = { ink: PALETTE.ink, accent: PALETTE.accent, rule: PALETTE.rule };
+const CELL = 26;
+const MAJOR = 5;
+const SPEED = 5; // px per second, diagonally
+const COLUMN = 720;
 
 export interface ArtController {
   pause(): void;
@@ -27,14 +19,8 @@ export function startArt(canvas: HTMLCanvasElement): ArtController {
   const ctx = canvas.getContext('2d')!;
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   let w = 0, h = 0, dpr = 1;
-  let paused = false;
-  let enabled = true;
-  let raf = 0;
-  let last = 0;
-  let elapsed = 0;
-  let cycle = 0;
-
-  const margin = () => (w - COLUMN) / 2;
+  let paused = false, enabled = true;
+  let raf = 0, last = 0, offset = 0;
 
   function resize() {
     dpr = Math.min(devicePixelRatio || 1, 2);
@@ -42,58 +28,51 @@ export function startArt(canvas: HTMLCanvasElement): ArtController {
     h = innerHeight;
     canvas.width = Math.round(w * dpr);
     canvas.height = Math.round(h * dpr);
-    run();
+    draw();
+  }
+
+  function grid(step: number, color: string, alpha: number, width: number) {
+    const o = offset % step;
+    ctx.globalAlpha = alpha;
+    ctx.fillStyle = color;
+    for (let x = -step + o; x < w; x += step) ctx.fillRect(Math.round(x), 0, width, h);
+    for (let y = -step + o; y < h; y += step) ctx.fillRect(0, Math.round(y), w, width);
   }
 
   function draw() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.globalCompositeOperation = 'source-over';
     ctx.clearRect(0, 0, w, h);
-    const m = margin();
-    if (!enabled || m < MIN_MARGIN) return;
-
-    const still = reduced.matches;
-    const t = still ? TRACE_MS : elapsed;
-    const progress = Math.min(1, t / TRACE_MS);
-    const fade = t > TRACE_MS + HOLD_MS ? Math.max(0, 1 - (t - TRACE_MS - HOLD_MS) / FADE_MS) : 1;
-    const size = Math.min(m * 0.36, h * 0.3);
-
-    // Left margin: seeds appear outward, then the head turns slowly.
-    ctx.save();
-    ctx.translate(m / 2, h * 0.42);
-    ctx.rotate(still ? 0 : performance.now() / 90000);
-    drawPhyllotaxis(ctx, { cx: 0, cy: 0, r: size, count: 520, progress: 0.15 + 0.85 * easeOut(progress), colors: COLORS, alpha: fade });
-    ctx.restore();
-
-    // Right margin: a harmonograph traced from the outside in.
-    drawHarmonograph(ctx, {
-      cx: w - m / 2,
-      cy: h * 0.58,
-      size,
-      h: HARMONOGRAPHS[cycle % HARMONOGRAPHS.length],
-      progress: easeOut(progress),
-      color: PALETTE.dim,
-      alpha: 0.45 * fade,
-      width: 0.7,
-    });
+    if (!enabled) return;
+    grid(CELL, PALETTE.rule, 0.45, 1);
+    grid(CELL * MAJOR, PALETTE.rule, 0.9, 1);
+    // Fade the grid out behind the reading column.
+    ctx.globalAlpha = 1;
+    ctx.globalCompositeOperation = 'destination-out';
+    const half = Math.min(w, COLUMN) / 2;
+    const g = ctx.createLinearGradient(w / 2 - half - 160, 0, w / 2 + half + 160, 0);
+    const edge = 160 / (2 * half + 320);
+    g.addColorStop(0, 'rgba(0,0,0,0)');
+    g.addColorStop(edge, 'rgba(0,0,0,0.88)');
+    g.addColorStop(1 - edge, 'rgba(0,0,0,0.88)');
+    g.addColorStop(1, 'rgba(0,0,0,0)');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+    ctx.globalCompositeOperation = 'source-over';
   }
 
   function frame(now: number) {
     raf = requestAnimationFrame(frame);
     const dt = now - last;
-    if (dt < 33) return;
+    if (dt < 50) return; // the drift is slow; 20 fps is plenty
     last = now;
-    elapsed += Math.min(dt, 100);
-    if (elapsed >= CYCLE) {
-      elapsed = 0;
-      cycle++;
-    }
+    offset += (SPEED * Math.min(dt, 200)) / 1000;
     draw();
   }
 
   function run() {
     cancelAnimationFrame(raf);
-    const idle = paused || document.hidden || reduced.matches || !enabled || margin() < MIN_MARGIN;
-    if (idle) {
+    if (paused || document.hidden || reduced.matches || !enabled) {
       draw();
       return;
     }
@@ -105,6 +84,7 @@ export function startArt(canvas: HTMLCanvasElement): ArtController {
   document.addEventListener('visibilitychange', run);
   reduced.addEventListener?.('change', run);
   resize();
+  run();
 
   return {
     pause() {
@@ -121,5 +101,3 @@ export function startArt(canvas: HTMLCanvasElement): ArtController {
     },
   };
 }
-
-const easeOut = (t: number) => 1 - (1 - t) ** 3;

@@ -41,7 +41,7 @@ export async function mixedView(): Promise<View> {
     h(
       'section',
       null,
-      h('h2', { class: 'section-head kicker' }, cat.name),
+      h('h2', { class: 'section-head' }, cat.name),
       h(
         'ul',
         { class: 'picklist' },

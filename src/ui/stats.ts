@@ -94,7 +94,7 @@ export async function statsView(): Promise<View> {
         ? h(
             'section',
             null,
-            h('h2', { class: 'section-head kicker' }, 'By technique'),
+            h('h2', { class: 'section-head' }, 'By technique'),
             h(
               'ul',
               { class: 'tech-stats' },
@@ -117,12 +117,12 @@ export async function statsView(): Promise<View> {
           )
         : null,
       bests.length
-        ? h('section', null, h('h2', { class: 'section-head kicker' }, 'Personal bests'), h('div', { class: 'menu' }, bests.slice(0, 12).map((r) => runRow(r))))
+        ? h('section', null, h('h2', { class: 'section-head' }, 'Personal bests'), h('div', { class: 'menu' }, bests.slice(0, 12).map((r) => runRow(r))))
         : null,
       h(
         'section',
         null,
-        h('h2', { class: 'section-head kicker' }, 'Recent runs'),
+        h('h2', { class: 'section-head' }, 'Recent runs'),
         h(
           'div',
           { class: 'menu' },

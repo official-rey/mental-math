@@ -56,8 +56,8 @@ export function drillControls(
   return h(
     'div',
     { class: 'controls' },
-    h('div', { class: 'control' }, h('span', { class: 'kicker' }, 'Level'), level),
+    h('div', { class: 'control' }, h('span', { class: 'control-label' }, 'Level'), level),
     levels ? desc : null,
-    h('div', { class: 'control' }, h('span', { class: 'kicker' }, 'Mode'), mode),
+    h('div', { class: 'control' }, h('span', { class: 'control-label' }, 'Mode'), mode),
   );
 }

@@ -36,7 +36,7 @@ export async function settingsView(): Promise<View> {
       'div',
       null,
       h('h1', { class: 'display' }, 'Settings'),
-      h('h2', { class: 'section-head kicker' }, 'Drills'),
+      h('h2', { class: 'section-head' }, 'Drills'),
       row(
         'Starting level',
         'Used when you open a technique card.',
@@ -61,7 +61,7 @@ export async function settingsView(): Promise<View> {
           (keypad) => store.setPrefs({ keypad }),
         ),
       ),
-      h('h2', { class: 'section-head kicker' }, 'Feedback'),
+      h('h2', { class: 'section-head' }, 'Feedback'),
       row(
         'Sound',
         'Short tones for right, wrong and finish.',
@@ -71,7 +71,7 @@ export async function settingsView(): Promise<View> {
         }),
       ),
       row('Vibration', 'Taps on key presses and a buzz on a miss, where supported.', onOff('Vibration', p.haptics, (haptics) => store.setPrefs({ haptics }))),
-      h('h2', { class: 'section-head kicker' }, 'Display'),
+      h('h2', { class: 'section-head' }, 'Display'),
       row(
         'Math art',
         'The times-table plate on Train and drawings in wide-screen margins.',
@@ -80,10 +80,10 @@ export async function settingsView(): Promise<View> {
           app.art?.setEnabled(art);
         }),
       ),
-      h('h2', { class: 'section-head kicker' }, 'Data'),
+      h('h2', { class: 'section-head' }, 'Data'),
       row('Runs and bests', 'Stored only on this device.', erase),
       status,
-      h('h2', { class: 'section-head kicker' }, 'About'),
+      h('h2', { class: 'section-head' }, 'About'),
       h('p', { class: 'prose dim' }, 'Techniques adapted from A. T. Benjamin, The Secrets of Mental Math, and the Vedic mathematics tradition.'),
     ),
   );

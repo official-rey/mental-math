@@ -1,99 +1,98 @@
 import { heroPlate } from '../art/hero';
-import { defaultSpec, describe, specToHash } from '../drill/spec';
-import type { DrillSpec, RunRecord } from '../drill/types';
-import { scoreText } from '../share/draw';
+import { defaultSpec, specToHash } from '../drill/spec';
+import type { DrillSpec } from '../drill/types';
 import { store } from '../storage/store';
-import { techniques } from '../techniques/registry';
-import { CATEGORIES } from '../techniques/types';
+import { getTechnique } from '../techniques/registry';
+import { DEV_CREDIT } from '../theme';
 import { h, reveal } from './dom';
 import type { View } from './router';
 import { layout } from './shell';
 
-/** Where "change" goes for the drill the Start button would launch. */
-function changeHref(s: DrillSpec): string {
-  if (s.kind === 'technique') return `#/t/${s.ids[0]}`;
-  return s.kind === 'chain' ? '#/chain' : '#/mixed';
-}
+const BOOK_URL = 'https://archive.org/details/secretsofmentalm0000arth';
 
-function menuRow(href: string, title: string, desc: string, testid?: string): HTMLElement {
-  return h(
-    'a',
-    { class: 'menu-row', href, 'data-testid': testid },
-    h('span', { class: 'menu-text' }, h('span', { class: 'menu-title' }, title), h('span', { class: 'menu-desc' }, desc)),
-    h('span', { class: 'menu-arrow', 'aria-hidden': 'true' }, '→'),
-  );
-}
+const MODE_WORDS = { training: 'untimed', sprint: '60-second sprint', twenty: '20 problems' } as const;
 
-function recentRow(run: RunRecord): HTMLElement | null {
-  if (!run.spec) return null;
-  const s = scoreText(run);
-  return h(
-    'a',
-    { class: 'menu-row', href: specToHash(run.spec) },
-    h('span', { class: 'menu-text' }, h('span', { class: 'menu-title' }, run.drillName), h('span', { class: 'menu-desc mono' }, describe(run.spec).replace(`${run.drillName} · `, ''))),
-    h('span', { class: 'menu-score mono' }, `${s.main}${s.suffix}`),
-  );
+/** Plain description of exactly what the Start button launches. */
+function whatStarts(s: DrillSpec): string {
+  const d = defaultSpec();
+  const what =
+    s.kind === 'chain'
+      ? 'Chain drill'
+      : s.kind === 'technique'
+        ? getTechnique(s.ids[0])!.meta.name
+        : s.ids.length === d.ids.length && s.ids.every((id) => d.ids.includes(id))
+          ? 'Foundation mix'
+          : `Mix of ${s.ids.length} techniques`;
+  return `${what} · Level ${['', 'I', 'II', 'III'][s.level]} · ${MODE_WORDS[s.mode]}`;
 }
 
 export async function trainView(): Promise<View> {
   const prefs = await store.getPrefs();
-  const history = await store.history(30);
   const spec = prefs.last ?? defaultSpec();
   const plate = prefs.art ? heroPlate() : null;
-
-  // De-duplicate recent drills by what was drilled.
-  const seen = new Set<string>();
-  const recent = history.filter((r) => r.spec && !seen.has(r.drillKey + r.mode) && seen.add(r.drillKey + r.mode)).slice(0, 3);
-  const answered = history.reduce((a, r) => a + r.attempted, 0);
-  const correct = history.reduce((a, r) => a + r.correct, 0);
 
   const content = reveal(
     h(
       'div',
-      { class: 'train' },
+      { class: 'landing' },
       h(
         'section',
-        { class: `train-hero${plate ? '' : ' no-art'}` },
+        { class: `landing-hero${plate ? '' : ' no-art'}` },
         h(
           'div',
           { class: 'hero-text' },
           h('h1', { class: 'display' }, 'Mental Math'),
-          h('p', { class: 'lede' }, 'Learn a technique in a minute. Then get fast at it.'),
           h(
             'a',
-            { class: 'btn primary big block', href: specToHash(spec), 'data-testid': 'start' },
-            prefs.last ? 'Continue drilling' : 'Start drilling',
-            h('span', { class: 'arrow' }, '→'),
+            { class: 'btn primary big block start-btn', href: specToHash(spec), 'data-testid': 'start' },
+            h('span', { class: 'start-label' }, 'Start drilling', h('span', { class: 'arrow' }, '→')),
+            h('span', { class: 'start-sub' }, whatStarts(spec)),
           ),
-          h('div', { class: 'start-meta' }, h('span', null, describe(spec)), h('a', { href: changeHref(spec) }, 'change')),
+          h(
+            'nav',
+            { class: 'hero-links', 'aria-label': 'Other drills' },
+            h('a', { href: '#/mixed' }, 'Pick techniques'),
+            h('a', { href: '#/chain' }, 'Chain drills'),
+            h('a', { href: '#/learn' }, 'All techniques'),
+          ),
         ),
         plate?.el,
       ),
       h(
         'section',
-        null,
-        h('h2', { class: 'section-head kicker' }, 'Start a drill'),
+        { class: 'book' },
+        h('img', { class: 'book-cover', src: './book-cover.jpg', alt: 'Cover of The Secrets of Mental Math by Arthur T. Benjamin', width: '480', height: '721', loading: 'lazy' }),
         h(
           'div',
-          { class: 'menu' },
-          menuRow(specToHash(defaultSpec()), 'Quick mix', 'Every Foundation technique, shuffled, Level I.', 'quick-mix'),
-          menuRow('#/mixed', 'Mixed drill', 'Choose your own set of techniques.'),
-          menuRow('#/chain', 'Chain drills', 'Multi-step expressions, one final answer.'),
-          menuRow('#/learn', 'Learn a technique', `${techniques.length} techniques in ${CATEGORIES.length} groups.`),
+          { class: 'book-text' },
+          h('h2', null, 'The book behind it'),
+          h(
+            'p',
+            null,
+            'Arthur T. Benjamin’s ',
+            h('i', null, 'The Secrets of Mental Math'),
+            ' (The Great Courses) is the clearest account of how fast calculators actually work: left to right, in chunks, checking as they go. Most of the techniques here come from it.',
+          ),
+          h('p', null, 'Read it for the ideas. Use this for the practice.'),
+          h('a', { class: 'book-link', href: BOOK_URL, target: '_blank', rel: 'noopener' }, 'Find the book →'),
         ),
       ),
-      recent.length
-        ? h('section', null, h('h2', { class: 'section-head kicker' }, 'Again'), h('div', { class: 'menu' }, recent.map(recentRow)))
-        : null,
-      answered
-        ? h(
-            'a',
-            { class: 'summary-strip mono', href: '#/stats' },
-            h('span', null, h('b', null, String(answered)), ' answered'),
-            h('span', null, h('b', null, `${Math.round((100 * correct) / answered)}%`), ' correct'),
-            h('span', null, h('b', null, String(history.length)), ' runs'),
-          )
-        : null,
+      h(
+        'section',
+        { class: 'why' },
+        h('h2', null, 'Why I made this'),
+        h(
+          'p',
+          null,
+          'Mental arithmetic is not a talent. It is a handful of moves that become automatic with the right practice. Reading about the moves takes an afternoon; making them automatic takes problems built for each move and a quick way to drill them.',
+        ),
+        h(
+          'p',
+          null,
+          'I could not find that, so I built it: one technique at a time, a minute to learn it, then as many well-chosen problems as you want. It is for our math community, and for anyone who would rather work it out than reach for a phone.',
+        ),
+        h('p', { class: 'why-sign' }, `— ${DEV_CREDIT.replace('dev: ', '')}`),
+      ),
     ),
   );
 
