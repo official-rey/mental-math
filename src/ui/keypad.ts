@@ -4,17 +4,18 @@ import { ICONS } from './icons';
 export type PadKey = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '.' | 'back' | 'clear' | 'enter';
 
 const LAYOUT: { key: PadKey; label: string; cls?: string; aria?: string }[] = [
-  { key: '7', label: '7' },
-  { key: '8', label: '8' },
-  { key: '9', label: '9' },
+  // Phone order: 1 2 3 on top, 7 8 9 at the bottom.
+  { key: '1', label: '1' },
+  { key: '2', label: '2' },
+  { key: '3', label: '3' },
   { key: 'back', label: '', cls: 'fn', aria: 'Delete last digit' },
   { key: '4', label: '4' },
   { key: '5', label: '5' },
   { key: '6', label: '6' },
   { key: 'clear', label: 'C', cls: 'fn', aria: 'Clear' },
-  { key: '1', label: '1' },
-  { key: '2', label: '2' },
-  { key: '3', label: '3' },
+  { key: '7', label: '7' },
+  { key: '8', label: '8' },
+  { key: '9', label: '9' },
   { key: 'enter', label: '↵', cls: 'enter', aria: 'Submit answer' },
   { key: '0', label: '0', cls: 'zero' },
   { key: '.', label: '.', aria: 'Decimal point' },

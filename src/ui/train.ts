@@ -6,6 +6,7 @@ import { getTechnique } from '../techniques/registry';
 import { DEV_CREDIT } from '../theme';
 import { h, reveal } from './dom';
 import type { View } from './router';
+import { featReel } from './feats';
 import { layout } from './shell';
 
 /** After this many runs or visits, the landing page leads with the buttons instead of the why. */
@@ -40,11 +41,7 @@ export async function trainView(): Promise<View> {
   const plate = prefs.art ? heroPlate() : null;
   const title = h('h1', { class: 'display' }, 'Mental Math');
 
-  const feat = (q: string, a: string, i: number) => {
-    const el = h('div', { class: 'feat', role: 'listitem' }, h('span', { class: 'feat-q' }, q), h('span', { class: 'feat-a' }, a));
-    el.style.setProperty('--i', String(i));
-    return el;
-  };
+  const reel = featReel();
 
   const why = h(
     'section',
@@ -59,13 +56,7 @@ export async function trainView(): Promise<View> {
       h('em', null, 'practical'),
       ' math most of us will ever use.',
     ),
-    h(
-      'div',
-      { class: 'feats', role: 'list', 'aria-label': 'Examples done in your head' },
-      feat('85²', '7,225', 0),
-      feat('97 × 94', '9,118', 1),
-      feat('15% of 84', '12.6', 2),
-    ),
+    reel.el,
     h(
       'p',
       null,
@@ -90,13 +81,11 @@ export async function trainView(): Promise<View> {
         'a',
         { class: 'btn primary big block start-btn', href: '#/learn', 'data-testid': 'start-learning' },
         h('span', { class: 'start-label' }, 'Start learning', h('span', { class: 'arrow' }, '→')),
-        h('span', { class: 'start-sub' }, 'A minute per technique, with a worked example'),
       ),
       h(
         'a',
-        { class: 'btn block start-btn drill-btn', href: specToHash(spec), 'data-testid': 'start' },
+        { class: 'btn block start-btn drill-btn', href: specToHash(spec), title: whatStarts(spec), 'data-testid': 'start' },
         h('span', { class: 'start-label' }, 'Start drilling', h('span', { class: 'arrow' }, '→')),
-        h('span', { class: 'start-sub' }, whatStarts(spec)),
       ),
       h('nav', { class: 'hero-links', 'aria-label': 'Other drills' }, h('a', { href: '#/chain' }, 'Chain drills'), h('a', { href: '#/mixed' }, 'Custom mix')),
     ),
@@ -109,7 +98,7 @@ export async function trainView(): Promise<View> {
     h(
       'div',
       { class: 'book-text' },
-      h('h2', null, 'The book behind it'),
+      h('h2', null, 'Where these techniques come from'),
       h(
         'p',
         null,
@@ -128,6 +117,9 @@ export async function trainView(): Promise<View> {
 
   return {
     el: layout({ active: 'train' }, content),
-    destroy: () => plate?.destroy(),
+    destroy: () => {
+      plate?.destroy();
+      reel.destroy();
+    },
   };
 }
