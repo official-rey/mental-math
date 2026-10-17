@@ -1,0 +1,124 @@
+import { chainSource } from '../chain/generator';
+import { getTechnique } from '../techniques/registry';
+import type { Problem, Rng, Step } from '../techniques/types';
+import { isCorrect, makeRng } from '../techniques/util';
+import { drillKey, drillName } from './spec';
+import type { DrillSpec, ProblemSource, RunEntry, RunRecord } from './types';
+
+export const SPRINT_MS = 60_000;
+export const TWENTY = 20;
+
+export function sourcesFor(spec: DrillSpec): ProblemSource[] {
+  if (spec.kind === 'chain') return [chainSource];
+  return spec.ids.map((id) => {
+    const t = getTechnique(id)!;
+    return { id, name: t.meta.name, generate: t.generate, steps: t.steps };
+  });
+}
+
+export interface Attempt {
+  ok: boolean;
+  problem: Problem;
+  input: string;
+  ms: number;
+}
+
+/**
+ * One drill run, independent of the DOM. Time comes from `now()` so tests can drive it.
+ */
+export class DrillSession {
+  readonly sources: ProblemSource[];
+  readonly log: RunEntry[] = [];
+  current!: Problem;
+  private source!: ProblemSource;
+  private shownAt = 0;
+  private startedAt = 0;
+  private endedAt: number | null = null;
+
+  constructor(
+    readonly spec: DrillSpec,
+    private rng: Rng = makeRng(),
+    private now: () => number = () => performance.now(),
+  ) {
+    this.sources = sourcesFor(spec);
+  }
+
+  start(): Problem {
+    this.startedAt = this.now();
+    return this.advance();
+  }
+
+  /** Pick the next problem, avoiding an immediate repeat of the same text or technique. */
+  advance(): Problem {
+    const prev = this.current;
+    const pool = this.sources.length > 1 && this.source ? this.sources.filter((s) => s !== this.source) : this.sources;
+    this.source = this.rng.pick(pool);
+    let p = this.source.generate(this.rng, this.spec.level);
+    for (let i = 0; i < 8 && prev && p.text === prev.text; i++) p = this.source.generate(this.rng, this.spec.level);
+    this.current = p;
+    this.shownAt = this.now();
+    return p;
+  }
+
+  submit(input: string): Attempt {
+    const ms = Math.max(0, Math.round(this.now() - this.shownAt));
+    const ok = isCorrect(this.current, input);
+    this.log.push({ text: this.current.text, answer: this.current.answer, input, ok, ms });
+    if (this.isFinished()) this.endedAt = this.now();
+    return { ok, problem: this.current, input, ms };
+  }
+
+  steps(p: Problem = this.current): Step[] {
+    const src = this.sources.find((s) => s.id === p.technique) ?? this.source;
+    return src.steps(p);
+  }
+
+  sourceName(p: Problem = this.current): string {
+    return this.sources.find((s) => s.id === p.technique)?.name ?? '';
+  }
+
+  elapsed(): number {
+    return (this.endedAt ?? this.now()) - this.startedAt;
+  }
+
+  /** Milliseconds left in a sprint (0 when over); Infinity for other modes. */
+  remaining(): number {
+    return this.spec.mode === 'sprint' ? Math.max(0, SPRINT_MS - this.elapsed()) : Infinity;
+  }
+
+  isFinished(): boolean {
+    if (this.spec.mode === 'twenty') return this.log.length >= TWENTY;
+    if (this.spec.mode === 'sprint') return this.now() - this.startedAt >= SPRINT_MS;
+    return false;
+  }
+
+  /** End now (sprint timeout or training "Done"). */
+  finish() {
+    this.endedAt ??= this.now();
+  }
+
+  get correct() {
+    return this.log.filter((e) => e.ok).length;
+  }
+
+  result(): RunRecord {
+    const attempted = this.log.length;
+    const correct = this.correct;
+    const answeredMs = this.log.reduce((a, e) => a + e.ms, 0);
+    const totalMs = this.spec.mode === 'sprint' ? Math.min(SPRINT_MS, Math.round(this.elapsed())) : answeredMs;
+    return {
+      id: `${Date.now().toString(36)}-${Math.floor(this.rng.next() * 1e9).toString(36)}`,
+      drillKey: drillKey(this.spec),
+      drillName: drillName(this.spec),
+      mode: this.spec.mode,
+      level: this.spec.level,
+      correct,
+      attempted,
+      accuracy: attempted ? correct / attempted : 0,
+      totalMs,
+      avgMs: attempted ? Math.round(answeredMs / attempted) : 0,
+      date: Date.now(),
+      log: this.log.slice(),
+    };
+  }
+}

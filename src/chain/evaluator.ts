@@ -169,30 +169,40 @@ export function print(node: Node): string {
   return wrap(node.left, false) + sym + wrap(node.right, true);
 }
 
-/** Replace the first ready operation (evaluation order) with its value. */
-function reduceOnce(node: Node, o: EvalOptions): Node | null {
+/** Replace the first ready operation (evaluation order) with its value; report what was done. */
+function reduceOnce(node: Node, o: EvalOptions, did: { text: string }): Node | null {
   if (node.kind === 'num') return null;
   if (node.kind === 'neg') {
-    if (node.arg.kind === 'num') return num(-node.arg.value);
-    const r = reduceOnce(node.arg, o);
+    if (node.arg.kind === 'num') {
+      did.text = `−${fmtNum(node.arg.value)}`;
+      return num(-node.arg.value);
+    }
+    const r = reduceOnce(node.arg, o, did);
     return r && { kind: 'neg', arg: r };
   }
-  const l = reduceOnce(node.left, o);
+  const l = reduceOnce(node.left, o, did);
   if (l) return { ...node, left: l };
-  const r = reduceOnce(node.right, o);
+  const r = reduceOnce(node.right, o, did);
   if (r) return { ...node, right: r };
-  return num(apply(node.op, (node.left as { value: number }).value, (node.right as { value: number }).value, o));
+  const a = (node.left as { value: number }).value, b = (node.right as { value: number }).value;
+  did.text = print({ ...node, left: num(a), right: num(b) }).replace(/ /g, '');
+  return num(apply(node.op, a, b, o));
 }
 
 /** The expression after each single operation, ending with the bare result. */
-export function trace(node: Node, o: EvalOptions = {}): string[] {
-  const lines: string[] = [];
-  let cur: Node | null = node;
+export function traceSteps(node: Node, o: EvalOptions = {}): { expr: string; did: string }[] {
+  const out: { expr: string; did: string }[] = [];
+  let cur = node;
   for (;;) {
-    const next = reduceOnce(cur!, o);
+    const did = { text: '' };
+    const next = reduceOnce(cur, o, did);
     if (!next) break;
-    lines.push(print(next));
+    out.push({ expr: print(next), did: did.text });
     cur = next;
   }
-  return lines;
+  return out;
+}
+
+export function trace(node: Node, o: EvalOptions = {}): string[] {
+  return traceSteps(node, o).map((s) => s.expr);
 }
