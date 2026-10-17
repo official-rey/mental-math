@@ -27,10 +27,14 @@ export interface ProblemSource {
 }
 
 export interface RunEntry {
+  /** Technique id, or 'chain'. */
+  technique: string;
   text: string;
   answer: string;
   input: string;
   ok: boolean;
+  /** True when the player skipped or asked to see the solution. */
+  skipped?: boolean;
   ms: number;
 }
 
@@ -48,4 +52,6 @@ export interface RunRecord {
   avgMs: number;
   date: number;
   log: RunEntry[];
+  /** What was drilled, so the run can be replayed from history. */
+  spec?: DrillSpec;
 }

@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import type { Problem } from '../src/techniques/types';
 import { fmt, isCorrect, normalize, scaled } from '../src/techniques/util';
+import { applyKey } from '../src/ui/keypad';
 
 const P = (answer: string, tolerance?: number): Problem => ({ technique: 'x', level: 1, text: '', answer, data: {}, tolerance });
 
@@ -29,5 +30,18 @@ describe('answer checking', () => {
     expect(fmt(12345.25)).toBe('12,345.25');
     expect(scaled(1260, 2)).toBe('12.6');
     expect(scaled(5, 3)).toBe('0.005');
+  });
+});
+
+describe('number pad', () => {
+  it('builds an entry key by key', () => {
+    let v = '';
+    for (const k of ['1', '2', 'back', '.', '5', '.', '0'] as const) v = applyKey(v, k)!;
+    expect(v).toBe('1.50');
+    expect(applyKey('', '.')).toBe('0.');
+    expect(applyKey('0', '7')).toBe('7');
+    expect(applyKey('123', 'clear')).toBe('');
+    expect(applyKey('123', 'enter')).toBeNull();
+    expect(applyKey('123456789012', '3')).toBe('123456789012');
   });
 });

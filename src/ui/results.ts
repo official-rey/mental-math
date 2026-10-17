@@ -1,13 +1,13 @@
 import { specToHash } from '../drill/spec';
 import { modeLabel, pct, scoreText, secs } from '../share/draw';
-import type { RunRecord } from '../drill/types';
+import type { DrillSpec, RunRecord } from '../drill/types';
 import { store } from '../storage/store';
 import { fmt } from '../techniques/util';
 import { app } from './context';
 import { h, prefersReducedMotion, reveal } from './dom';
 import { backHref } from './drill';
 import { go, type View } from './router';
-import { footer, topbar } from './shell';
+import { layout } from './shell';
 
 /** Headline number for a run, and what it counts. */
 function scoreParts(run: RunRecord): { value: number; suffix: string; caption: string } {
@@ -62,13 +62,25 @@ function shareButtons(run: RunRecord): HTMLElement[] {
   return [make('png', 'Score card'), make('gif', 'GIF replay'), status];
 }
 
-export async function resultsView(): Promise<View> {
-  const last = app.lastResult;
-  if (!last) {
-    queueMicrotask(() => go('#/'));
+export async function resultsView(parts: string[]): Promise<View> {
+  let found: { run: RunRecord; saved: { rank: number | null; isBest: boolean }; spec?: DrillSpec } | null = null;
+  if (parts[0]) {
+    const run = await store.getRun(parts[0]);
+    if (run) {
+      const board = run.mode === 'training' ? [] : await store.topRuns(run.drillKey, run.mode);
+      const idx = board.findIndex((r) => r.id === run.id);
+      found = { run, saved: { rank: idx < 0 ? null : idx + 1, isBest: idx === 0 && app.lastResult?.run.id === run.id && app.lastResult.saved.isBest }, spec: run.spec };
+    }
+  } else if (app.lastResult) {
+    found = app.lastResult;
+    // Give the finished run a stable address so reloading or sharing the page works.
+    history.replaceState(null, '', `#/results/${found.run.id}`);
+  }
+  if (!found) {
+    queueMicrotask(() => go('#/stats'));
     return { el: h('div') };
   }
-  const { run, saved, spec } = last;
+  const { run, saved, spec } = found;
   const score = scoreParts(run);
   const big = h('span', { class: 'score-num', 'data-testid': 'score' }, '0');
 
@@ -77,7 +89,7 @@ export async function resultsView(): Promise<View> {
 
   const main = reveal(
     h(
-      'main',
+      'div',
       { class: 'results', 'data-testid': 'results' },
       h('div', { class: 'kicker' }, modeLabel(run)),
       h('h1', { class: 'display' }, run.drillName),
@@ -103,7 +115,7 @@ export async function resultsView(): Promise<View> {
       h(
         'div',
         { class: 'result-actions' },
-        h('a', { class: 'btn primary big block', href: specToHash(spec), 'data-testid': 'again' }, 'Again', h('span', { class: 'arrow' }, '→')),
+        spec ? h('a', { class: 'btn primary big block', href: specToHash(spec), 'data-testid': 'again' }, 'Again', h('span', { class: 'arrow' }, '→')) : null,
         h('div', { class: 'share-row' }, shareButtons(run)),
       ),
       board.length
@@ -151,7 +163,7 @@ export async function resultsView(): Promise<View> {
   );
 
   return {
-    el: h('div', null, topbar({ back: { href: backHref(spec), label: 'Back' } }), main, footer()),
+    el: layout({ active: 'stats', back: spec ? { href: backHref(spec), label: 'Back' } : { href: '#/stats', label: 'Stats' } }, main),
     title: 'Results',
     mounted: () => countUp(big, score.value),
   };

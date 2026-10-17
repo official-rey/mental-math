@@ -34,6 +34,8 @@ export class DrillSession {
   private shownAt = 0;
   private startedAt = 0;
   private endedAt: number | null = null;
+  private pausedAt: number | null = null;
+  private pausedTotal = 0;
 
   constructor(
     readonly spec: DrillSpec,
@@ -61,11 +63,37 @@ export class DrillSession {
   }
 
   submit(input: string): Attempt {
+    return this.record(input, isCorrect(this.current, input), false);
+  }
+
+  /** Give up on the current problem: logged as a miss. */
+  skip(): Attempt {
+    return this.record('', false, true);
+  }
+
+  private record(input: string, ok: boolean, skipped: boolean): Attempt {
     const ms = Math.max(0, Math.round(this.now() - this.shownAt));
-    const ok = isCorrect(this.current, input);
-    this.log.push({ text: this.current.text, answer: this.current.answer, input, ok, ms });
+    const p = this.current;
+    this.log.push({ technique: p.technique, text: p.text, answer: p.answer, input, ok, ms, ...(skipped ? { skipped } : {}) });
     if (this.isFinished()) this.endedAt = this.now();
-    return { ok, problem: this.current, input, ms };
+    return { ok, problem: p, input, ms };
+  }
+
+  get paused(): boolean {
+    return this.pausedAt !== null;
+  }
+
+  /** Stop the clock (timed modes). The current problem's time stops too. */
+  pause() {
+    if (this.pausedAt === null && this.endedAt === null) this.pausedAt = this.now();
+  }
+
+  resume() {
+    if (this.pausedAt === null) return;
+    const gap = this.now() - this.pausedAt;
+    this.pausedTotal += gap;
+    this.shownAt += gap;
+    this.pausedAt = null;
   }
 
   steps(p: Problem = this.current): Step[] {
@@ -77,8 +105,10 @@ export class DrillSession {
     return this.sources.find((s) => s.id === p.technique)?.name ?? '';
   }
 
+  /** Active time since the start, excluding pauses. */
   elapsed(): number {
-    return (this.endedAt ?? this.now()) - this.startedAt;
+    const end = this.endedAt ?? this.pausedAt ?? this.now();
+    return end - this.startedAt - this.pausedTotal;
   }
 
   /** Milliseconds left in a sprint (0 when over); Infinity for other modes. */
@@ -88,12 +118,13 @@ export class DrillSession {
 
   isFinished(): boolean {
     if (this.spec.mode === 'twenty') return this.log.length >= TWENTY;
-    if (this.spec.mode === 'sprint') return this.now() - this.startedAt >= SPRINT_MS;
+    if (this.spec.mode === 'sprint') return this.elapsed() >= SPRINT_MS;
     return false;
   }
 
   /** End now (sprint timeout or training "Done"). */
   finish() {
+    this.resume();
     this.endedAt ??= this.now();
   }
 
@@ -119,6 +150,7 @@ export class DrillSession {
       avgMs: attempted ? Math.round(answeredMs / attempted) : 0,
       date: Date.now(),
       log: this.log.slice(),
+      spec: this.spec,
     };
   }
 }

@@ -1,81 +1,144 @@
-/** Parametric curves shared by the background, the score card and the GIF. */
-
-export type Pt = [number, number];
-/** A figure as unit-scale points (roughly within [-1, 1]²). */
-export type Figure = () => Pt[];
+/**
+ * Math art shared by the hero plate, the page margins, the score card and the GIF.
+ * Every function draws onto a 2D context with explicit colors so canvas exports match the app.
+ */
 
 const TAU = Math.PI * 2;
+const GOLDEN_ANGLE = Math.PI * (3 - Math.sqrt(5));
 
-function sample(n: number, tMax: number, f: (t: number) => Pt): Pt[] {
-  const pts: Pt[] = [];
-  for (let i = 0; i <= n; i++) pts.push(f((i / n) * tMax));
-  return pts;
+export interface Ink {
+  ink: string;
+  accent: string;
+  rule: string;
 }
 
-export const rose = (p: number, q: number): Figure => () => {
-  const k = p / q;
-  return sample(1400, TAU * q, (t) => {
-    const r = Math.cos(k * t);
-    return [r * Math.cos(t), r * Math.sin(t)];
+/**
+ * Modular times table: n points on a circle, a chord from point i to point k·i (mod n).
+ * Integer k gives the cardioid (2), nephroid (3) and their cousins; fractional k morphs between them.
+ * The envelope appears where chords crowd together.
+ */
+export function drawTimesTable(
+  ctx: CanvasRenderingContext2D,
+  o: { cx: number; cy: number; r: number; n: number; k: number; colors: Ink; weight?: number; alpha?: number },
+) {
+  const { cx, cy, r, n, k } = o;
+  const w = o.weight ?? 1;
+  const a = o.alpha ?? 1;
+  const P = (i: number): [number, number] => {
+    const t = (i / n) * TAU - Math.PI / 2;
+    return [cx + r * Math.cos(t), cy + r * Math.sin(t)];
+  };
+  ctx.save();
+  ctx.lineCap = 'round';
+  // Circle
+  ctx.beginPath();
+  ctx.arc(cx, cy, r, 0, TAU);
+  ctx.strokeStyle = o.colors.rule;
+  ctx.lineWidth = 1.2 * w;
+  ctx.globalAlpha = a;
+  ctx.stroke();
+
+  // Chords are colored by where they start, sweeping from accent to ink around the circle.
+  const BUCKETS = 8;
+  const paths = Array.from({ length: BUCKETS }, () => new Path2D());
+  for (let i = 0; i < n; i++) {
+    const [x1, y1] = P(i);
+    const [x2, y2] = P((k * i) % n);
+    const path = paths[Math.floor((i / n) * BUCKETS)];
+    path.moveTo(x1, y1);
+    path.lineTo(x2, y2);
+  }
+  ctx.lineWidth = 0.75 * w;
+  paths.forEach((path, b) => {
+    const t = Math.abs(b / (BUCKETS - 1) - 0.5) * 2; // accent at both ends, ink in the middle
+    ctx.strokeStyle = mix(o.colors.ink, o.colors.accent, t);
+    ctx.globalAlpha = (0.22 + 0.2 * t) * a;
+    ctx.stroke(path);
   });
-};
 
-export const lissajous = (a: number, b: number, delta: number): Figure => () =>
-  sample(1200, TAU, (t) => [Math.sin(a * t + delta), Math.sin(b * t)]);
-
-export const spiro = (R: number, r: number, d: number): Figure => () => {
-  const g = gcd(R, r);
-  const turns = r / g;
-  const s = 1 / (R - r + d);
-  return sample(2400, TAU * turns, (t) => [
-    ((R - r) * Math.cos(t) + d * Math.cos(((R - r) / r) * t)) * s,
-    ((R - r) * Math.sin(t) - d * Math.sin(((R - r) / r) * t)) * s,
-  ]);
-};
-
-/** Golden spiral: grows by a factor of phi every quarter turn. */
-export const golden: Figure = () => {
-  const phi = (1 + Math.sqrt(5)) / 2;
-  // Logarithmic spiral with growth factor phi per quarter turn, centered at the origin.
-  const b = Math.log(phi) / (Math.PI / 2);
-  const turns = 3.25;
-  const scale = 1 / Math.exp(b * TAU * turns);
-  return sample(1400, TAU * turns, (t) => {
-    const r = Math.exp(b * t) * scale;
-    return [r * Math.cos(t + 0.6), r * Math.sin(t + 0.6)];
-  });
-};
-
-function gcd(a: number, b: number): number {
-  return b ? gcd(b, a % b) : a;
+  // Points
+  ctx.globalAlpha = 0.55 * a;
+  ctx.fillStyle = o.colors.ink;
+  const step = n > 150 ? Math.ceil(n / 120) : 1;
+  for (let i = 0; i < n; i += step) {
+    const [x, y] = P(i);
+    ctx.beginPath();
+    ctx.arc(x, y, 1.1 * w, 0, TAU);
+    ctx.fill();
+  }
+  ctx.restore();
 }
 
-export const FIGURES: Figure[] = [
-  rose(5, 3),
-  lissajous(3, 4, Math.PI / 2),
-  spiro(7, 3, 2.2),
-  golden,
-  rose(7, 4),
-  lissajous(5, 4, Math.PI / 3),
-  spiro(9, 4, 3),
-  rose(4, 1),
+/** Blend two #rrggbb colors; t = 0 gives a, t = 1 gives b. */
+function mix(a: string, b: string, t: number): string {
+  const pa = parseInt(a.slice(1), 16), pb = parseInt(b.slice(1), 16);
+  const ch = (shift: number) => Math.round(((pa >> shift) & 255) * (1 - t) + ((pb >> shift) & 255) * t);
+  return `rgb(${ch(16)}, ${ch(8)}, ${ch(0)})`;
+}
+
+/** Seeds placed at the golden angle: Fibonacci spirals appear (every 13th and 21st seed in accent). */
+export function drawPhyllotaxis(
+  ctx: CanvasRenderingContext2D,
+  o: { cx: number; cy: number; r: number; count: number; progress?: number; colors: Ink; alpha?: number },
+) {
+  const shown = Math.floor(o.count * (o.progress ?? 1));
+  const c = o.r / Math.sqrt(o.count);
+  ctx.save();
+  for (let i = 1; i < shown; i++) {
+    const rad = c * Math.sqrt(i);
+    const t = i * GOLDEN_ANGLE;
+    const x = o.cx + rad * Math.cos(t), y = o.cy + rad * Math.sin(t);
+    const hot = i % 21 === 0 || i % 13 === 0;
+    ctx.beginPath();
+    ctx.arc(x, y, (hot ? 1.9 : 1.4) * (0.55 + (0.45 * rad) / o.r), 0, TAU);
+    ctx.fillStyle = hot ? o.colors.accent : o.colors.rule;
+    ctx.globalAlpha = (hot ? 0.7 : 1) * (o.alpha ?? 1);
+    ctx.fill();
+  }
+  ctx.restore();
+}
+
+export interface Harmonograph {
+  f: [number, number, number, number];
+  p: [number, number, number, number];
+  d: number;
+}
+
+export const HARMONOGRAPHS: Harmonograph[] = [
+  { f: [2, 3, 3.01, 2], p: [0, Math.PI / 2, Math.PI / 4, 0], d: 0.012 },
+  { f: [3, 2.002, 2, 3], p: [Math.PI / 6, 0, Math.PI / 2, Math.PI], d: 0.01 },
+  { f: [4, 3, 3.003, 4], p: [0, Math.PI / 3, Math.PI / 2, Math.PI / 5], d: 0.009 },
 ];
 
-/** Stroke the first `progress` fraction of a figure centered at (cx, cy) with half-size `size`. */
-export function strokeFigure(
+/** Two damped pendulums per axis; the decay spirals the trace inward. */
+export function drawHarmonograph(
   ctx: CanvasRenderingContext2D,
-  pts: Pt[],
-  o: { cx: number; cy: number; size: number; rot?: number; progress?: number },
+  o: { cx: number; cy: number; size: number; h: Harmonograph; progress?: number; color: string; alpha?: number; width?: number },
 ) {
-  const n = Math.max(2, Math.floor(pts.length * (o.progress ?? 1)));
-  const cos = Math.cos(o.rot ?? 0), sin = Math.sin(o.rot ?? 0);
+  const { f, p, d } = o.h;
+  const T = 120;
+  const steps = Math.floor(3200 * (o.progress ?? 1));
+  ctx.save();
   ctx.beginPath();
-  for (let i = 0; i < n; i++) {
-    const [x, y] = pts[i];
-    const X = o.cx + (x * cos - y * sin) * o.size;
-    const Y = o.cy + (x * sin + y * cos) * o.size;
-    if (i === 0) ctx.moveTo(X, Y);
+  for (let s = 0; s <= steps; s++) {
+    const t = (s / 3200) * T;
+    const e = Math.exp(-d * t);
+    const x = 0.5 * e * (Math.sin(f[0] * t + p[0]) + Math.sin(f[1] * t + p[1]));
+    const y = 0.5 * e * (Math.sin(f[2] * t + p[2]) + Math.sin(f[3] * t + p[3]));
+    const X = o.cx + x * o.size, Y = o.cy + y * o.size;
+    if (s === 0) ctx.moveTo(X, Y);
     else ctx.lineTo(X, Y);
   }
+  ctx.strokeStyle = o.color;
+  ctx.globalAlpha = o.alpha ?? 1;
+  ctx.lineWidth = o.width ?? 0.8;
   ctx.stroke();
+  ctx.restore();
+}
+
+/** Named shapes of the times table, for captions. */
+export function timesTableName(k: number): string {
+  const r = Math.round(k);
+  if (Math.abs(k - r) > 0.04) return '';
+  return ({ 2: 'cardioid', 3: 'nephroid', 4: '3 cusps', 5: '4 cusps' } as Record<number, string>)[r] ?? `${r - 1} cusps`;
 }

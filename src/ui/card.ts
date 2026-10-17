@@ -5,7 +5,7 @@ import { CATEGORIES } from '../techniques/types';
 import { drillControls } from './controls';
 import { h, reveal } from './dom';
 import type { View } from './router';
-import { footer, topbar } from './shell';
+import { layout } from './shell';
 import { renderSteps } from './steps';
 
 export async function cardView(parts: string[]): Promise<View> {
@@ -55,19 +55,17 @@ export async function cardView(parts: string[]): Promise<View> {
   );
 
   return {
-    el: h('div', null, topbar({ back: { href: '#/', label: 'All' } }), h('main', null, article), footer()),
+    el: layout({ active: 'learn', back: { href: `#/learn/${t.meta.category}`, label: 'Learn' } }, article),
     title: t.meta.name,
   };
 }
 
 function notFound(): View {
   return {
-    el: h(
-      'div',
-      null,
-      topbar({ back: { href: '#/', label: 'Home' } }),
-      h('main', null, h('h1', { class: 'display' }, 'Not found'), h('p', { class: 'lede' }, h('a', { href: '#/' }, 'Back to the techniques'))),
-      footer(),
+    el: layout(
+      { active: 'learn', back: { href: '#/learn', label: 'Learn' } },
+      h('h1', { class: 'display' }, 'Not found'),
+      h('p', { class: 'lede' }, h('a', { href: '#/learn' }, 'Back to the techniques')),
     ),
   };
 }

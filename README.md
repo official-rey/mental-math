@@ -41,6 +41,6 @@ src/chain/        expression parser/evaluator/printer and the chain generator
 src/drill/        drill engine, sounds, drill specs
 src/storage/      Store interface + localStorage implementation (swap for a backend later)
 src/share/        score card PNG, GIF replay, Web Share / download
-src/ui/           screens (home, card, drill, results, mixed, chain, about)
-src/art/          background curves
+src/ui/           screens: Train, Learn, Stats, Settings, technique card, drill (with number pad), results
+src/art/          times-table plate, margin art (wide screens only)
 ```

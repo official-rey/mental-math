@@ -4,7 +4,7 @@ import { byCategory, techniques } from '../techniques/registry';
 import { drillControls } from './controls';
 import { h, reveal } from './dom';
 import type { View } from './router';
-import { footer, topbar } from './shell';
+import { footer, tabbar, topbar } from './shell';
 
 export async function mixedView(): Promise<View> {
   const prefs = await store.getPrefs();
@@ -80,7 +80,7 @@ export async function mixedView(): Promise<View> {
   sync();
 
   return {
-    el: h('div', null, topbar({ back: { href: '#/', label: 'Home' } }), main, h('div', { class: 'sticky-go' }, go), footer()),
+    el: h('div', { class: 'layout' }, topbar({ active: 'train', back: { href: '#/', label: 'Train' } }), main, h('div', { class: 'sticky-go' }, go), footer(), tabbar('train')),
     title: 'Mixed drill',
   };
 }

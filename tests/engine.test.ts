@@ -48,6 +48,31 @@ describe('drill session', () => {
     expect(s.result().totalMs).toBe(SPRINT_MS);
   });
 
+  it('pausing stops the sprint clock and the problem timer', () => {
+    const c = clock();
+    const s = new DrillSession(spec({ mode: 'sprint' }), makeRng(5), c.now);
+    s.start();
+    c.tick(10_000);
+    s.pause();
+    c.tick(50_000);
+    expect(s.isFinished()).toBe(false);
+    expect(s.remaining()).toBe(50_000);
+    s.resume();
+    c.tick(2_000);
+    s.submit(s.current.answer);
+    expect(s.log[0].ms).toBe(12_000);
+    expect(s.remaining()).toBe(48_000);
+  });
+
+  it('skips are logged as misses with the technique id', () => {
+    const s = new DrillSession(spec({}), makeRng(6), clock().now);
+    s.start();
+    const a = s.skip();
+    expect(a.ok).toBe(false);
+    expect(s.log[0]).toMatchObject({ technique: 'mul-2x1', ok: false, skipped: true, input: '' });
+    expect(s.result().spec).toEqual(spec({}));
+  });
+
   it('mixed drills rotate between the chosen techniques', () => {
     const ids = techniques.slice(0, 3).map((t) => t.meta.id);
     const s = new DrillSession(spec({ kind: 'mixed', ids, mode: 'training' }), makeRng(3), clock().now);
@@ -75,7 +100,7 @@ describe('drill session', () => {
 describe('local store', () => {
   const mem = () => {
     const m = new Map<string, string>();
-    return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v) };
+    return { getItem: (k: string) => m.get(k) ?? null, setItem: (k: string, v: string) => void m.set(k, v), removeItem: (k: string) => void m.delete(k) };
   };
   const run = (correct: number, totalMs: number, id: string): RunRecord => ({
     id, drillKey: 'k', drillName: 'K', mode: 'twenty', level: 1, correct, attempted: 20,
@@ -93,6 +118,22 @@ describe('local store', () => {
     expect(res).toEqual({ rank: 1, isBest: true });
     expect((await st.best('k', 'twenty'))!.id).toBe('best');
     expect((await st.saveRun(run(1, 99999, 'worst'))).rank).toBeNull();
+  });
+
+  it('keeps history of every run, an index of bests, and can erase runs', async () => {
+    const st = new LocalStore(mem());
+    await st.saveRun({ ...run(5, 1, 't1'), mode: 'training', drillKey: 'a' });
+    await st.saveRun({ ...run(12, 30000, 'b1'), drillKey: 'b', date: 5 });
+    await st.saveRun({ ...run(14, 30000, 'c1'), drillKey: 'c', date: 9 });
+    expect((await st.history()).map((r) => r.id)).toEqual(['c1', 'b1', 't1']);
+    expect((await st.bests()).map((r) => r.id)).toEqual(['c1', 'b1']);
+    expect((await st.getRun('t1'))!.mode).toBe('training');
+    await st.setPrefs({ level: 2 });
+    await st.clearRuns();
+    expect(await st.history()).toEqual([]);
+    expect(await st.bests()).toEqual([]);
+    expect(await st.topRuns('b', 'twenty')).toEqual([]);
+    expect((await st.getPrefs()).level).toBe(2);
   });
 
   it('training runs are not ranked; prefs persist', async () => {

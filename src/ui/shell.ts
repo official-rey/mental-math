@@ -1,8 +1,17 @@
-import { DEV_CREDIT } from '../theme';
 import { sound } from '../drill/sound';
 import { store } from '../storage/store';
-import { h } from './dom';
+import { DEV_CREDIT } from '../theme';
+import { h, type Child } from './dom';
 import { ICONS } from './icons';
+
+export type Section = 'train' | 'learn' | 'stats' | 'settings';
+
+export const SECTIONS: { id: Section; label: string; href: string }[] = [
+  { id: 'train', label: 'Train', href: '#/' },
+  { id: 'learn', label: 'Learn', href: '#/learn' },
+  { id: 'stats', label: 'Stats', href: '#/stats' },
+  { id: 'settings', label: 'Settings', href: '#/settings' },
+];
 
 export function soundToggle(): HTMLButtonElement {
   const btn = h('button', { class: 'iconbtn', type: 'button', 'data-testid': 'mute' });
@@ -20,17 +29,40 @@ export function soundToggle(): HTMLButtonElement {
   return btn;
 }
 
-export function topbar(opts: { back?: { href: string; label: string }; center?: Node | string } = {}): HTMLElement {
+/** Top bar: a back link or the wordmark, section links on wide screens, the mute toggle. */
+export function topbar(opts: { back?: { href: string; label: string }; active?: Section } = {}): HTMLElement {
   const left = opts.back
-    ? h('a', { class: 'iconbtn', href: opts.back.href, html: `${ICONS.back}<span>${opts.back.label}</span>` })
-    : h('span', { class: 'kicker' }, 'Mental Math');
-  return h('header', { class: 'topbar' }, left, opts.center ?? '', soundToggle());
+    ? h('a', { class: 'iconbtn back', href: opts.back.href, html: `${ICONS.back}<span>${opts.back.label}</span>` })
+    : h('a', { class: 'wordmark', href: '#/' }, 'Mental Math');
+  const nav = h(
+    'nav',
+    { class: 'topnav', 'aria-label': 'Sections' },
+    SECTIONS.map((s) => h('a', { href: s.href, 'aria-current': s.id === opts.active ? 'page' : null }, s.label)),
+  );
+  return h('header', { class: 'topbar' }, left, nav, soundToggle());
+}
+
+/** Bottom tab bar for phones. */
+export function tabbar(active?: Section): HTMLElement {
+  return h(
+    'nav',
+    { class: 'tabbar', 'aria-label': 'Sections' },
+    SECTIONS.map((s) =>
+      h(
+        'a',
+        { href: s.href, 'aria-current': s.id === active ? 'page' : null, 'data-testid': `tab-${s.id}` },
+        h('span', { class: 'tab-icon', html: ICONS[s.id] }),
+        h('span', null, s.label),
+      ),
+    ),
+  );
 }
 
 export function footer(): HTMLElement {
   return h('footer', { class: 'footer' }, h('span', null, DEV_CREDIT), h('a', { href: '#/about' }, 'About'));
 }
 
-export function page(...children: (Node | string | false | null | undefined)[]): HTMLElement {
-  return h('div', { class: 'page', style: { display: 'contents' } }, ...children);
+/** Standard page: top bar, content, footer, tab bar. */
+export function layout(opts: { active?: Section; back?: { href: string; label: string } }, ...content: Child[]): HTMLElement {
+  return h('div', { class: 'layout' }, topbar(opts), h('main', null, ...content), footer(), tabbar(opts.active));
 }

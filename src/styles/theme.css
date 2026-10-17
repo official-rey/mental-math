@@ -419,8 +419,8 @@ h3 {
 
 .toc a {
   display: grid;
-  grid-template-columns: 2.4ch 1fr auto;
-  gap: 4px 12px;
+  grid-template-columns: 2.4ch 1fr;
+  gap: 2px 12px;
   align-items: baseline;
   padding: 12px 0;
   border-bottom: 1px solid var(--rule);
@@ -446,7 +446,7 @@ h3 {
 }
 
 .toc .idea {
-  grid-column: 2 / 4;
+  grid-column: 2 / -1;
   font-size: 15.5px;
   color: var(--dim);
   line-height: 1.35;
@@ -687,7 +687,7 @@ h3 {
 /* ---------- Drill ---------- */
 
 body.drilling #art {
-  opacity: 0.35;
+  opacity: 0;
   transition: opacity 0.4s;
 }
 
@@ -698,8 +698,7 @@ body.drilling #art {
 }
 
 .drill-bar {
-  display: grid;
-  grid-template-columns: auto 1fr auto auto;
+  display: flex;
   align-items: center;
   gap: 8px;
   min-height: 52px;
@@ -707,6 +706,8 @@ body.drilling #art {
 }
 
 .drill-title {
+  flex: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -746,6 +747,7 @@ body.drilling #art {
 }
 
 .problem {
+  white-space: nowrap;
   font-family: var(--f-mono);
   font-weight: 500;
   font-variant-numeric: tabular-nums;
@@ -753,7 +755,6 @@ body.drilling #art {
   line-height: 1.1;
   text-align: center;
   max-width: 100%;
-  overflow-wrap: anywhere;
   margin: 4px 0 2px;
 }
 

@@ -1,4 +1,4 @@
-import { FIGURES, strokeFigure } from '../art/figures';
+import { drawTimesTable } from '../art/figures';
 import { MODES, type RunRecord } from '../drill/types';
 import { FONTS, PALETTE } from '../theme';
 
@@ -67,29 +67,22 @@ export function wrap(ctx: CanvasRenderingContext2D, text: string, width: number,
   return lines;
 }
 
-/** Deterministic motif per drill name, so a drill's card always carries the same curve. */
-export function motifFor(name: string) {
-  let h = 0;
-  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
-  return { pts: FIGURES[h % FIGURES.length](), second: FIGURES[(h >>> 3) % FIGURES.length](), rot: (h % 628) / 100 };
+export const MOTIF_N = 240;
+
+/** The card's multiplier: the score itself, so each result draws its own figure. */
+export function motifK(run: RunRecord): number {
+  return Math.max(2, Math.min(MOTIF_N - 1, run.correct || 2));
 }
 
-export function drawMotif(
-  ctx: CanvasRenderingContext2D,
-  name: string,
-  w: number,
-  h: number,
-  progress = 1,
-) {
-  const m = motifFor(name);
-  ctx.save();
-  ctx.lineJoin = 'round';
-  ctx.strokeStyle = PALETTE.rule;
-  ctx.lineWidth = Math.max(1.5, w / 400);
-  strokeFigure(ctx, m.pts, { cx: w * 0.8, cy: h * 0.33, size: w * 0.36, rot: m.rot, progress });
-  ctx.strokeStyle = PALETTE.accent;
-  ctx.globalAlpha = 0.28;
-  ctx.lineWidth = Math.max(1, w / 700);
-  strokeFigure(ctx, m.second, { cx: w * 0.86, cy: h * 0.33, size: w * 0.15, rot: -m.rot, progress });
-  ctx.restore();
+/** Times-table figure in its own circle (never behind text); `k` defaults to the score. */
+export function drawMotif(ctx: CanvasRenderingContext2D, at: { cx: number; cy: number; r: number }, k: number) {
+  drawTimesTable(ctx, {
+    ...at,
+    n: MOTIF_N,
+    k,
+    colors: { ink: PALETTE.ink, accent: PALETTE.accent, rule: PALETTE.rule },
+    weight: Math.max(0.6, at.r / 200),
+  });
 }
+
+export const motifCaption = (k: number) => `i ↦ ${Number.isInteger(k) ? k : k.toFixed(1)}·i (mod ${MOTIF_N})`;

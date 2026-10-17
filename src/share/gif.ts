@@ -1,7 +1,7 @@
 import { applyPalette, GIFEncoder, quantize } from 'gifenc';
 import type { RunEntry, RunRecord } from '../drill/types';
 import { DEV_CREDIT, FONTS, PALETTE } from '../theme';
-import { doubleRule, drawMotif, loadFonts, makeCanvas, modeLabel, pct, scoreText, secs, wrap } from './draw';
+import { doubleRule, drawMotif, loadFonts, makeCanvas, modeLabel, motifK, pct, scoreText, secs, wrap } from './draw';
 
 export const GIF_W = 432;
 export const GIF_H = 540;
@@ -31,10 +31,15 @@ export async function renderHighlightGif(run: RunRecord): Promise<Blob> {
   const per = entries.length ? Math.max(100, Math.min(360, Math.floor((GIF_MAX_MS - INTRO_MS - OUTRO_MS) / entries.length / 10) * 10)) : 0;
   const s = scoreText(run);
 
+  // The figure's multiplier climbs from 2 to the final score over the replay.
+  // It sits in its own circle, top right; text starts below it or to its left.
+  const finalK = motifK(run);
+  const R = 62;
+  const art = { cx: W - M - R, cy: M + R, r: R };
   const base = (ctx: CanvasRenderingContext2D, progress: number) => {
     ctx.fillStyle = PALETTE.paper;
     ctx.fillRect(0, 0, W, H);
-    drawMotif(ctx, run.drillName, W, H, progress);
+    drawMotif(ctx, art, 2 + (finalK - 2) * progress);
     ctx.fillStyle = PALETTE.dim;
     ctx.font = `500 13px ${FONTS.mono}`;
     ctx.fillText('MENTAL MATH', M, 42);
@@ -60,7 +65,7 @@ export async function renderHighlightGif(run: RunRecord): Promise<Blob> {
     delay: INTRO_MS,
     draw: (ctx) => {
       base(ctx, 0.15);
-      const y = title(ctx, 40, 150);
+      const y = title(ctx, 40, 230);
       ctx.fillStyle = PALETTE.dim;
       ctx.font = `500 14px ${FONTS.mono}`;
       ctx.fillText(modeLabel(run).toUpperCase(), M, y + 34);
@@ -104,21 +109,21 @@ export async function renderHighlightGif(run: RunRecord): Promise<Blob> {
     delay: OUTRO_MS,
     draw: (ctx) => {
       base(ctx, 1);
-      const y = title(ctx, 28, 100);
-      ctx.font = `600 150px ${FONTS.mono}`;
+      const y = title(ctx, 28, 205);
+      ctx.font = `600 120px ${FONTS.mono}`;
       ctx.fillStyle = PALETTE.accent;
-      ctx.fillText(s.main, M - 6, y + 190);
+      ctx.fillText(s.main, M - 6, y + 150);
       const mw = ctx.measureText(s.main).width;
-      ctx.font = `500 56px ${FONTS.mono}`;
+      ctx.font = `500 46px ${FONTS.mono}`;
       ctx.fillStyle = PALETTE.dim;
-      ctx.fillText(s.suffix, M + mw, y + 190);
-      ctx.font = `400 17px ${FONTS.mono}`;
-      ctx.fillText(s.caption, M, y + 228);
+      ctx.fillText(s.suffix, M + mw, y + 150);
+      ctx.font = `400 16px ${FONTS.mono}`;
+      ctx.fillText(s.caption, M, y + 182);
       ctx.fillStyle = PALETTE.ink;
-      ctx.fillRect(M, y + 262, W - 2 * M, 1.5);
-      ctx.font = `500 22px ${FONTS.mono}`;
-      ctx.fillText(`${pct(run.accuracy)} accuracy`, M, y + 302);
-      ctx.fillText(`${secs(run.avgMs)} / problem`, M, y + 336);
+      ctx.fillRect(M, y + 204, W - 2 * M, 1.5);
+      ctx.font = `500 19px ${FONTS.mono}`;
+      ctx.fillText(`${pct(run.accuracy)} accuracy`, M, y + 236);
+      ctx.fillText(`${secs(run.avgMs)} / problem`, M, y + 264);
     },
   });
 

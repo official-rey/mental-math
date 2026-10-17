@@ -6,7 +6,7 @@ import { circle, line, svg, text } from '../techniques/svg';
 import { drillControls } from './controls';
 import { h, reveal } from './dom';
 import type { View } from './router';
-import { footer, topbar } from './shell';
+import { layout } from './shell';
 import { renderSteps } from './steps';
 
 const SYM: Record<string, string> = { '+': '+', '−': '−', '×': '×', '÷': '÷', '^': 'x²', mod: 'mod' };
@@ -89,5 +89,5 @@ export async function chainView(): Promise<View> {
     ),
   );
 
-  return { el: h('div', null, topbar({ back: { href: '#/', label: 'Home' } }), h('main', null, main), footer()), title: 'Chain drills' };
+  return { el: layout({ active: 'train', back: { href: '#/', label: 'Train' } }, main), title: 'Chain drills' };
 }

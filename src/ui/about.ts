@@ -1,12 +1,12 @@
 import { DEV_CREDIT } from '../theme';
 import { h, reveal } from './dom';
 import type { View } from './router';
-import { footer, topbar } from './shell';
+import { layout } from './shell';
 
 export function aboutView(): View {
   const main = reveal(
     h(
-      'main',
+      'div',
       null,
       h('h1', { class: 'display' }, 'About'),
       h('p', { class: 'lede' }, 'A trainer for calculating in your head: one technique, one example, then practice until it is automatic.'),
@@ -15,5 +15,5 @@ export function aboutView(): View {
       h('p', { class: 'kicker', style: { marginTop: '28px' } }, DEV_CREDIT),
     ),
   );
-  return { el: h('div', null, topbar({ back: { href: '#/', label: 'Home' } }), main, footer()), title: 'About' };
+  return { el: layout({ active: 'settings', back: { href: '#/settings', label: 'Settings' } }, main), title: 'About' };
 }

@@ -7,6 +7,7 @@ import { fmt } from '../techniques/util';
 import { app } from './context';
 import { h } from './dom';
 import { ICONS } from './icons';
+import { applyKey, keypad, type PadKey } from './keypad';
 import { go, type View } from './router';
 import { soundToggle } from './shell';
 import { renderSteps } from './steps';
@@ -20,6 +21,13 @@ const sizeClass = (text: string) => (text.length <= 9 ? 'xl' : text.length <= 15
 
 const secs = (ms: number) => (ms / 1000).toFixed(1);
 
+function toolButton(icon: string, label: string, testid: string, onclick: () => void): HTMLButtonElement {
+  const b = h('button', { type: 'button', class: 'tool', 'data-testid': testid }, h('span', { class: 'tool-icon', html: icon }), h('span', { class: 'tool-label' }, label));
+  b.addEventListener('pointerdown', (e) => e.preventDefault());
+  b.addEventListener('click', onclick);
+  return b;
+}
+
 export async function drillView(_parts: string[], q: URLSearchParams): Promise<View> {
   const parsed = parseSpec(q);
   if (!parsed) {
@@ -27,11 +35,16 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
     return { el: h('div') };
   }
   const spec: DrillSpec = parsed;
-  await store.setPrefs({ last: spec });
+  const prefs = await store.setPrefs({ last: spec });
+  const usePad = prefs.keypad === 'on' || (prefs.keypad === 'auto' && matchMedia('(pointer: coarse)').matches);
+  const buzz = (ms: number) => {
+    if (prefs.haptics) navigator.vibrate?.(ms);
+  };
 
   const session = new DrillSession(spec);
   const timed = spec.mode !== 'training';
-  let state: 'answering' | 'review' | 'done' = 'answering';
+  let state: 'answering' | 'review' | 'paused' | 'done' = 'answering';
+  let hints = 0;
   let timer = 0;
   let feedbackTimer = 0;
 
@@ -42,10 +55,11 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
   const tag = h('div', { class: 'drill-tag kicker' });
   const problem = h('div', { class: 'problem', 'data-testid': 'problem', role: 'status', 'aria-live': 'polite' });
   const hint = h('div', { class: 'problem-hint mono' });
+  const hintSteps = h('div', { class: 'hint-steps', 'data-testid': 'hint-steps' });
   const input = h('input', {
     class: 'answer',
     type: 'text',
-    inputmode: 'decimal',
+    inputmode: usePad ? 'none' : 'decimal',
     autocomplete: 'off',
     autocorrect: 'off',
     autocapitalize: 'off',
@@ -57,23 +71,40 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
   const form = h('form', { class: 'answer-form', novalidate: true }, input);
   const feedback = h('div', { class: 'feedback mono', 'aria-live': 'polite', 'data-testid': 'feedback' });
   const solution = h('div', { class: 'solution', hidden: true, 'data-testid': 'solution' });
-  const doneBtn = timed
-    ? null
-    : h('button', { class: 'btn', type: 'button', 'data-testid': 'done', onclick: () => end() }, 'Done');
+  const resumeBtn = h('button', { class: 'btn ink', type: 'button', 'data-testid': 'resume', onclick: () => togglePause() }, 'Resume', h('span', { class: 'arrow' }, '→'));
+  const pausedCover = h('div', { class: 'paused-cover', hidden: true }, h('div', { class: 'kicker' }, 'Paused'), h('p', { class: 'dim' }, 'The clock is stopped.'), resumeBtn);
+
+  // Tools: hints and answers while training; pause and skip when timed.
+  const tools: HTMLButtonElement[] = [];
+  let pauseBtn: HTMLButtonElement | null = null;
+  let hintBtn: HTMLButtonElement | null = null;
+  if (timed) {
+    pauseBtn = toolButton(ICONS.pause, 'Pause', 'pause', () => togglePause());
+    tools.push(pauseBtn, toolButton(ICONS.skip, 'Skip', 'skip', () => skip()));
+  } else {
+    hintBtn = toolButton(ICONS.hint, 'Hint', 'hint', () => showHint());
+    tools.push(hintBtn, toolButton(ICONS.eye, 'Show answer', 'reveal', () => skip()));
+  }
+  const toolbar = h('div', { class: 'toolbar' }, tools);
+  const dock = h('div', { class: `dock${usePad ? ' with-pad' : ''}` }, toolbar, usePad ? keypad(onKey) : null);
+
+  const doneBtn = timed ? null : h('button', { class: 'iconbtn done', type: 'button', 'data-testid': 'done', onclick: () => end() }, 'Done');
 
   const el = h(
     'div',
-    { class: 'drill' },
+    { class: `drill${usePad ? ' has-pad' : ''}` },
     h(
       'header',
       { class: 'drill-bar' },
       h('a', { class: 'iconbtn', href: backHref(spec), 'aria-label': 'Quit drill', html: ICONS.close }),
       h('div', { class: 'drill-title kicker' }, `${drillName(spec)} · ${ROMAN[spec.level]}`),
       stat,
+      doneBtn,
       soundToggle(),
     ),
     progress,
-    h('main', { class: 'drill-stage' }, tag, problem, hint, form, feedback, solution, doneBtn),
+    h('main', { class: 'drill-stage' }, tag, problem, hint, hintSteps, form, feedback, solution, pausedCover),
+    dock,
   );
 
   // ----- Rendering -----
@@ -97,17 +128,32 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
     const p = session.current;
     problem.textContent = p.text;
     problem.className = `problem ${sizeClass(p.text)}`;
-    problem.classList.remove('enter');
+    fitProblem();
     void problem.offsetWidth;
     problem.classList.add('enter');
     hint.textContent = p.hint ?? '';
     tag.textContent = session.sources.length > 1 ? session.sourceName(p) : '';
+    hints = 0;
+    hintSteps.replaceChildren();
+    if (hintBtn) hintBtn.disabled = false;
     input.value = '';
     input.readOnly = false;
     input.classList.remove('is-wrong', 'is-ok');
     solution.hidden = true;
     solution.replaceChildren();
+    dock.hidden = false;
     input.focus();
+  }
+
+  /** Shrink the problem until it fits on one line, so expressions never break mid-way. */
+  function fitProblem() {
+    problem.style.fontSize = '';
+    const max = problem.parentElement!.clientWidth;
+    let size = parseFloat(getComputedStyle(problem).fontSize);
+    while (problem.scrollWidth > max && size > 16) {
+      size -= 2;
+      problem.style.fontSize = `${size}px`;
+    }
   }
 
   function flash(text: string, cls: 'ok' | 'bad') {
@@ -127,9 +173,38 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
     paintStats();
   }
 
-  function onSubmit(e: Event) {
-    e.preventDefault();
-    if (state === 'done') return;
+  /** Training: reveal one more line of the worked solution, never the final answer. */
+  function showHint() {
+    if (state !== 'answering') return;
+    const steps = session.steps();
+    const available = steps.slice(1, -1);
+    if (hints >= available.length) return;
+    hints++;
+    hintSteps.replaceChildren(
+      renderSteps([{ op: '', expr: steps[0].expr }, ...available.slice(0, hints).map((s) => ({ ...s, op: s.op ?? '=' }))], { markLast: false }),
+    );
+    if (hintBtn && hints >= available.length) hintBtn.disabled = true;
+    input.focus();
+  }
+
+  function review(answer: string, problemText: string, steps: ReturnType<typeof session.steps>) {
+    state = 'review';
+    input.readOnly = true;
+    feedback.textContent = '';
+    hintSteps.replaceChildren();
+    dock.hidden = true;
+    solution.replaceChildren(
+      h('div', { class: 'solution-head' }, h('span', { class: 'kicker' }, 'Answer'), h('span', { class: 'mono solution-answer' }, fmt(answer))),
+      renderSteps(steps),
+      h('button', { class: 'btn ink block big', type: 'button', 'data-testid': 'next', onclick: () => next() }, 'Next', h('span', { class: 'arrow' }, '↵')),
+    );
+    solution.setAttribute('aria-label', `Worked solution for ${problemText}`);
+    solution.hidden = false;
+    input.focus();
+  }
+
+  function submit() {
+    if (state === 'done' || state === 'paused') return;
     if (state === 'review') return next();
     const raw = input.value.trim();
     if (!raw) return;
@@ -142,6 +217,7 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
       return next();
     }
     sound.wrong();
+    buzz(40);
     input.classList.remove('is-wrong');
     void input.offsetWidth;
     input.classList.add('is-wrong');
@@ -149,16 +225,48 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
       flash(`${a.problem.text} = ${fmt(a.problem.answer)}`, 'bad');
       return next();
     }
-    // Training: show this exact problem worked through, then wait for Enter / Next.
-    state = 'review';
-    input.readOnly = true;
-    feedback.textContent = '';
-    solution.replaceChildren(
-      h('div', { class: 'solution-head' }, h('span', { class: 'kicker' }, 'Answer'), h('span', { class: 'mono solution-answer' }, fmt(a.problem.answer))),
-      renderSteps(session.steps(a.problem)),
-      h('button', { class: 'btn ink block', type: 'button', 'data-testid': 'next', onclick: () => next() }, 'Next', h('span', { class: 'arrow' }, '↵')),
-    );
-    solution.hidden = false;
+    review(a.problem.answer, a.problem.text, session.steps(a.problem));
+  }
+
+  function skip() {
+    if (state !== 'answering') return;
+    const a = session.skip();
+    paintStats();
+    if (timed) {
+      flash(`${a.problem.text} = ${fmt(a.problem.answer)}`, 'bad');
+      return next();
+    }
+    review(a.problem.answer, a.problem.text, session.steps(a.problem));
+  }
+
+  function togglePause() {
+    if (!timed || state === 'done' || state === 'review') return;
+    if (state === 'paused') {
+      session.resume();
+      state = 'answering';
+      el.classList.remove('is-paused');
+      pausedCover.hidden = true;
+      pauseBtn!.querySelector('.tool-icon')!.innerHTML = ICONS.pause;
+      pauseBtn!.querySelector('.tool-label')!.textContent = 'Pause';
+      input.focus();
+    } else {
+      session.pause();
+      state = 'paused';
+      el.classList.add('is-paused');
+      pausedCover.hidden = false;
+      pauseBtn!.querySelector('.tool-icon')!.innerHTML = ICONS.play;
+      pauseBtn!.querySelector('.tool-label')!.textContent = 'Resume';
+      resumeBtn.focus();
+    }
+    paintStats();
+  }
+
+  function onKey(k: PadKey) {
+    if (state !== 'answering') return;
+    buzz(6);
+    const v = applyKey(input.value, k);
+    if (v === null) return submit();
+    input.value = v;
     input.focus();
   }
 
@@ -175,7 +283,16 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
     go('#/results');
   }
 
-  form.addEventListener('submit', onSubmit);
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+    submit();
+  });
+  input.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      e.preventDefault();
+      input.value = '';
+    }
+  });
 
   // Test hook for end-to-end runs: exposes the current answer only when ?e2e is in the URL.
   if (new URLSearchParams(location.search).has('e2e')) {
@@ -192,8 +309,10 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
       showProblem();
       paintStats();
       timer = window.setInterval(paintStats, 100);
+      addEventListener('resize', fitProblem);
     },
     destroy() {
+      removeEventListener('resize', fitProblem);
       clearInterval(timer);
       clearTimeout(feedbackTimer);
       document.body.classList.remove('drilling');
