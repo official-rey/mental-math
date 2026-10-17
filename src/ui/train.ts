@@ -38,23 +38,27 @@ export async function trainView(): Promise<View> {
   const why = h(
     'section',
     { class: 'why', id: 'why', 'data-testid': 'why' },
-    h('h2', null, 'Why mental math'),
+    h('h2', null, 'Why practice mental math'),
     h(
       'p',
       { class: 'why-lead' },
       'Mental arithmetic is one of the most ',
       h('em', null, 'underrated'),
-      ' skills there is, and the most ',
+      ' skills in math, and one of the most ',
       h('em', null, 'practical'),
-      ' math most of us will ever use.',
+      ' ones to have in real life.',
     ),
     demo.el,
-    h('p', null, 'It also lands like a magic trick. But none of it is talent: just a few moves, practised until they are automatic.'),
-    h('p', null, 'Learn each move here in a minute, then drill it until it sticks.'),
+    h(
+      'p',
+      null,
+      'You could argue calculators made it obsolete. But working a number out in your head is math in its most old-school form, and to a math major that never stops being cool.',
+    ),
+    h('p', null, 'So I made this for anyone curious enough to try. It also happens to be a great way to impress your friends ;p'),
     h('p', { class: 'why-sign' }, `— ${DEV_CREDIT.replace('dev: ', '')}`),
   );
 
-  const cue = h('button', { type: 'button', class: 'scroll-cue', onclick: () => why.scrollIntoView({ behavior: 'smooth' }) }, 'Why mental math', h('span', { 'aria-hidden': 'true' }, '↓'));
+  const cue = h('button', { type: 'button', class: 'scroll-cue', onclick: () => why.scrollIntoView({ behavior: 'smooth' }) }, 'Why practice mental math', h('span', { 'aria-hidden': 'true' }, '↓'));
 
   const first = h(
     'section',

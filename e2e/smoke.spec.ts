@@ -130,9 +130,11 @@ test('landing: the first screen is the two buttons and the book; the why is belo
   await expect(page.locator('.book-cover')).toBeInViewport();
   const why = (await page.getByTestId('why').boundingBox())!;
   expect(why.y).toBeGreaterThanOrEqual(viewport.height - 70);
-  // The demo plays a real procedure: steps appear one at a time.
+  // The demo rewrites one line in place until it reaches the answer.
   await page.getByTestId('why').scrollIntoViewIfNeeded();
-  const shown = page.getByTestId('demo').locator('.step:not(.pending)');
-  const before = await shown.count();
-  await expect.poll(() => shown.count(), { timeout: 4000 }).toBeGreaterThan(before);
+  const line = page.getByTestId('demo').locator('.morph-line');
+  const first = await line.textContent();
+  await expect.poll(() => line.textContent(), { timeout: 5000 }).not.toBe(first);
+  await expect(page.getByTestId('demo').locator('.tok.is-answer')).toHaveCount(3, { timeout: 12000 });
+  await expect(line).toHaveText('517');
 });

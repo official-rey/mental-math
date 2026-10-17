@@ -1311,3 +1311,79 @@
 .first-screen .start-btn {
   gap: 10px;
 }
+
+/* ---------- Morphing demo: one line rewritten in place ---------- */
+
+.morph-stage {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 120px;
+  overflow: hidden;
+}
+
+.morph-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  flex-wrap: nowrap;
+  font-family: var(--f-mono);
+  font-size: clamp(26px, 7.4vw, 40px);
+  font-weight: 500;
+  color: var(--ink);
+  white-space: nowrap;
+}
+
+.morph-line .tok {
+  display: inline-block;
+  margin-left: 0.38em;
+}
+
+.morph-line .tok:first-child,
+.morph-line .tok.tight {
+  margin-left: 0;
+}
+
+.morph-line .tok.divider {
+  width: 1px;
+  height: 1.1em;
+  align-self: center;
+  background: var(--rule);
+  margin: 0 0.1em 0 0.5em;
+}
+
+.morph-line .tok.is-answer {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.morph-stage .ghost {
+  position: absolute;
+  margin: 0;
+  font-family: var(--f-mono);
+  font-size: clamp(26px, 7.4vw, 40px);
+  font-weight: 500;
+  pointer-events: none;
+}
+
+.demo {
+  min-height: 0;
+  padding: 14px 14px 18px;
+}
+
+.demo .demo-name {
+  text-align: center;
+}
+
+/* ---------- Bigger book cover ---------- */
+
+.first-screen .book {
+  grid-template-columns: 130px 1fr;
+}
+
+@media (min-width: 560px) {
+  .first-screen .book {
+    grid-template-columns: 185px 1fr;
+  }
+}
