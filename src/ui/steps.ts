@@ -40,7 +40,7 @@ function splitTop(expr: string, ops: string[]): Line[] | null {
  * or special notation stay on one line.
  */
 export function stack(expr: string): Line[] {
-  if (/[a-zA-Z|%]|,\s/.test(expr)) return [{ op: '', term: expr }];
+  if (/[a-zA-Z|%→]|,\s/.test(expr)) return [{ op: '', term: expr }];
   const eq = expr.split(' = ');
   if (eq.length === 2) return [...stack(eq[0]), { op: '', term: eq[1], rule: true }];
   return splitTop(expr, SPLIT_ADD) ?? splitTop(expr, SPLIT_MUL) ?? [{ op: '', term: expr }];
@@ -83,6 +83,12 @@ export function fold(steps: Step[]): Step[] {
 function blocks(steps: Step[], markLast: boolean): HTMLElement[] {
   const shown = fold(steps);
   return shown.map((s, i) => block(s, i, markLast && i === shown.length - 1));
+}
+
+/** "47 × 11" → "47 × 11 = ?"; statements that are already a question stay as they are. */
+export function problemStatement(expr: string): string {
+  // Word problems ("Double at 6% a year") and questions read fine as they are.
+  return /\?|^[A-Z]/.test(expr) ? expr : `${expr} = ?`;
 }
 
 /** Worked solution in column form: the math stacked and right-aligned, each step's note beside it. */
@@ -129,9 +135,13 @@ export function renderStepper(input: Step[]): HTMLElement {
     paint();
   });
 
+  // The problem stays in view above the steps, so you never have to look back for it.
+  lines[0]?.classList.add('problem-line');
+  const statement = h('div', { class: 'stepper-problem' }, h('span', { class: 'label' }, 'Example'), h('span', { class: 'expr' }, problemStatement(steps[0]?.expr ?? '')));
   const el = h(
     'div',
     { class: 'stepper', tabindex: '0', 'aria-label': 'Worked example, step by step' },
+    statement,
     list,
     h('div', { class: 'stepper-nav' }, back, counter, next, all),
   );

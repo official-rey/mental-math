@@ -34,23 +34,29 @@ function make(n: number, d: number, level: Level): Problem {
 }
 
 const levels = {
-  1: { label: '3-digit ÷ 2–5', bounds: { n: [100, 999], d: [2, 5], q: [20, 499] } },
-  2: { label: '4-digit ÷ 3–9', bounds: { n: [1000, 9999], d: [3, 9], q: [112, 3333] } },
-  3: { label: '5-digit ÷ 6–9', bounds: { n: [10000, 99999], d: [6, 9], q: [1112, 16666] } },
+  1: { label: '2-digit ÷ 2–5, one carry', bounds: { n: [20, 99], d: [2, 5], q: [10, 49] } },
+  2: { label: '3-digit ÷ 2–5', bounds: { n: [100, 999], d: [2, 5], q: [20, 499] } },
+  3: { label: '4-digit ÷ 3–9', bounds: { n: [1000, 9999], d: [3, 9], q: [112, 3333] } },
+  4: { label: '5-digit ÷ 6–9', bounds: { n: [10000, 99999], d: [6, 9], q: [1112, 16666] } },
+  5: { label: '6-digit ÷ 6–9', bounds: { n: [100000, 999999], d: [6, 9], q: [11112, 166666] } },
+  6: { label: '6-digit ÷ 12–15', bounds: { n: [100000, 999999], d: [12, 15], q: [6667, 83333] } },
 } as const satisfies Levels;
 
 /** Number of carries that are not zero, excluding the final (zero) remainder. */
 const carries = (n: number, d: number) => columns(n, d).slice(0, -1).filter((c) => c.r > 0).length;
 
+/** Fewest non-zero carries a problem needs at each level. */
+const NEED: Record<Level, number> = { 1: 1, 2: 1, 3: 2, 4: 2, 5: 3, 6: 3 };
+
 function pick(rng: Rng, level: Level): Problem {
-  const { n, d } = levels[level].bounds;
-  const need = level === 1 ? 1 : 2;
+  const { n, d, q } = levels[level].bounds;
   for (;;) {
     const dv = rng.int(d[0], d[1]);
-    const q = rng.int(Math.ceil(n[0] / dv), Math.floor(n[1] / dv));
-    const nv = q * dv;
+    const lo = Math.max(q[0], Math.ceil(n[0] / dv)), hi = Math.min(q[1], Math.floor(n[1] / dv));
+    const qv = rng.int(lo, hi);
+    const nv = qv * dv;
     if (nv % 10 === 0) continue;
-    if (carries(nv, dv) < need) continue;
+    if (carries(nv, dv) < NEED[level]) continue;
     return make(nv, dv, level);
   }
 }
@@ -105,7 +111,7 @@ export default defineTechnique({
       'Carry that remainder in front of the next digit to make a new number, and divide that.',
       'Repeat to the last digit. If a number is too small to divide, write 0 and carry it all.',
     ],
-    example: make(756, 4, 1),
+    example: make(756, 4, 2),
     graphic,
     caption: 'Work the columns in order: each remainder hops in front of the next digit.',
   },

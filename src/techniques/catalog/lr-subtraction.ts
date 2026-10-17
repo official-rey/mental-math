@@ -10,10 +10,16 @@ function make(a: number, b: number, level: Level): Problem {
 }
 
 const levels = {
-  1: { label: '2-digit − 2-digit', bounds: { a: [21, 99], b: [12, 98] } },
-  2: { label: '3-digit − 2-digit', bounds: { a: [101, 999], b: [12, 99] } },
-  3: { label: '3-digit − 3-digit', bounds: { a: [201, 999], b: [101, 998] } },
+  1: { label: '2-digit − 2-digit, no borrow', bounds: { a: [21, 99], b: [11, 88] } },
+  2: { label: '2-digit − 2-digit', bounds: { a: [21, 99], b: [12, 98] } },
+  3: { label: '3-digit − 2-digit', bounds: { a: [101, 999], b: [12, 99] } },
+  4: { label: '3-digit − 3-digit', bounds: { a: [201, 999], b: [101, 998] } },
+  5: { label: '4-digit − 3-digit, 2+ borrows', bounds: { a: [1001, 9999], b: [101, 999] } },
+  6: { label: '4-digit − 4-digit, 2+ borrows', bounds: { a: [2001, 9999], b: [1001, 9998] } },
 } as const satisfies Levels;
+
+/** Fewest borrows each level asks for; level 1 asks for none at all. */
+const MIN_BORROWS: Record<Level, number> = { 1: 0, 2: 1, 3: 1, 4: 1, 5: 2, 6: 2 };
 
 const PLACE = ['ones', 'tens', 'hundreds', 'thousands'];
 
@@ -23,12 +29,14 @@ function parts(n: number): number[] {
   return ds.map((d, i) => d * 10 ** (ds.length - 1 - i)).filter((x) => x > 0);
 }
 
-/** True when column subtraction of a − b would need a borrow somewhere. */
-function hasBorrow(a: number, b: number): boolean {
-  for (; b > 0; a = Math.floor(a / 10), b = Math.floor(b / 10)) {
-    if (a % 10 < b % 10) return true;
+/** Number of borrows column subtraction of a − b (a > b) would need. */
+function borrows(a: number, b: number): number {
+  let n = 0;
+  for (let c = 0; b > 0 || c > 0; a = Math.floor(a / 10), b = Math.floor(b / 10)) {
+    c = (a % 10) - c < b % 10 ? 1 : 0;
+    n += c;
   }
-  return false;
+  return n;
 }
 
 export default defineTechnique({
@@ -46,7 +54,7 @@ export default defineTechnique({
       'Take away the hundreds first, then the tens, then the ones.',
       'Hold only the new total after each step. The last total is the answer.',
     ],
-    example: make(724, 358, 3),
+    example: make(724, 358, 4),
     graphic: () =>
       chain({
         start: '724',
@@ -67,7 +75,8 @@ export default defineTechnique({
       const hi = Math.min(b[1], x - 1);
       if (hi < b[0] + 1) continue;
       const y = nonRound(rng, b[0], hi);
-      if (hasBorrow(x, y)) return make(x, y, level);
+      const n = borrows(x, y);
+      if (level === 1 ? n === 0 : n >= MIN_BORROWS[level]) return make(x, y, level);
     }
   },
   steps(p) {

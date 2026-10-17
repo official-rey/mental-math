@@ -68,10 +68,24 @@ function make(kind: number, a: number, b: number, level: Level): Problem {
 }
 
 const levels = {
-  1: { label: '3-digit × 2-digit', bounds: { kind: [0, 0], a: [101, 999], b: [11, 99] } },
-  2: { label: '3-digit × 3-digit, 4-digit ÷ 2-digit', bounds: { kind: [0, 1], a: [101, 9999], b: [11, 999] } },
-  3: { label: '4-digit × 3-digit, 5-digit ÷ 2-digit', bounds: { kind: [0, 1], a: [1001, 99999], b: [11, 999] } },
+  1: { label: '3-digit × 1-digit', bounds: { kind: [0, 0], a: [101, 999], b: [2, 9] } },
+  2: { label: '3-digit × 2-digit', bounds: { kind: [0, 0], a: [101, 999], b: [11, 99] } },
+  3: { label: '3-digit × 3-digit, 4-digit ÷ 2-digit', bounds: { kind: [0, 1], a: [101, 9999], b: [11, 999] } },
+  4: { label: '4-digit × 3-digit, 5-digit ÷ 2-digit', bounds: { kind: [0, 1], a: [1001, 99999], b: [11, 999] } },
+  5: { label: '4-digit × 4-digit, 6-digit ÷ 2-digit', bounds: { kind: [0, 1], a: [1001, 999999], b: [11, 9999] } },
+  6: { label: '5-digit × 4-digit, 6-digit ÷ 3-digit', bounds: { kind: [0, 1], a: [10001, 999999], b: [101, 9999] } },
 } as const satisfies Levels;
+
+/** Operand ranges per level: [a, b] for products, then [a, b] for quotients (null: no quotients). */
+type Range = readonly [number, number];
+const RANGES: Record<Level, { mul: readonly [Range, Range]; div: readonly [Range, Range] | null }> = {
+  1: { mul: [[101, 999], [2, 9]], div: null },
+  2: { mul: [[101, 999], [11, 99]], div: null },
+  3: { mul: [[101, 999], [101, 999]], div: [[1001, 9999], [11, 99]] },
+  4: { mul: [[1001, 9999], [101, 999]], div: [[10001, 99999], [11, 99]] },
+  5: { mul: [[1001, 9999], [1001, 9999]], div: [[100001, 999999], [11, 99]] },
+  6: { mul: [[10001, 99999], [1001, 9999]], div: [[100001, 999999], [101, 999]] },
+};
 
 /** "476 + 4 = 480" or "236 − 6 = 230". */
 function roundStep(n: number, r: number, note: string): Step {
@@ -99,7 +113,7 @@ export default defineTechnique({
       'Multiply the two-digit numbers and put the zeros back on.',
       'Both moved up: take those percents off. Both down: add them on. To divide, round only the top number.',
     ],
-    example: make(0, 476, 236, 2),
+    example: make(0, 476, 236, 3),
     graphic: () =>
       chain({
         start: '476 × 236',
@@ -117,19 +131,16 @@ export default defineTechnique({
   levels,
   generate(rng, level) {
     for (;;) {
-      const kind = level === 1 ? 0 : rng.chance(0.6) ? 0 : 1;
-      let a: number, b: number;
-      if (kind === 0) {
-        a = level === 3 ? nonRound(rng, 1001, 9999) : nonRound(rng, 101, 999);
-        b = level === 1 ? nonRound(rng, 11, 99) : nonRound(rng, 101, 999);
-      } else {
-        a = level === 3 ? nonRound(rng, 10001, 99999) : nonRound(rng, 1001, 9999);
-        b = nonRound(rng, 11, 99);
-      }
+      const r = RANGES[level];
+      const kind = r.div && !rng.chance(0.6) ? 1 : 0;
+      const [[alo, ahi], [blo, bhi]] = kind === 1 && r.div ? r.div : r.mul;
+      const a = nonRound(rng, alo, ahi);
+      // 1-digit factors: skip 5, which halving handles better.
+      const b = bhi < 10 ? rng.pick([2, 3, 4, 6, 7, 8, 9] as const) : nonRound(rng, blo, bhi);
       // Skip operands that are already two-figure numbers, and the rare cases where rounding a
       // leading 1 costs more than 3%.
       if (kind === 0 && sig2(a) === a) continue;
-      if (kind === 0 && level > 1 && sig2(b) === b) continue;
+      if (kind === 0 && level > 2 && sig2(b) === b) continue;
       if (kind === 1 && sig2(a) === a) continue;
       const exact = truth(kind, a, b);
       if (Math.abs(plan(kind, a, b).answer - exact) > 0.03 * exact) continue;

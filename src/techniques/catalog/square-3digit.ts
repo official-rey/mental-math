@@ -17,13 +17,16 @@ function plan(n: number) {
 
 function make(n: number, level: Level): Problem {
   const { up, d, round, other } = plan(n);
-  return { technique: ID, level, text: `${n}²`, answer: String(round * other + d * d), data: { n, d, up } };
+  return { technique: ID, level, text: `${fmt(n)}²`, answer: String(round * other + d * d), data: { n, d, up } };
 }
 
 const levels = {
-  1: { label: 'within 9 of a hundred', bounds: { n: [101, 999], d: [1, 9] } },
-  2: { label: 'within 25 of a hundred', bounds: { n: [101, 999], d: [1, 25] } },
-  3: { label: 'any 3-digit', bounds: { n: [101, 999], d: [1, 49] } },
+  1: { label: 'within 3 of a hundred', bounds: { n: [101, 999], d: [1, 3] } },
+  2: { label: 'within 9 of a hundred', bounds: { n: [101, 999], d: [1, 9] } },
+  3: { label: 'within 25 of a hundred', bounds: { n: [101, 999], d: [1, 25] } },
+  4: { label: 'any 3-digit', bounds: { n: [101, 999], d: [1, 49] } },
+  5: { label: '4-digit, within 25 of a thousand', bounds: { n: [1001, 9999], d: [1, 25] } },
+  6: { label: '1,070² to 1,930², within 30 of a hundred', bounds: { n: [1070, 1930], d: [1, 30] } },
 } as const satisfies Levels;
 
 /** A number at distance d from a multiple of 100 (never below 101 or above 999). */
@@ -63,7 +66,7 @@ export default defineTechnique({
       'Multiply the two: one digit times the other number, then add 00.',
       'Square the distance (up and down again if it has two digits) and add it on.',
     ],
-    example: make(596, 1),
+    example: make(596, 2),
     graphic: () =>
       chain({
         start: '596²',
@@ -78,29 +81,50 @@ export default defineTechnique({
   },
   levels,
   generate(rng, level) {
-    if (level === 1) return make(nearHundred(rng, rng.int(1, 9)), level);
-    if (level === 2) return make(nearHundred(rng, nonRound(rng, 6, 25)), level);
-    return make(nonRound(rng, 101, 999), level);
+    if (level === 1) return make(nearHundred(rng, rng.int(1, 3)), level);
+    if (level === 2) return make(nearHundred(rng, rng.int(1, 9)), level);
+    if (level === 3) return make(nearHundred(rng, nonRound(rng, 6, 25)), level);
+    if (level === 4) return make(nonRound(rng, 101, 999), level);
+    if (level === 5) {
+      const d = rng.chance(0.4) ? rng.int(1, 9) : nonRound(rng, 11, 25);
+      return make(1000 * rng.int(1, 9) + (rng.chance(0.5) ? d : 1000 - d), level);
+    }
+    const d = rng.chance(0.3) ? rng.int(1, 9) : nonRound(rng, 11, 30);
+    return make(100 * rng.int(11, 19) + (rng.chance(0.5) ? d : -d), level);
   },
   steps(p) {
     const { n } = p.data;
     const { up, d, round, other } = plan(n);
-    const k = round / 100, prod = round * other, sq = d * d;
+    const prod = round * other, sq = d * d;
+    let zeros = 2;
+    while (round % 10 ** (zeros + 1) === 0) zeros++;
+    const k = round / 10 ** zeros, shift = fmt(10 ** zeros);
+    const tail = `add ${['', '', 'two', 'three', 'four'][zeros]} 0s`;
     const steps: Step[] = [
-      { op: '', expr: `${n}²` },
+      { op: '', expr: `${fmt(n)}²` },
       up
-        ? { op: '', expr: `${n} + ${d} = ${fmt(round)}`, note: 'up to the nearest hundred' }
-        : { op: '', expr: `${n} − ${d} = ${fmt(round)}`, note: 'down to the nearest hundred' },
+        ? { op: '', expr: `${fmt(n)} + ${d} = ${fmt(round)}`, note: 'up to the nearest hundred' }
+        : { op: '', expr: `${fmt(n)} − ${d} = ${fmt(round)}`, note: 'down to the nearest hundred' },
       up
-        ? { op: '', expr: `${n} − ${d} = ${other}`, note: `down the same ${d}` }
-        : { op: '', expr: `${n} + ${d} = ${other}`, note: `up the same ${d}` },
+        ? { op: '', expr: `${fmt(n)} − ${d} = ${fmt(other)}`, note: `down the same ${d}` }
+        : { op: '', expr: `${fmt(n)} + ${d} = ${fmt(other)}`, note: `up the same ${d}` },
     ];
-    if (k === 1 || k === 10) {
-      steps.push({ op: '', expr: `${other} × ${fmt(round)} = ${fmt(prod)}`, note: k === 1 ? 'add two 0s' : 'add three 0s' });
-    } else {
+    if (k === 1) {
+      steps.push({ op: '', expr: `${fmt(other)} × ${fmt(round)} = ${fmt(prod)}`, note: tail });
+    } else if (k <= 9) {
       const h = other - (other % 100), rest = other % 100;
-      steps.push({ op: '', expr: `${k} × ${other} = ${fmt(k * other)}`, note: rest ? `${k} × ${h}, then ${k} × ${rest}` : `${k} × ${h / 100}, add 00` });
-      steps.push({ op: '', expr: `${fmt(k * other)} × 100 = ${fmt(prod)}`, note: 'add two 0s' });
+      steps.push({
+        op: '',
+        expr: `${k} × ${fmt(other)} = ${fmt(k * other)}`,
+        note: rest ? `${k} × ${fmt(h)}, then ${k} × ${rest}` : `${k} × ${h / 100}, add 00`,
+      });
+      steps.push({ op: '', expr: `${fmt(k * other)} × ${shift} = ${fmt(prod)}`, note: tail });
+    } else {
+      const u = k - 10;
+      steps.push({ op: '', expr: `${fmt(other)} × 10 = ${fmt(other * 10)}`, note: `${fmt(round)} is ${k} hundreds: first × 10` });
+      steps.push({ op: '', expr: `${fmt(other)} × ${u} = ${fmt(other * u)}`, note: `then × ${u}` });
+      steps.push({ op: '', expr: `${fmt(other * 10)} + ${fmt(other * u)} = ${fmt(k * other)}`, note: `that makes ${k} × ${fmt(other)}` });
+      steps.push({ op: '', expr: `${fmt(k * other)} × ${shift} = ${fmt(prod)}`, note: tail });
     }
     steps.push(...smallSquare(d));
     steps.push({ op: '', expr: `${fmt(prod)} + ${fmt(sq)}`, note: 'add the square on' });

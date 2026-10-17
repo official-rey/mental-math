@@ -76,16 +76,30 @@ function make(n: number, d: number, level: Level): Problem {
 }
 
 const levels = {
-  1: { label: '3-digit ÷ 2-digit, flag 1–3', bounds: { n: [100, 999], d: [21, 93], q: [10, 47] } },
-  2: { label: '4-digit ÷ 2-digit', bounds: { n: [1000, 9999], d: [21, 96], q: [11, 476] } },
-  3: { label: '5-digit ÷ 2-digit, 3-digit quotient', bounds: { n: [10000, 99999], d: [11, 99], q: [101, 999] } },
+  1: { label: '3-digit ÷ 2-digit, flag 1–2, no lowering', bounds: { n: [100, 999], d: [21, 52], q: [11, 47] } },
+  2: { label: '3-digit ÷ 2-digit, flag 1–3', bounds: { n: [100, 999], d: [21, 93], q: [10, 47] } },
+  3: { label: '4-digit ÷ 2-digit', bounds: { n: [1000, 9999], d: [21, 96], q: [11, 476] } },
+  4: { label: '5-digit ÷ 2-digit, 3-digit quotient', bounds: { n: [10000, 99999], d: [11, 99], q: [101, 999] } },
+  5: { label: '6-digit ÷ 2-digit, 4-digit quotient', bounds: { n: [100000, 999999], d: [11, 99], q: [1001, 9999] } },
+  6: { label: '6-digit ÷ 2-digit, flag 6–9, with lowering', bounds: { n: [100000, 999999], d: [16, 99], q: [1001, 9999] } },
 } as const satisfies Levels;
+
+/** Tens digit (main divisor) and units digit (flag) ranges per level. */
+const DIGITS: Record<Level, { m: [number, number]; f: [number, number] }> = {
+  1: { m: [2, 5], f: [1, 2] },
+  2: { m: [2, 9], f: [1, 3] },
+  3: { m: [2, 9], f: [1, 6] },
+  4: { m: [1, 9], f: [1, 9] },
+  5: { m: [1, 9], f: [1, 9] },
+  6: { m: [1, 9], f: [6, 9] },
+};
 
 function pick(rng: Rng, level: Level): Problem {
   const { n, q } = levels[level].bounds;
+  const { m: mr, f: fr } = DIGITS[level];
   for (;;) {
-    const m = level === 3 ? rng.int(1, 9) : rng.int(2, 9);
-    const f = level === 1 ? rng.int(1, 3) : level === 2 ? rng.int(1, 6) : rng.int(1, 9);
+    const m = rng.int(mr[0], mr[1]);
+    const f = rng.int(fr[0], fr[1]);
     const d = 10 * m + f;
     const lo = Math.max(q[0], Math.ceil(n[0] / d)), hi = Math.min(q[1], Math.floor(n[1] / d));
     if (lo > hi) continue;
@@ -95,6 +109,10 @@ function pick(rng: Rng, level: Level): Problem {
     const w = run(nv, d);
     // Keep only problems the column method finishes with remainder 0.
     if (w.last.R !== 0 || w.quotient !== qv) continue;
+    // Level 1 never needs a lowered digit; level 6 always does.
+    const lowered = w.cols.some((c) => c.q !== c.q0);
+    if (level === 1 && lowered) continue;
+    if (level === 6 && !lowered) continue;
     return make(nv, d, level);
   }
 }
@@ -148,7 +166,7 @@ export default defineTechnique({
       'Carry each remainder in front of the next digit, take off flag × the last answer digit, then divide.',
       'If the next column would go below zero, write one less and carry the bigger remainder.',
     ],
-    example: make(7866, 23, 2),
+    example: make(7866, 23, 3),
     graphic,
     caption: 'Numbered columns in order: carry, take off the flag times the last digit, divide by 2.',
   },

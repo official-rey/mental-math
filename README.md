@@ -26,7 +26,7 @@ Create one file, `src/techniques/catalog/<id>.ts`, that default-exports `defineT
 
 - `meta`: id (same as the file name), name, category, tier, sort order, one-line idea.
 - `card`: up to three short lines of prose, an `example` problem, a `graphic()` returning inline SVG built from `src/techniques/svg.ts` (theme classes only, no hard-coded colors), and a caption.
-- `levels`: a label and inclusive bounds for each value in `Problem.data`, for levels 1–3.
+- `levels`: a label and inclusive bounds for each value in `Problem.data`, for levels 1–6 (I is the gentlest, VI the hardest).
 - `generate(rng, level)`: returns a `Problem` with the display text, the answer as a plain number string, and its data.
 - `steps(problem)`: the worked solution for that exact problem, one operation per line. The last line must be the answer.
 - Optional `reference(problem)` for problems whose text is not an arithmetic expression, and `tolerance` on problems that accept estimates.
@@ -37,10 +37,10 @@ Create one file, `src/techniques/catalog/<id>.ts`, that default-exports `defineT
 
 ```
 src/techniques/   registry, types, SVG kit, one module per technique in catalog/
-src/chain/        expression parser/evaluator/printer and the chain generator
+src/chain/        expression parser/evaluator, expression chains and running-total chains
 src/drill/        drill engine, sounds, drill specs
 src/storage/      Store interface + localStorage implementation (swap for a backend later)
 src/share/        score card PNG, GIF replay, Web Share / download
-src/ui/           screens: Train, Learn, Stats, Settings, technique card, drill (with number pad), results
+src/ui/           screens: home, Learn, Train, Challenge, Chains, Stats, Settings, drill (with number pad), results
 src/art/          times-table plate, margin art (wide screens only)
 ```

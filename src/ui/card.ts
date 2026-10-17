@@ -14,7 +14,7 @@ import { renderStepper } from './steps';
  * and a button to drill it. `state` is shared so level and mode carry across techniques.
  */
 export function cardBody(t: Technique, state: { level: Level; mode: Mode }): HTMLElement {
-  const drillBtn = h('a', { class: 'btn primary block', 'data-testid': 'drill-this' }, 'Drill this one', h('span', { class: 'arrow' }, '→'));
+  const drillBtn = h('a', { class: 'btn primary block', 'data-testid': 'drill-this' }, 'Practise this one', h('span', { class: 'arrow' }, '→'));
   const setHref = () =>
     drillBtn.setAttribute('href', specToHash({ kind: 'technique', ids: [t.meta.id], level: state.level, mode: state.mode }));
   setHref();

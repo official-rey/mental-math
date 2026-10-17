@@ -17,6 +17,35 @@ const SHORT: Record<CategoryId, { label: string; glyph: string }> = {
 
 const TIERS: Tier[] = ['Foundation', 'Core', 'Advanced'];
 
+/** The book's big lessons, in our own words, with one short quote. */
+const LESSONS: [string, string][] = [
+  ['Work left to right.', 'Start with the biggest part. You find the answer in the order you say it.'],
+  ['Look before you calculate.', 'Near a round number? Close together? Easy to factor? Pick the method that makes it easy.'],
+  ['Turn hard into easy.', 'A hard addition can be an easy subtraction, and the other way round.'],
+  ['Keep simplifying.', 'Break any big problem into small steps you can hold in your head.'],
+  ['Check your answer.', 'Casting out nines catches most slips in a few seconds.'],
+  ['Practise.', 'Knowing a trick is not the same as being fast at it.'],
+];
+
+function lessons(): HTMLElement {
+  return h(
+    'details',
+    { class: 'lessons', open: true, 'data-testid': 'lessons' },
+    h('summary', null, 'Six lessons from the book'),
+    h(
+      'ol',
+      null,
+      LESSONS.map(([head, body]) => h('li', null, h('b', null, head), ' ', body)),
+    ),
+    h(
+      'figure',
+      { class: 'lesson-quote' },
+      h('blockquote', null, '“It’s never too late to start looking at numbers in a new way.”'),
+      h('figcaption', null, '— Arthur T. Benjamin, ', h('i', null, 'The Secrets of Mental Math')),
+    ),
+  );
+}
+
 /**
  * Learn: techniques by group. Each row opens in place to teach the technique; its checkbox
  * adds it to "my drill" (the same set the Mixed drill uses).
@@ -143,7 +172,8 @@ export async function learnView(parts: string[]): Promise<View> {
     'div',
     null,
     h('h1', { class: 'display' }, 'Learn'),
-    h('p', { class: 'lede' }, 'Tap to learn. Tick to add to your drill.'),
+    h('p', { class: 'lede' }, 'Tap to learn. Tick to add it to Train and Challenge.'),
+    lessons(),
     h('div', { class: 'chips', role: 'tablist', 'aria-label': 'Technique groups' }, chips),
     list,
     dock,

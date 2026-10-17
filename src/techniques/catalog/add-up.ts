@@ -19,13 +19,16 @@ function make(a: number, b: number, level: Level): Problem {
   const stop = stopPoint(a, b);
   // The technique: the difference is the sum of the two hops.
   const answer = (stop - b) + (a - stop);
-  return { technique: ID, level, text: `${fmt(a)} − ${fmt(b)}`, answer: String(answer), data: { a, b } };
+  return { technique: ID, level, text: `${fmt(a)} − ${fmt(b)}`, answer: String(answer), data: { a, b, gap: a - b } };
 }
 
 const levels = {
-  1: { label: '2-digit, with a borrow', bounds: { a: [21, 99], b: [12, 98] } },
-  2: { label: '3-digit, with borrows', bounds: { a: [201, 999], b: [101, 998] } },
-  3: { label: '4-digit across a thousand', bounds: { a: [2001, 9999], b: [1001, 9998] } },
+  1: { label: '2-digit, close together', bounds: { a: [21, 99], b: [12, 96], gap: [3, 19] } },
+  2: { label: '2-digit, with a borrow', bounds: { a: [21, 99], b: [12, 98] } },
+  3: { label: '3-digit, with borrows', bounds: { a: [201, 999], b: [101, 998] } },
+  4: { label: '4-digit across a thousand', bounds: { a: [2001, 9999], b: [1001, 9998] } },
+  5: { label: '5-digit across ten thousand', bounds: { a: [20001, 99999], b: [10001, 99998] } },
+  6: { label: '6-digit across a hundred thousand', bounds: { a: [200001, 999999], b: [100001, 999998] } },
 } as const satisfies Levels;
 
 /** True when column subtraction of a − b would need a borrow somewhere. */
@@ -87,20 +90,28 @@ export default defineTechnique({
       'Count up from that round number to the bigger number.',
       'Add the two hops together. That total is the answer.',
     ],
-    example: make(625, 386, 2),
+    example: make(625, 386, 3),
     graphic: diagram,
     caption: 'Hop from 386 up to 400, hop on to 625, then add the two hops.',
   },
   levels,
   generate(rng, level) {
-    if (level === 1) {
+    if (level <= 2) {
       for (;;) {
         const a = nonRound(rng, 21, 99);
-        const b = nonRound(rng, 12, a - 1);
-        if (a % 10 < b % 10) return make(a, b, level);
+        // Level 1 keeps the numbers close, so both hops are short.
+        const b = level === 1 ? a - rng.int(3, 19) : nonRound(rng, 12, a - 1);
+        if (b >= 12 && b % 10 !== 0 && a % 10 < b % 10) return make(a, b, level);
       }
     }
-    const [a, b] = level === 2 ? pair(rng, 201, 999, 600, 100, 101) : pair(rng, 2001, 9999, 2500, 1000, 1001);
+    const [a, b] =
+      level === 3
+        ? pair(rng, 201, 999, 600, 100, 101)
+        : level === 4
+          ? pair(rng, 2001, 9999, 2500, 1000, 1001)
+          : level === 5
+            ? pair(rng, 20001, 99999, 30000, 10000, 10001)
+            : pair(rng, 200001, 999999, 300000, 100000, 100001);
     return make(a, b, level);
   },
   steps(p) {

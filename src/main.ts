@@ -9,11 +9,11 @@ import { chainView } from './ui/chain';
 import { app } from './ui/context';
 import { drillView } from './ui/drill';
 import { learnView } from './ui/learn';
-import { mixedView } from './ui/mixed';
 import { resultsView } from './ui/results';
 import { settingsView } from './ui/settings';
 import { statsView } from './ui/stats';
-import { trainView } from './ui/train';
+import { homeView } from './ui/home';
+import { practiceView } from './ui/practice';
 import { startRouter } from './ui/router';
 
 app.art = startArt(document.getElementById('art') as HTMLCanvasElement);
@@ -24,17 +24,20 @@ store.getPrefs().then((p) => {
   startRouter(
     document.getElementById('app')!,
     {
-      '': trainView,
+      '': homeView,
+      train: () => practiceView('train'),
+      challenge: () => practiceView('challenge'),
+      chains: chainView,
       learn: learnView,
       stats: statsView,
       settings: settingsView,
       t: cardView,
       drill: drillView,
-      mixed: mixedView,
+      mixed: () => practiceView('train'),
       chain: chainView,
       results: resultsView,
       about: aboutView,
     },
-    trainView,
+    homeView,
   );
 });

@@ -1,3 +1,4 @@
+import { flashSource } from '../chain/flash';
 import { chainSource } from '../chain/generator';
 import { getTechnique } from '../techniques/registry';
 import type { Level, Problem, Rng, Step } from '../techniques/types';
@@ -17,7 +18,7 @@ export const CHAIN_BONUS_MS = 4_000;
 const RECENT = 30;
 
 export function sourcesFor(spec: DrillSpec): ProblemSource[] {
-  if (spec.kind === 'chain') return [chainSource];
+  if (spec.kind === 'chain') return [spec.style === 'expression' ? chainSource : flashSource];
   return spec.ids.map((id) => {
     const t = getTechnique(id)!;
     return { id, name: t.meta.name, generate: t.generate, steps: t.steps };
@@ -105,7 +106,7 @@ export class DrillSession {
     this.log.push({ technique: p.technique, text: p.text, answer: p.answer, input, ok, ms, ...(skipped ? { skipped } : {}) });
     let bonusMs = 0;
     if (ok && this.spec.mode === 'sprint' && this.remaining() > 0) {
-      bonusMs = p.technique === 'chain' ? CHAIN_BONUS_MS : BONUS_MS;
+      bonusMs = p.technique.startsWith('chain') ? CHAIN_BONUS_MS : BONUS_MS;
       this.bonusTotal += bonusMs;
     }
     let levelUp: Level | undefined;

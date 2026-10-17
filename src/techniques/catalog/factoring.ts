@@ -41,11 +41,17 @@ function make(a: number, fs: number[], level: Level): Problem {
 }
 
 const levels = {
-  1: { label: '2-digit × 12–36', bounds: { a: [12, 99], b: [12, 36], f1: [2, 9], f2: [2, 9] } },
-  2: { label: '2-digit × 42–81', bounds: { a: [12, 99], b: [42, 81], f1: [2, 9], f2: [2, 9] } },
-  3: {
+  1: { label: 'small 2-digit × 12–24', bounds: { a: [12, 39], b: [12, 24], f1: [2, 9], f2: [2, 9] } },
+  2: { label: '2-digit × 12–36', bounds: { a: [12, 99], b: [12, 36], f1: [2, 9], f2: [2, 9] } },
+  3: { label: '2-digit × 42–81', bounds: { a: [12, 99], b: [42, 81], f1: [2, 9], f2: [2, 9] } },
+  4: {
     label: '3-digit × 2-digit, or 3 factors',
     bounds: { a: [12, 399], b: [12, 196], f1: [2, 9], f2: [2, 9], f3: [1, 9] },
+  },
+  5: { label: '3-digit × 42–81', bounds: { a: [101, 599], b: [42, 81], f1: [2, 9], f2: [2, 9] } },
+  6: {
+    label: '3-digit × 3 factors',
+    bounds: { a: [101, 499], b: [75, 196], f1: [2, 9], f2: [2, 9], f3: [2, 9] },
   },
 } as const satisfies Levels;
 
@@ -68,7 +74,7 @@ export default defineTechnique({
       'Multiply the first number by the first factor: 47 × 6 = 282.',
       'Multiply that result by the next factor: 282 × 7 = 1,974.',
     ],
-    example: make(47, [6, 7], 2),
+    example: make(47, [6, 7], 3),
     graphic: () =>
       chain({
         start: '47',
@@ -83,12 +89,26 @@ export default defineTechnique({
   levels,
   generate(rng, level) {
     if (level === 1) {
+      const b = rng.pick(SMALL.filter((n) => n <= 24));
+      let a = nonRound(rng, 12, 39);
+      while (a === 25) a = nonRound(rng, 12, 39);
+      return make(a, pickSplit(rng, b), level);
+    }
+    if (level === 2) {
       const b = rng.pick(SMALL);
       return make(nonRound(rng, 12, 99), pickSplit(rng, b), level);
     }
-    if (level === 2) {
+    if (level === 3) {
       const b = rng.pick(LARGE);
       return make(nonRound(rng, 12, 99), pickSplit(rng, b), level);
+    }
+    if (level === 5) {
+      const b = rng.pick(LARGE);
+      return make(nonRound(rng, 101, 599), pickSplit(rng, b), level);
+    }
+    if (level === 6) {
+      const b = rng.pick(TRIPLE.filter((n) => n !== 125));
+      return make(nonRound(rng, 101, 499), rng.pick(splits3(b)), level);
     }
     if (rng.chance(0.5)) {
       const b = rng.pick([...SMALL, ...LARGE]);

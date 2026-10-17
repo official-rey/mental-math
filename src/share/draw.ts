@@ -2,7 +2,8 @@ import { drawTimesTable } from '../art/figures';
 import { MODES, type RunRecord } from '../drill/types';
 import { FONTS, PALETTE } from '../theme';
 
-export const ROMAN = ['', 'I', 'II', 'III'];
+import { ROMAN } from '../techniques/types';
+export { ROMAN };
 
 export const secs = (ms: number) => `${(ms / 1000).toFixed(1)} s`;
 export const pct = (x: number) => `${Math.round(x * 100)}%`;

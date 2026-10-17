@@ -77,10 +77,11 @@ function parse(line: string): Token[] {
 export function processReel(): { el: HTMLElement; destroy(): void } {
   const reduced = matchMedia('(prefers-reduced-motion: reduce)').matches;
   const name = h('div', { class: 'demo-name' });
+  const problem = h('div', { class: 'demo-problem' });
   const line = h('div', { class: 'morph-line', 'aria-hidden': 'true' });
   const spoken = h('span', { class: 'sr-only', 'aria-live': 'polite' });
   const stage = h('div', { class: 'morph-stage' }, line);
-  const el = h('div', { class: 'demo', 'data-testid': 'demo' }, name, stage, spoken);
+  const el = h('div', { class: 'demo', 'data-testid': 'demo' }, name, problem, stage, spoken);
   const timers: number[] = [];
   const later = (ms: number, f: () => void) => timers.push(window.setTimeout(f, ms));
 
@@ -145,6 +146,8 @@ export function processReel(): { el: HTMLElement; destroy(): void } {
     const demo = DEMOS[i % DEMOS.length];
     const lines = demo.lines.map(parse);
     name.textContent = demo.name;
+    // The problem being solved stays visible above the line that morphs.
+    problem.textContent = `${lines[0].map((t, j) => (j && !t.tight ? ' ' : '') + t.text).join('')} = ?`;
     el.classList.remove('out');
     let tokens = render(lines[0], false);
     spoken.textContent = demo.lines[0].replace(/[@~][a-z]*/g, '');

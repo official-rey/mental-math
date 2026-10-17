@@ -10,10 +10,16 @@ function make(a: number, b: number, level: Level): Problem {
 }
 
 const levels = {
-  1: { label: '2-digit + 2-digit', bounds: { a: [12, 99], b: [12, 99] } },
-  2: { label: '3-digit + 2-digit', bounds: { a: [101, 999], b: [12, 99] } },
-  3: { label: '3-digit + 3-digit', bounds: { a: [101, 999], b: [101, 999] } },
+  1: { label: '2-digit + 2-digit, no carry', bounds: { a: [11, 88], b: [11, 88] } },
+  2: { label: '2-digit + 2-digit', bounds: { a: [12, 99], b: [12, 99] } },
+  3: { label: '3-digit + 2-digit', bounds: { a: [101, 999], b: [12, 99] } },
+  4: { label: '3-digit + 3-digit', bounds: { a: [101, 999], b: [101, 999] } },
+  5: { label: '4-digit + 3-digit, 2+ carries', bounds: { a: [1001, 9999], b: [101, 999] } },
+  6: { label: '4-digit + 4-digit, 2+ carries', bounds: { a: [1001, 9999], b: [1001, 9999] } },
 } as const satisfies Levels;
+
+/** Fewest carries each level asks for; level 1 asks for none at all. */
+const MIN_CARRIES: Record<Level, number> = { 1: 0, 2: 1, 3: 1, 4: 1, 5: 2, 6: 2 };
 
 const PLACE = ['ones', 'tens', 'hundreds', 'thousands'];
 
@@ -23,12 +29,14 @@ function parts(n: number): number[] {
   return ds.map((d, i) => d * 10 ** (ds.length - 1 - i)).filter((x) => x > 0);
 }
 
-/** True when some column of a + b produces a carry. */
-function hasCarry(a: number, b: number): boolean {
-  for (; a > 0 || b > 0; a = Math.floor(a / 10), b = Math.floor(b / 10)) {
-    if ((a % 10) + (b % 10) >= 10) return true;
+/** Number of columns of a + b that produce a carry. */
+function carries(a: number, b: number): number {
+  let n = 0;
+  for (let c = 0; a > 0 || b > 0; a = Math.floor(a / 10), b = Math.floor(b / 10)) {
+    c = (a % 10) + (b % 10) + c >= 10 ? 1 : 0;
+    n += c;
   }
-  return false;
+  return n;
 }
 
 export default defineTechnique({
@@ -46,7 +54,7 @@ export default defineTechnique({
       'Add the hundreds to the first number, then add the tens, then the ones.',
       'Hold only the new total after each add. The last total is the answer.',
     ],
-    example: make(476, 358, 3),
+    example: make(476, 358, 4),
     graphic: () =>
       chain({
         start: '476',
@@ -65,7 +73,8 @@ export default defineTechnique({
     for (;;) {
       const x = nonRound(rng, a[0], a[1]);
       const y = nonRound(rng, b[0], b[1]);
-      if (hasCarry(x, y)) return make(x, y, level);
+      const n = carries(x, y);
+      if (level === 1 ? n === 0 : n >= MIN_CARRIES[level]) return make(x, y, level);
     }
   },
   steps(p) {

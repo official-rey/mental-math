@@ -29,7 +29,7 @@ test('completes a 20-problem run and records it', async ({ page }) => {
   await expect(page.getByTestId('leaderboard').locator('tbody tr')).toHaveCount(1);
   await expect(page.getByText('Personal best')).toBeVisible();
   // The run shows up in Stats.
-  await page.getByTestId('tab-stats').tap();
+  await page.getByTestId('top-stats').tap();
   await expect(page.getByTestId('totals')).toContainText('20');
 });
 
@@ -66,12 +66,35 @@ test('timed: pause stops the clock, skip counts as a miss', async ({ page }) => 
   expect(log[0].skipped).toBe(true);
 });
 
-test('chain drill accepts the final answer', async ({ page }) => {
+test('running-total chains flash one term at a time, then take the total', async ({ page }) => {
   await page.goto('/?e2e=1#/chain');
+  await page.getByTestId('start-chain').click();
+  const problem = page.getByTestId('problem');
+  await expect(problem).toHaveText(/^\d+$/);
+  await expect(page.getByTestId('answer')).toHaveAttribute('readonly', '');
+  await expect(problem).toHaveText('= ?', { timeout: 15000 });
+  await answer(page, true);
+  await expect(page.getByTestId('feedback')).toHaveText(/✓/);
+});
+
+test('expression chains accept the final answer', async ({ page }) => {
+  await page.goto('/?e2e=1#/chain');
+  await page.getByRole('group', { name: 'Style' }).getByRole('button', { name: 'Expression' }).tap();
   await page.getByTestId('start-chain').click();
   await expect(page.getByTestId('problem')).toHaveText(/[×÷+−]/);
   await answer(page, true);
   await expect(page.getByTestId('feedback')).toHaveText(/✓/);
+});
+
+test('train and challenge pages start drills from the ticked techniques', async ({ page }) => {
+  await page.goto('/?e2e=1#/');
+  await page.getByTestId('tab-train').tap();
+  await page.getByTestId('start-train').tap();
+  await expect(page.getByTestId('done')).toBeVisible();
+  await page.goto('/?e2e=1#/challenge');
+  await page.getByRole('group', { name: 'Clock' }).getByRole('button', { name: '20 problems' }).tap();
+  await page.getByTestId('start-challenge').tap();
+  await expect(page.getByTestId('stat')).toHaveText(/^1\/20/);
 });
 
 test('sections: Learn groups, Stats, Settings', async ({ page }) => {
@@ -83,9 +106,9 @@ test('sections: Learn groups, Stats, Settings', async ({ page }) => {
   await expect(page.getByTestId('open-short-division')).toHaveAttribute('aria-expanded', 'true');
   await expect(page.getByTestId('drill-this')).toBeVisible();
   await expect(page).toHaveURL(/#\/learn\/div\/short-division/);
-  await page.getByTestId('tab-stats').tap();
+  await page.getByTestId('top-stats').tap();
   await expect(page.getByText(/Nothing here yet/)).toBeVisible();
-  await page.getByTestId('tab-settings').tap();
+  await page.getByTestId('top-settings').tap();
   await page.getByRole('group', { name: 'Number pad' }).getByRole('button', { name: 'Off' }).tap();
   await page.goto('/?e2e=1#/drill?k=technique&ids=mul-2x1&l=1&m=training');
   await expect(page.getByTestId('keypad')).toHaveCount(0);

@@ -31,9 +31,12 @@ function make(r: number, y: number, level: Level, swap = 0): Problem {
 const clean = (r: number, y: number) => Number.isInteger(pctU(toU(y), Math.round(r * 10)) / 10_000);
 
 const levels = {
-  1: { label: '10, 20, 5, 50, 25%', bounds: { r: [5, 50], y: [12, 999], swap: [0, 0] } },
-  2: { label: 'tips: 15, 18, 20%', bounds: { r: [15, 20], y: [12, 150.8], swap: [0, 0] } },
-  3: { label: 'awkward rates, swaps', bounds: { r: [3, 96], y: [12, 480], swap: [0, 1] } },
+  1: { label: '10% and 50%', bounds: { r: [10, 50], y: [12, 198], swap: [0, 0] } },
+  2: { label: '10, 20, 5, 50, 25%', bounds: { r: [5, 50], y: [12, 999], swap: [0, 0] } },
+  3: { label: 'tips: 15, 18, 20%', bounds: { r: [15, 20], y: [12, 150.8], swap: [0, 0] } },
+  4: { label: 'awkward rates, swaps', bounds: { r: [3, 96], y: [12, 480], swap: [0, 1] } },
+  5: { label: '9, 11, 45, 65, 75% of 3-digit', bounds: { r: [9, 75], y: [101, 999], swap: [0, 0] } },
+  6: { label: 'eighths and 2.5% steps, with cents', bounds: { r: [2.5, 87.5], y: [20, 999.96], swap: [0, 0] } },
 } as const satisfies Levels;
 
 /** Lines that build r% of y from 10% (or 1%), one small operation each, ending on the answer. */
@@ -46,6 +49,8 @@ function build(r: number, y: number, swap: number): Step[] {
   const st = (expr: string, note: string): Step => ({ op: '', expr, note });
   const ten = st(`${Y} ÷ 10 = ${P(100)}`, '10%: shift the point');
   const half10 = st(`${P(100)} ÷ 2 = ${P(50)}`, '5%: half of 10%');
+  const half = st(`${Y} ÷ 2 = ${P(500)}`, '50%: half');
+  const quarter = st(`${P(500)} ÷ 2 = ${P(250)}`, '25%: half again');
   if (swap) {
     const d = y === 25 ? 4 : y === 50 ? 2 : 5;
     const what = y === 25 ? 'quarter' : y === 50 ? 'half' : 'fifth';
@@ -57,9 +62,9 @@ function build(r: number, y: number, swap: number): Step[] {
   } else if (r === 5) {
     s.push(ten, half10);
   } else if (r === 50) {
-    s.push(st(`${Y} ÷ 2 = ${P(500)}`, '50%: half'));
+    s.push(half);
   } else if (r === 25) {
-    s.push(st(`${Y} ÷ 2 = ${P(500)}`, '50%: half'), st(`${P(500)} ÷ 2 = ${P(250)}`, '25%: half again'));
+    s.push(half, quarter);
   } else if (r === 15) {
     s.push(ten, half10, st(`${P(100)} + ${P(50)} = ${P(150)}`, '10% + 5%'));
   } else if (r === 18) {
@@ -85,7 +90,7 @@ function build(r: number, y: number, swap: number): Step[] {
       half10,
       st(`${P(300)} + ${P(50)} = ${P(350)}`, '30% + 5%'),
     );
-  } else {
+  } else if (r === 17.5) {
     // 17.5% = 10% + 5% + 2.5%
     s.push(
       ten,
@@ -93,6 +98,38 @@ function build(r: number, y: number, swap: number): Step[] {
       st(`${P(50)} ÷ 2 = ${P(25)}`, '2.5%: half of 5%'),
       st(`${P(100)} + ${P(50)} + ${P(25)} = ${P(175)}`, '10% + 5% + 2.5%'),
     );
+  } else if (r === 9 || r === 11) {
+    s.push(
+      ten,
+      st(`${P(100)} ÷ 10 = ${P(10)}`, '1%: shift once more'),
+      r === 9
+        ? st(`${P(100)} − ${P(10)} = ${P(90)}`, '10% − 1%')
+        : st(`${P(100)} + ${P(10)} = ${P(110)}`, '10% + 1%'),
+    );
+  } else if (r === 45 || r === 65) {
+    s.push(half, ten, half10);
+    s.push(
+      r === 45
+        ? st(`${P(500)} − ${P(50)} = ${P(450)}`, '50% − 5%')
+        : st(`${P(500)} + ${P(100)} + ${P(50)} = ${P(650)}`, '50% + 10% + 5%'),
+    );
+  } else if (r === 75) {
+    s.push(half, quarter, st(`${P(500)} + ${P(250)} = ${P(750)}`, '50% + 25%'));
+  } else if (r === 2.5) {
+    s.push(ten, half10, st(`${P(50)} ÷ 2 = ${P(25)}`, '2.5%: half of 5%'));
+  } else if (r === 22.5) {
+    s.push(
+      ten,
+      st(`${P(100)} × 2 = ${P(200)}`, '20%: double 10%'),
+      st(`${P(100)} ÷ 4 = ${P(25)}`, '2.5%: a quarter of 10%'),
+      st(`${P(200)} + ${P(25)} = ${P(225)}`, '20% + 2.5%'),
+    );
+  } else {
+    // Eighths: 12.5% is half of 25%.
+    s.push(half, quarter, st(`${P(250)} ÷ 2 = ${P(125)}`, '12.5%: half again'));
+    if (r === 37.5) s.push(st(`${P(250)} + ${P(125)} = ${P(375)}`, '25% + 12.5%'));
+    if (r === 62.5) s.push(st(`${P(500)} + ${P(125)} = ${P(625)}`, '50% + 12.5%'));
+    if (r === 87.5) s.push(st(`${Y} − ${P(125)} = ${P(875)}`, '100% − 12.5%'));
   }
   s.push({ expr: ans, note: `${r}% of ${Y}` });
   return s;
@@ -113,7 +150,7 @@ export default defineTechnique({
       'Shift once more for 1%. Add or subtract the pieces to reach the rate you want.',
       'When the amount is 20, 25 or 50, swap the two: 8% of 25 is 25% of 8, a quarter of 8.',
     ],
-    example: make(15, 84, 2),
+    example: make(15, 84, 3),
     graphic: () =>
       pieces({
         input: '15% of 84',
@@ -135,16 +172,35 @@ export default defineTechnique({
   generate(rng, level) {
     for (;;) {
       if (level === 1) {
+        // 10% of any amount; 50% of even amounts only, so the answer stays whole.
+        const r = rng.pick([10, 50] as const);
+        const y = rng.int(12, 198);
+        if (y % 10 === 0 || (r === 50 && y % 2 === 1)) continue;
+        return make(r, y, level);
+      }
+      if (level === 2) {
         const r = rng.pick([10, 20, 5, 50, 25] as const);
         const y = rng.chance(0.3) ? rng.int(12, 99) : rng.int(100, 999);
         if (y % 10 === 0) continue;
         return make(r, y, level);
       }
-      if (level === 2) {
+      if (level === 3) {
         const r = rng.pick([15, 18, 20] as const);
         const cents = rng.pick([0, 0, 0, 50, 50, 20, 40, 60, 80] as const);
         const y = rng.int(12, 150) + cents / 100;
         if (y > 150.8 || !clean(r, y)) continue;
+        return make(r, y, level);
+      }
+      if (level === 5) {
+        const r = rng.pick([9, 11, 45, 65, 75] as const);
+        const y = rng.int(101, 999);
+        if (y % 10 === 0 || !clean(r, y)) continue;
+        return make(r, y, level);
+      }
+      if (level === 6) {
+        const r = rng.pick([2.5, 12.5, 37.5, 62.5, 87.5, 22.5] as const);
+        const y = (rng.int(20, 999) * 100 + (rng.chance(0.7) ? rng.int(1, 24) * 4 : 0)) / 100;
+        if (y % 10 === 0 || !clean(r, y)) continue;
         return make(r, y, level);
       }
       if (rng.chance(0.3)) {

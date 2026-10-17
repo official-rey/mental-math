@@ -1,6 +1,6 @@
 import { defineTechnique } from '../define';
 import { arrowHead, circle, line, rect, svg, text } from '../svg';
-import type { Level, Levels, Problem, Step } from '../types';
+import type { Level, Levels, Problem, Rng, Step } from '../types';
 import { digits, fmt, nonRound } from '../util';
 
 const ID = 'times-11';
@@ -35,14 +35,27 @@ function solve(n: number): { value: number; lines: Step[]; out: number[] } {
 }
 
 function make(n: number, level: Level): Problem {
-  return { technique: ID, level, text: `${n} × 11`, answer: String(solve(n).value), data: { n } };
+  return { technique: ID, level, text: `${fmt(n)} × 11`, answer: String(solve(n).value), data: { n } };
 }
 
 const levels = {
-  1: { label: '2-digit, digit sum < 10', bounds: { n: [11, 81] } },
-  2: { label: '2-digit × 11, with carries', bounds: { n: [12, 99] } },
-  3: { label: '3-digit × 11', bounds: { n: [101, 999] } },
+  1: { label: '2-digit, digit sum up to 6', bounds: { n: [12, 51] } },
+  2: { label: '2-digit, digit sum < 10', bounds: { n: [11, 81] } },
+  3: { label: '2-digit × 11, with carries', bounds: { n: [12, 99] } },
+  4: { label: '3-digit × 11', bounds: { n: [101, 999] } },
+  5: { label: '4-digit × 11', bounds: { n: [1001, 9999] } },
+  6: { label: '5-digit × 11, with carries', bounds: { n: [10001, 99999] } },
 } as const satisfies Levels;
+
+/** A number with `len` digits, none of them 0, whose neighbouring pairs carry at least `carries` times. */
+function withCarries(rng: Rng, len: number, carries: number): number {
+  for (;;) {
+    const ds = Array.from({ length: len }, () => rng.int(1, 9));
+    let c = 0;
+    for (let i = 1; i < len; i++) if (ds[i - 1] + ds[i] >= 10) c++;
+    if (c >= carries) return Number(ds.join(''));
+  }
+}
 
 /** 47 × 11 worked right to left: keep the 7, add 4 + 7 (write 1, carry 1), then 4 + 1. */
 function diagram(): string {
@@ -87,28 +100,34 @@ export default defineTechnique({
       'Moving left, add each pair of neighbouring digits; write the ones digit and carry any 1.',
       'Finish with the first digit, plus any carry.',
     ],
-    example: make(47, 2),
+    example: make(47, 3),
     graphic: diagram,
     caption: 'Work from the right: keep the 7, add the pair, carry the 1 onto the first digit.',
   },
   levels,
   generate(rng, level) {
     if (level === 1) {
+      const a = rng.int(1, 5);
+      return make(10 * a + (a === 1 ? rng.int(2, 5) : rng.int(1, 6 - a)), level);
+    }
+    if (level === 2) {
       const a = rng.int(1, 8);
       return make(10 * a + rng.int(1, 9 - a), level);
     }
-    if (level === 2) {
+    if (level === 3) {
       if (rng.chance(0.75)) {
         const a = rng.int(1, 9);
         return make(10 * a + rng.int(Math.max(1, 10 - a), 9), level);
       }
       return make(nonRound(rng, 12, 99), level);
     }
-    return make(nonRound(rng, 101, 999), level);
+    if (level === 4) return make(nonRound(rng, 101, 999), level);
+    if (level === 5) return make(rng.chance(0.7) ? withCarries(rng, 4, 2) : nonRound(rng, 1001, 9999), level);
+    return make(withCarries(rng, 5, 3), level);
   },
   steps(p) {
     const { n } = p.data;
     const { value, lines } = solve(n);
-    return [{ op: '', expr: `${n} × 11` }, ...lines, { expr: fmt(value), note: 'read them left to right' }];
+    return [{ op: '', expr: `${fmt(n)} × 11` }, ...lines, { expr: fmt(value), note: 'read them left to right' }];
   },
 });

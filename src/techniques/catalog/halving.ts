@@ -6,13 +6,16 @@ import { fmt, nonRound, scaled } from '../util';
 const ID = 'halving';
 
 function make(n: number, m: number, level: Level): Problem {
-  return { technique: ID, level, text: `${n} × ${m}`, answer: String(n * m), data: { n, m } };
+  return { technique: ID, level, text: `${fmt(n)} × ${m}`, answer: String(n * m), data: { n, m } };
 }
 
 const levels = {
-  1: { label: 'even 2-digit × 5', bounds: { n: [12, 98], m: [5, 5] } },
-  2: { label: '2–3-digit × 5 or × 50', bounds: { n: [12, 999], m: [5, 50] } },
-  3: { label: '2–3-digit × 25', bounds: { n: [12, 999], m: [25, 25] } },
+  1: { label: '2-digit with even digits × 5', bounds: { n: [22, 88], m: [5, 5] } },
+  2: { label: 'even 2-digit × 5', bounds: { n: [12, 98], m: [5, 5] } },
+  3: { label: '2–3-digit × 5 or × 50', bounds: { n: [12, 999], m: [5, 50] } },
+  4: { label: '2–3-digit × 25', bounds: { n: [12, 999], m: [25, 25] } },
+  5: { label: '4-digit × 5 or × 50', bounds: { n: [1001, 9999], m: [5, 50] } },
+  6: { label: '4-digit × 25', bounds: { n: [1001, 9999], m: [25, 25] } },
 } as const satisfies Levels;
 
 export default defineTechnique({
@@ -45,13 +48,28 @@ export default defineTechnique({
   levels,
   generate(rng, level) {
     if (level === 1) {
+      const even = [2, 4, 6, 8] as const;
+      return make(10 * rng.pick(even) + rng.pick(even), 5, level);
+    }
+    if (level === 5) {
+      let n = nonRound(rng, 1001, 9999);
+      if (n % 2 === 0 && rng.chance(0.6)) n += 1;
+      return make(n, rng.pick([5, 50] as const), level);
+    }
+    if (level === 6) {
+      for (;;) {
+        const n = nonRound(rng, 1001, 9999);
+        if (n % 4 !== 0) return make(n, 25, level);
+      }
+    }
+    if (level === 2) {
       for (;;) {
         const n = 2 * rng.int(6, 49);
         if (n % 10 !== 0) return make(n, 5, level);
       }
     }
     let n = rng.chance(0.5) ? nonRound(rng, 12, 99) : nonRound(rng, 101, 999);
-    if (level === 2) {
+    if (level === 3) {
       if (n % 2 === 0 && rng.chance(0.5)) n += 1;
       return make(n, rng.pick([5, 50] as const), level);
     }

@@ -10,12 +10,15 @@ function make(base: number, n: number, level: Level): Problem {
 }
 
 const levels = {
-  1: { label: '100 − 2-digit', bounds: { base: [100, 100], n: [11, 99] } },
-  2: { label: '1,000 − 3-digit', bounds: { base: [1000, 1000], n: [101, 999] } },
-  3: { label: '10,000 − 4-digit', bounds: { base: [10000, 10000], n: [1001, 9999] } },
+  1: { label: '100 − 1-digit or 2-digit ending 5', bounds: { base: [100, 100], n: [1, 95] } },
+  2: { label: '100 − 2-digit', bounds: { base: [100, 100], n: [11, 99] } },
+  3: { label: '1,000 − 3-digit', bounds: { base: [1000, 1000], n: [101, 999] } },
+  4: { label: '10,000 − 4-digit', bounds: { base: [10000, 10000], n: [1001, 9999] } },
+  5: { label: '100,000 − 5-digit', bounds: { base: [100000, 100000], n: [10001, 99999] } },
+  6: { label: '1,000,000 − 5–6-digit', bounds: { base: [1000000, 1000000], n: [10001, 999999] } },
 } as const satisfies Levels;
 
-const PLACE = ['ones', 'tens', 'hundreds', 'thousands'];
+const PLACE = ['ones', 'tens', 'hundreds', 'thousands', 'ten thousands', 'hundred thousands'];
 
 export default defineTechnique({
   meta: {
@@ -32,7 +35,7 @@ export default defineTechnique({
       'For the last digit, write what it needs to make 10 instead.',
       'Read the written digits together as the answer; drop any zeros at the front.',
     ],
-    example: make(1000, 372, 2),
+    example: make(1000, 372, 3),
     graphic: () =>
       pieces({
         input: '1,000 − 372',
@@ -53,6 +56,10 @@ export default defineTechnique({
   levels,
   generate(rng, level) {
     const { base, n } = levels[level].bounds;
+    // Level 1: the friendliest partners, a single digit or a number ending in 5.
+    if (level === 1) return make(100, rng.chance(0.5) ? rng.int(1, 9) : rng.int(1, 9) * 10 + 5, level);
+    // Level 6: mostly 6-digit, sometimes 5-digit so a front 0 must be filled with 9.
+    if (level === 6 && rng.chance(0.75)) return make(base[0], nonRound(rng, 100001, n[1]), level);
     return make(base[0], nonRound(rng, n[0], n[1]), level);
   },
   steps(p) {

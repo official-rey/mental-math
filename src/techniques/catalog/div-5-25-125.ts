@@ -1,6 +1,6 @@
 import { defineTechnique } from '../define';
 import { chain } from '../svg';
-import type { Level, Levels, Problem, Step } from '../types';
+import type { Level, Levels, Problem, Rng, Step } from '../types';
 import { fmt, nonRound, scaled } from '../util';
 
 const ID = 'div-5-25-125';
@@ -14,10 +14,21 @@ function make(n: number, d: number, level: Level): Problem {
 }
 
 const levels = {
-  1: { label: '2–3-digit ÷ 5', bounds: { n: [11, 999], d: [5, 5] } },
-  2: { label: '2–3-digit ÷ 25', bounds: { n: [11, 999], d: [25, 25] } },
-  3: { label: '3–4-digit ÷ 25 or 125', bounds: { n: [101, 9999], d: [25, 125] } },
+  1: { label: '2-digit ÷ 5', bounds: { n: [11, 99], d: [5, 5] } },
+  2: { label: '2–3-digit ÷ 5', bounds: { n: [11, 999], d: [5, 5] } },
+  3: { label: '2–3-digit ÷ 25', bounds: { n: [11, 999], d: [25, 25] } },
+  4: { label: '3–4-digit ÷ 25 or 125', bounds: { n: [101, 9999], d: [25, 125] } },
+  5: { label: '4-digit ÷ 125', bounds: { n: [1001, 9999], d: [125, 125] } },
+  6: { label: '5-digit ÷ 25 or 125', bounds: { n: [10001, 99999], d: [25, 125] } },
 } as const satisfies Levels;
+
+/** Divisor for a level: 5 at the start, then 25, then mostly 125. */
+function divisor(rng: Rng, level: Level): number {
+  if (level <= 2) return 5;
+  if (level === 3) return 25;
+  if (level === 5) return 125;
+  return rng.chance(level === 4 ? 0.7 : 0.75) ? 125 : 25;
+}
 
 const PLACE = ['', 'point 1 place', 'point 2 places', 'point 3 places'];
 
@@ -48,15 +59,14 @@ export default defineTechnique({
       'Move the decimal point left: 1 place for ÷5, 2 for ÷25, 3 for ÷125.',
       'Drop any zeros left at the end after the point.',
     ],
-    example: make(37, 25, 2),
+    example: make(37, 25, 3),
     graphic,
     caption: 'Double, double again, then slide the point two places left.',
   },
   levels,
   generate(rng, level) {
     const { n } = levels[level].bounds;
-    const d = level === 1 ? 5 : level === 2 ? 25 : rng.chance(0.7) ? 125 : 25;
-    return make(nonRound(rng, n[0], n[1]), d, level);
+    return make(nonRound(rng, n[0], n[1]), divisor(rng, level), level);
   },
   steps(p) {
     const { n, d } = p.data;

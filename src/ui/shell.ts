@@ -4,13 +4,19 @@ import { DEV_CREDIT } from '../theme';
 import { h, type Child } from './dom';
 import { ICONS } from './icons';
 
-export type Section = 'train' | 'learn' | 'stats' | 'settings';
+export type Section = 'home' | 'learn' | 'train' | 'challenge' | 'chains' | 'stats' | 'settings';
 
-export const SECTIONS: { id: Section; label: string; href: string }[] = [
-  { id: 'train', label: 'Train', href: '#/' },
-  { id: 'learn', label: 'Learn', href: '#/learn' },
-  { id: 'stats', label: 'Stats', href: '#/stats' },
-  { id: 'settings', label: 'Settings', href: '#/settings' },
+/** The four parts of the app, in the order you use them. */
+export const SECTIONS: { id: Section; label: string; href: string; icon: keyof typeof ICONS }[] = [
+  { id: 'learn', label: 'Learn', href: '#/learn', icon: 'learn' },
+  { id: 'train', label: 'Train', href: '#/train', icon: 'train' },
+  { id: 'challenge', label: 'Challenge', href: '#/challenge', icon: 'challenge' },
+  { id: 'chains', label: 'Chains', href: '#/chain', icon: 'chains' },
+];
+
+const EXTRA: { id: Section; label: string; href: string; icon: keyof typeof ICONS }[] = [
+  { id: 'stats', label: 'Stats', href: '#/stats', icon: 'stats' },
+  { id: 'settings', label: 'Settings', href: '#/settings', icon: 'settings' },
 ];
 
 export function soundToggle(): HTMLButtonElement {
@@ -29,22 +35,27 @@ export function soundToggle(): HTMLButtonElement {
   return btn;
 }
 
-/** Top bar: a back link or the wordmark, section links on wide screens, the mute toggle. */
+/** Top bar: back link or wordmark, section links on wide screens, Stats/Settings icons on phones, mute. */
 export function topbar(opts: { back?: { href: string; label: string }; active?: Section } = {}): HTMLElement {
   const left = opts.back
     ? h('a', { class: 'iconbtn back', href: opts.back.href, html: `${ICONS.back}<span>${opts.back.label}</span>` })
-    : opts.active === 'train'
-      ? h('span')
-      : h('a', { class: 'wordmark', href: '#/' }, 'Mental Math');
+    : h('a', { class: 'wordmark', href: '#/' }, 'Mental Math');
   const nav = h(
     'nav',
     { class: 'topnav', 'aria-label': 'Sections' },
-    SECTIONS.map((s) => h('a', { href: s.href, 'aria-current': s.id === opts.active ? 'page' : null }, s.label)),
+    [...SECTIONS, ...EXTRA].map((s) => h('a', { href: s.href, class: EXTRA.includes(s) ? 'extra' : null, 'aria-current': s.id === opts.active ? 'page' : null }, s.label)),
   );
-  return h('header', { class: 'topbar' }, left, nav, soundToggle());
+  const icons = h(
+    'div',
+    { class: 'top-icons' },
+    EXTRA.map((s) =>
+      h('a', { class: 'iconbtn', href: s.href, 'aria-label': s.label, 'aria-current': s.id === opts.active ? 'page' : null, 'data-testid': `top-${s.id}`, html: ICONS[s.icon] }),
+    ),
+  );
+  return h('header', { class: 'topbar' }, left, nav, icons, soundToggle());
 }
 
-/** Bottom tab bar for phones. */
+/** Bottom tab bar for phones: Learn, Train, Challenge, Chains. */
 export function tabbar(active?: Section): HTMLElement {
   return h(
     'nav',
@@ -53,7 +64,7 @@ export function tabbar(active?: Section): HTMLElement {
       h(
         'a',
         { href: s.href, 'aria-current': s.id === active ? 'page' : null, 'data-testid': `tab-${s.id}` },
-        h('span', { class: 'tab-icon', html: ICONS[s.id] }),
+        h('span', { class: 'tab-icon', html: ICONS[s.icon] }),
         h('span', null, s.label),
       ),
     ),

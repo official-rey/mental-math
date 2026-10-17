@@ -1,6 +1,7 @@
-/** Difficulty within a technique. 1 = Foundation bounds, 2 = Core, 3 = Advanced. */
-export type Level = 1 | 2 | 3;
-export const LEVELS: Level[] = [1, 2, 3];
+/** Difficulty within a technique, I (gentlest) to VI (hardest). */
+export type Level = 1 | 2 | 3 | 4 | 5 | 6;
+export const LEVELS: Level[] = [1, 2, 3, 4, 5, 6];
+export const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI'] as const;
 
 /** Where a technique sits in the overall catalog. */
 export type Tier = 'Foundation' | 'Core' | 'Advanced';
@@ -31,6 +32,8 @@ export interface Problem {
   tolerance?: number;
   /** Short qualifier shown under the problem, e.g. "first 6 decimals" or "nearest year". */
   hint?: string;
+  /** Running-total chains: the terms shown one at a time instead of `text` all at once. */
+  sequence?: string[];
 }
 
 /** One line of a vertical worked solution. */

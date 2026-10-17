@@ -20,9 +20,12 @@ function make(a: number, r: number, d: number, sub: boolean, level: Level): Prob
 }
 
 const levels = {
-  1: { label: '2-digit ± 2-digit ending 7–9', bounds: { a: [21, 99], b: [17, 89], d: [1, 3] } },
-  2: { label: '3-digit ± 2-digit near a ten', bounds: { a: [101, 999], b: [17, 99], d: [1, 3] } },
-  3: { label: '3–4-digit ± near a hundred', bounds: { a: [101, 9999], b: [196, 999], d: [1, 4] } },
+  1: { label: '2-digit ± 2-digit ending 9', bounds: { a: [21, 99], b: [19, 89], d: [1, 1] } },
+  2: { label: '2-digit ± 2-digit ending 7–9', bounds: { a: [21, 99], b: [17, 89], d: [1, 3] } },
+  3: { label: '3-digit ± 2-digit near a ten', bounds: { a: [101, 999], b: [17, 99], d: [1, 3] } },
+  4: { label: '3–4-digit ± near a hundred', bounds: { a: [101, 9999], b: [196, 999], d: [1, 4] } },
+  5: { label: '4-digit ± 5–12 below a hundred', bounds: { a: [1001, 9999], b: [288, 995], d: [5, 12] } },
+  6: { label: '5-digit ± 5–35 below a thousand', bounds: { a: [10001, 99999], b: [1965, 9995], d: [5, 35] } },
 } as const satisfies Levels;
 
 /** Pick the first operand; for subtraction it must exceed the round number. */
@@ -46,7 +49,7 @@ export default defineTechnique({
       'Add (or take away) the round number.',
       'Fix it: after adding, take that small amount back; after taking away, give it back.',
     ],
-    example: make(538, 300, 3, false, 3),
+    example: make(538, 300, 3, false, 4),
     graphic: () =>
       chain({
         start: '538',
@@ -62,17 +65,29 @@ export default defineTechnique({
   generate(rng, level) {
     for (;;) {
       const sub = rng.chance(0.5);
-      if (level === 3) {
+      if (level === 4) {
         const r = rng.int(2, 10) * 100;
         const d = rng.int(1, 4);
         const a = rng.chance(0.5) ? operand(rng, 1001, 9999, r, sub) : operand(rng, 101, 999, r, sub);
         if (a !== null) return make(a, r, d, sub, level);
         continue;
       }
-      const tens = level === 1 ? rng.int(1, 8) : rng.int(1, 9);
-      const b = tens * 10 + rng.pick([7, 8, 9]);
+      if (level === 5) {
+        const r = rng.int(3, 10) * 100;
+        const a = operand(rng, 1001, 9999, r, sub);
+        if (a !== null) return make(a, r, rng.int(5, 12), sub, level);
+        continue;
+      }
+      if (level === 6) {
+        const r = rng.int(2, 10) * 1000;
+        const a = operand(rng, 10001, 99999, r, sub);
+        if (a !== null) return make(a, r, rng.int(5, 35), sub, level);
+        continue;
+      }
+      const tens = level <= 2 ? rng.int(1, 8) : rng.int(1, 9);
+      const b = tens * 10 + (level === 1 ? 9 : rng.pick([7, 8, 9]));
       const r = tens * 10 + 10;
-      const a = level === 1 ? operand(rng, 21, 99, r, sub) : operand(rng, 101, 999, r, sub);
+      const a = level <= 2 ? operand(rng, 21, 99, r, sub) : operand(rng, 101, 999, r, sub);
       if (a !== null) return make(a, r, r - b, sub, level);
     }
   },

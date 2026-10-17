@@ -14,17 +14,24 @@ function make(a: number, b: number, level: Level): Problem {
 function tensNote(a: number, t: number): string {
   if (t === 10) return 'add a 0';
   if (t === 100) return 'add two 0s';
+  if (t % 100 === 0) return `${a}×${t / 100} = ${fmt((a * t) / 100)}, add two 0s`;
   return `${a}×${t / 10} = ${fmt((a * t) / 10)}, add a 0`;
 }
 
 const levels = {
-  1: { label: '2-digit × 2-digit ending 9', bounds: { a: [12, 99], b: [19, 99], d: [1, 1] } },
-  2: { label: '2-digit × 2-digit ending 8–9', bounds: { a: [12, 99], b: [18, 99], d: [1, 2] } },
-  3: { label: '51–99 × 2-digit ending 7–9', bounds: { a: [51, 99], b: [17, 99], d: [1, 3] } },
+  1: { label: 'small 2-digit × 19, 29, 39 or 49', bounds: { a: [12, 39], b: [19, 49], d: [1, 1] } },
+  2: { label: '2-digit × 2-digit ending 9', bounds: { a: [12, 99], b: [19, 99], d: [1, 1] } },
+  3: { label: '2-digit × 2-digit ending 8–9', bounds: { a: [12, 99], b: [18, 99], d: [1, 2] } },
+  4: { label: '51–99 × 2-digit ending 7–9', bounds: { a: [51, 99], b: [17, 99], d: [1, 3] } },
+  5: { label: '61–99 × 56–99 ending 6–9', bounds: { a: [61, 99], b: [56, 99], d: [1, 4] } },
+  6: { label: '2-digit × 3-digit just under a hundred', bounds: { a: [51, 99], b: [196, 899], up: [200, 900], d: [1, 4] } },
 } as const satisfies Levels;
 
 function pick(rng: Rng, level: Level): number {
-  const ending = level === 1 ? 9 : level === 2 ? rng.int(8, 9) : rng.int(7, 9);
+  if (level === 1) return rng.int(1, 4) * 10 + 9;
+  if (level === 5) return rng.int(5, 9) * 10 + rng.int(6, 9);
+  if (level === 6) return rng.int(2, 9) * 100 - rng.int(1, 4);
+  const ending = level === 2 ? 9 : level === 3 ? rng.int(8, 9) : rng.int(7, 9);
   return rng.int(1, 9) * 10 + ending;
 }
 
@@ -43,7 +50,7 @@ export default defineTechnique({
       'Multiply by the round number: 47 × 40 = 1,880.',
       'Take away one copy of 47 for each step you rounded up: 1,880 − 47 = 1,833.',
     ],
-    example: make(47, 39, 1),
+    example: make(47, 39, 2),
     graphic: () =>
       chain({
         start: '47 × 39',
@@ -58,7 +65,11 @@ export default defineTechnique({
   levels,
   generate(rng, level) {
     const { a } = levels[level].bounds;
-    return make(nonRound(rng, a[0], a[1]), pick(rng, level), level);
+    for (;;) {
+      const x = nonRound(rng, a[0], a[1]), y = pick(rng, level);
+      if (level > 1 && level < 5) return make(x, y, level);
+      if (x !== 25 && x !== y) return make(x, y, level);
+    }
   },
   steps(p) {
     const { a, b, up, d } = p.data;

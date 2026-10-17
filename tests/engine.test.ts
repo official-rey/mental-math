@@ -4,6 +4,7 @@ import type { DrillSpec, RunRecord } from '../src/drill/types';
 import { LocalStore } from '../src/storage/store';
 import { betterTechnique } from '../src/techniques/route';
 import { techniques } from '../src/techniques/registry';
+import { LEVELS } from '../src/techniques/types';
 import { makeRng } from '../src/techniques/util';
 
 function clock() {
@@ -198,7 +199,7 @@ describe('problem routing', () => {
 
   it('drills avoid problems another technique handles better, and avoid repeats', () => {
     for (const t of techniques) {
-      for (const level of [1, 2, 3] as const) {
+      for (const level of LEVELS) {
         const s = new DrillSession(spec({ ids: [t.meta.id], level, mode: 'training' }), makeRng(level * 101), clock().now);
         s.level = level;
         const texts: string[] = [];

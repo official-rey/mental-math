@@ -1,6 +1,6 @@
 import { MODES, type Mode } from '../drill/types';
 import { ROMAN } from '../drill/spec';
-import type { Level } from '../techniques/types';
+import { LEVELS, type Level } from '../techniques/types';
 import { h } from './dom';
 
 /** Segmented single-choice control. */
@@ -36,7 +36,7 @@ export function drillControls(
   paint();
   const level = segmented(
     'Level',
-    ([1, 2, 3] as Level[]).map((l) => ({ value: l, label: `Level ${ROMAN[l]}` })),
+    LEVELS.map((l) => ({ value: l, label: ROMAN[l] })),
     state.level,
     (v) => {
       state.level = v;
@@ -60,4 +60,18 @@ export function drillControls(
     levels ? desc : null,
     h('div', { class: 'control' }, h('span', { class: 'control-label' }, 'Mode'), mode),
   );
+}
+
+/** Level picker on its own (I–VI), with a line describing the chosen level. */
+export function levelControl(
+  init: Level,
+  onChange: (l: Level) => void,
+  describe: (l: Level) => string,
+): HTMLElement {
+  const desc = h('div', { class: 'level-desc mono dim' }, describe(init));
+  const seg = segmented('Level', LEVELS.map((l) => ({ value: l, label: ROMAN[l] })), init, (l) => {
+    desc.textContent = describe(l);
+    onChange(l);
+  });
+  return h('div', { class: 'controls' }, h('div', { class: 'control' }, h('span', { class: 'control-label' }, 'Level'), seg), desc);
 }

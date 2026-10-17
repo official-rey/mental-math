@@ -1,6 +1,6 @@
 import { defineTechnique } from '../define';
 import { arrowHead, circle, line, path, rect, svg, text } from '../svg';
-import type { Level, Levels, Problem, Step } from '../types';
+import type { Level, Levels, Problem, Rng, Step } from '../types';
 import { fmt } from '../util';
 
 const ID = 'decimal-patterns';
@@ -41,10 +41,23 @@ function make(n: number, d: number, places: number, level: Level): Problem {
 }
 
 const levels = {
-  1: { label: 'n/9 and n/11', bounds: { n: [1, 10], d: [9, 11], places: [4, 6] } },
-  2: { label: 'n/7, n = 1–6', bounds: { n: [1, 6], d: [7, 7], places: [6, 8] } },
-  3: { label: 'improper n/7 and n/99', bounds: { n: [1, 98], d: [7, 99], places: [6, 6] } },
+  1: { label: 'n/9', bounds: { n: [1, 8], d: [9, 9], places: [4, 4] } },
+  2: { label: 'n/9 and n/11', bounds: { n: [1, 10], d: [9, 11], places: [4, 6] } },
+  3: { label: 'n/7, n = 1–6', bounds: { n: [1, 6], d: [7, 7], places: [6, 8] } },
+  4: { label: 'improper n/7 and n/99', bounds: { n: [1, 98], d: [7, 99], places: [6, 6] } },
+  5: { label: '3-digit top over 7 or 11', bounds: { n: [100, 399], d: [7, 11], places: [6, 8] } },
+  6: { label: '3-digit top over 7, 11 or 99', bounds: { n: [400, 999], d: [7, 99], places: [8, 8] } },
 } as const satisfies Levels;
+
+/** A top in [lo, hi] that is not a whole number of d (and, over 99, not a plain repeated digit). */
+function top(rng: Rng, lo: number, hi: number, d: number): number {
+  for (;;) {
+    const n = rng.int(lo, hi);
+    if (n % d === 0) continue;
+    if (d === 99 && (n % 99) % 11 === 0) continue;
+    return n;
+  }
+}
 
 /** A circled stage number. */
 const badge = (x: number, y: number, i: number) => circle(x, y, 9, 'f-paper s-accent') + text(x, y, i, 't t-sm t-accent');
@@ -96,16 +109,25 @@ export default defineTechnique({
       'Over 7, add a 0 to the top and divide by 7 for the first decimal, then read 142857 on from that digit.',
       'If the top is bigger than the bottom, take off whole ones first and write them before the point.',
     ],
-    example: make(5, 7, 6, 2),
+    example: make(5, 7, 6, 3),
     graphic,
     caption: 'Find the first decimal, then read the 142857 row from there, wrapping round.',
   },
   levels,
   generate(rng, level) {
-    if (level === 1) {
+    if (level === 1) return make(rng.int(1, 8), 9, 4, level);
+    if (level === 2) {
       return rng.chance(0.45) ? make(rng.int(1, 8), 9, 4, level) : make(rng.int(1, 10), 11, 6, level);
     }
-    if (level === 2) return make(rng.int(1, 6), 7, rng.pick([6, 8]), level);
+    if (level === 3) return make(rng.int(1, 6), 7, rng.pick([6, 8]), level);
+    if (level === 5) {
+      const d = rng.chance(0.6) ? 7 : 11;
+      return make(top(rng, 100, 399, d), d, rng.pick([6, 8]), level);
+    }
+    if (level === 6) {
+      const d = rng.pick([7, 7, 11, 99]);
+      return make(top(rng, 400, 999, d), d, 8, level);
+    }
     if (rng.chance(0.55)) {
       for (;;) {
         const n = rng.int(8, 69);
@@ -122,7 +144,9 @@ export default defineTechnique({
     const steps: Step[] = [{ op: '', expr: `${n}/${d}` }];
     const whole = Math.floor(n / d);
     const k = n - whole * d;
-    if (whole > 0) {
+    if (n >= 100) {
+      steps.push({ op: '', expr: `${n} ÷ ${d} = ${whole} r ${k}`, note: `${whole} whole, ${k}/${d} left` });
+    } else if (whole > 0) {
       steps.push({ op: '', expr: `${n} − ${whole * d} = ${k}`, note: `${whole} whole, ${k}/${d} left` });
     }
     const dec = patternDecimals(k, d, places);

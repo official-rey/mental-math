@@ -1387,3 +1387,232 @@
     grid-template-columns: 185px 1fr;
   }
 }
+
+/* ---------- Sections: Learn · Train · Challenge · Chains ---------- */
+
+.topbar {
+  gap: 4px;
+}
+
+.topbar .wordmark {
+  margin-right: auto;
+}
+
+.top-icons {
+  display: flex;
+}
+
+.top-icons .iconbtn[aria-current='page'] {
+  color: var(--accent);
+}
+
+.topnav .extra {
+  color: var(--dim);
+}
+
+.topnav a.extra:first-of-type {
+  margin-left: 14px;
+}
+
+@media (min-width: 760px) {
+  .top-icons {
+    display: none;
+  }
+}
+
+.tabbar .tab-icon svg {
+  stroke-linecap: round;
+}
+
+.then-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.then-row .btn {
+  min-height: 52px;
+  padding: 0 8px;
+  font-size: 16px;
+}
+
+.small-note {
+  margin: 6px 0 0;
+  font-size: 15.5px;
+}
+
+.chooser {
+  margin: 14px 0 6px;
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--rule);
+}
+
+.chooser summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 14px 0;
+  cursor: pointer;
+  font-family: var(--f-head);
+  font-weight: 700;
+  font-size: 16px;
+  list-style: none;
+}
+
+.chooser summary::-webkit-details-marker {
+  display: none;
+}
+
+.chooser summary::after {
+  content: '+';
+  font-family: var(--f-mono);
+  color: var(--accent);
+  margin-left: 12px;
+}
+
+.chooser[open] summary::after {
+  content: '−';
+}
+
+.chooser summary > span:first-child {
+  flex: 1;
+}
+
+.chooser .quick-picks {
+  margin: 0 0 6px;
+  gap: 6px;
+}
+
+.pick-head {
+  font-family: var(--f-head);
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--dim);
+  margin: 14px 0 2px;
+}
+
+.controls .seg button {
+  padding: 8px 10px;
+}
+
+.problem.flash-term {
+  color: var(--accent);
+}
+
+.chain-example {
+  margin: 4px 0 10px;
+}
+
+/* ---------- The problem each example solves ---------- */
+
+.stepper-problem {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 8px 0 10px;
+  border-bottom: 1px solid var(--ink);
+  margin-bottom: 6px;
+}
+
+.stepper-problem .label {
+  font-family: var(--f-head);
+  font-weight: 700;
+  font-size: 14px;
+  color: var(--dim);
+}
+
+.stepper-problem .expr {
+  font-family: var(--f-mono);
+  font-size: 22px;
+  font-weight: 600;
+}
+
+.stepper-lines .step.problem-line {
+  display: none;
+}
+
+.figure-problem {
+  font-family: var(--f-mono);
+  font-size: 15px;
+  color: var(--dim);
+  text-align: center;
+  margin-bottom: 6px;
+}
+
+.demo-problem {
+  text-align: center;
+  font-family: var(--f-mono);
+  font-size: 15px;
+  color: var(--dim);
+  margin-top: 2px;
+}
+
+/* ---------- Lessons from the book ---------- */
+
+.lessons {
+  margin: 14px 0 18px;
+  padding: 0 14px 6px;
+  background: var(--raised);
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+}
+
+.lessons summary {
+  padding: 12px 0;
+  font-family: var(--f-head);
+  font-weight: 700;
+  font-size: 16px;
+  cursor: pointer;
+  list-style: none;
+  display: flex;
+  justify-content: space-between;
+}
+
+.lessons summary::-webkit-details-marker {
+  display: none;
+}
+
+.lessons summary::after {
+  content: '−';
+  font-family: var(--f-mono);
+  color: var(--accent);
+}
+
+.lessons:not([open]) summary::after {
+  content: '+';
+}
+
+.lessons ol {
+  margin: 0;
+  padding-left: 1.4em;
+  font-size: 16px;
+  line-height: 1.4;
+}
+
+.lessons li {
+  margin-bottom: 7px;
+}
+
+.lessons li::marker {
+  font-family: var(--f-mono);
+  color: var(--accent);
+}
+
+.lesson-quote {
+  margin: 14px 0 10px;
+  padding-left: 14px;
+  border-left: 2px solid var(--accent);
+}
+
+.lesson-quote blockquote {
+  margin: 0;
+  font-size: 20px;
+  font-style: italic;
+  line-height: 1.35;
+}
+
+.lesson-quote figcaption {
+  margin-top: 4px;
+  font-size: 14px;
+  color: var(--dim);
+}

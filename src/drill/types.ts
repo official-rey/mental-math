@@ -16,7 +16,11 @@ export interface DrillSpec {
   ids: string[];
   level: Level;
   mode: Mode;
+  /** Chains only: terms shown one at a time (running total) or the whole expression. */
+  style?: ChainStyle;
 }
+
+export type ChainStyle = 'flash' | 'expression';
 
 /** Anything that can produce problems and explain them. */
 export interface ProblemSource {

@@ -61,9 +61,14 @@ function figure(steps: Step[], n: number): number {
   return reduce(steps, s);
 }
 
+/** What each level asks for: one number, a sum of three, a product of two, or a product of three. */
+type Kind = 'num' | 'sum' | 'prod' | 'prod3';
+const KIND: Record<Level, Kind> = { 1: 'num', 2: 'num', 3: 'sum', 4: 'prod', 5: 'prod', 6: 'prod3' };
+
 function solve(p: Problem): Step[] {
   const steps: Step[] = [{ op: '', expr: p.text }];
-  if (p.level === 1) {
+  const kind = KIND[p.level];
+  if (kind === 'num') {
     const { dropped, kept } = castOut(p.data.N);
     const nines = dropped.filter((d) => d === '9').length;
     if (nines) steps.push({ op: '', expr: '9', note: nines > 1 ? 'cross out the 9s' : 'a 9: cross it out' });
@@ -81,29 +86,40 @@ function solve(p: Problem): Step[] {
     steps.push({ expr: String(r), note: kept.length > 1 ? 'the remainder' : kept.length ? 'only digit left' : 'nothing left' });
     return steps;
   }
-  const ops = p.level === 2 ? [p.data.a, p.data.b, p.data.c] : [p.data.a, p.data.b];
+  const ops = kind === 'prod' ? [p.data.a, p.data.b] : [p.data.a, p.data.b, p.data.c];
   const figs = ops.map((n) => figure(steps, n));
   let r: number;
-  if (p.level === 2) {
+  if (kind === 'sum') {
     const s = figs.reduce((x, y) => x + y, 0);
     steps.push({ op: '', expr: `${figs.join(' + ')} = ${s}`, note: 'add the three figures' });
     r = reduce(steps, s);
-  } else {
+  } else if (kind === 'prod') {
     const s = figs[0] * figs[1];
     steps.push({ op: '', expr: `${figs[0]} × ${figs[1]} = ${s}`, note: 'multiply the figures' });
     r = reduce(steps, s);
+  } else {
+    // Three figures: multiply two, shrink, then bring in the third.
+    const s = figs[0] * figs[1];
+    steps.push({ op: '', expr: `${figs[0]} × ${figs[1]} = ${s}`, note: 'multiply the first two figures' });
+    const r1 = reduce(steps, s);
+    const t = r1 * figs[2];
+    steps.push({ op: '', expr: `${r1} × ${figs[2]} = ${t}`, note: 'times the third figure' });
+    r = reduce(steps, t);
   }
   steps.push({ expr: String(r), note: 'the remainder' });
   return steps;
 }
 
 function make(level: Level, data: Record<string, number>): Problem {
+  const kind = KIND[level];
   const text =
-    level === 1
+    kind === 'num'
       ? `${fmt(data.N)} mod ${M}`
-      : level === 2
+      : kind === 'sum'
         ? `(${fmt(data.a)} + ${fmt(data.b)} + ${fmt(data.c)}) mod ${M}`
-        : `${fmt(data.a)} × ${fmt(data.b)} mod ${M}`;
+        : kind === 'prod'
+          ? `${fmt(data.a)} × ${fmt(data.b)} mod ${M}`
+          : `${fmt(data.a)} × ${fmt(data.b)} × ${fmt(data.c)} mod ${M}`;
   const p: Problem = { technique: ID, level, text, answer: '', data, hint: HINT };
   const steps = solve(p);
   p.answer = steps[steps.length - 1].expr;
@@ -111,13 +127,17 @@ function make(level: Level, data: Record<string, number>): Problem {
 }
 
 const levels = {
-  1: { label: '4–6-digit number', bounds: { N: [1000, 999999] } },
-  2: { label: 'sum of three 3–4-digit numbers', bounds: { a: [100, 9999], b: [100, 9999], c: [100, 9999] } },
-  3: { label: 'product of 3–4-digit numbers', bounds: { a: [100, 9999], b: [100, 9999] } },
+  1: { label: '3-digit number', bounds: { N: [100, 999] } },
+  2: { label: '4–6-digit number', bounds: { N: [1000, 999999] } },
+  3: { label: 'sum of three 3–4-digit numbers', bounds: { a: [100, 9999], b: [100, 9999], c: [100, 9999] } },
+  4: { label: 'product of 3–4-digit numbers', bounds: { a: [100, 9999], b: [100, 9999] } },
+  5: { label: 'product of 5–6-digit numbers', bounds: { a: [10000, 999999], b: [10000, 999999] } },
+  6: { label: 'product of three 4–5-digit numbers', bounds: { a: [1000, 99999], b: [1000, 99999], c: [1000, 99999] } },
 } as const satisfies Levels;
 
-/** A 3- or 4-digit operand. */
-const operand = (rng: Rng) => (rng.chance(0.5) ? nonRound(rng, 100, 999) : nonRound(rng, 1000, 9999));
+/** An operand with `lo` or `lo + 1` digits, either length equally likely. */
+const operand = (rng: Rng, lo = 3) =>
+  rng.chance(0.5) ? nonRound(rng, 10 ** (lo - 1), 10 ** lo - 1) : nonRound(rng, 10 ** lo, 10 ** (lo + 1) - 1);
 
 /** A circled stage number. */
 const stage = (x: number, y: number, n: number) => circle(x, y, 8, 'f-paper s-accent') + text(x, y, n, 't t-sm t-accent');
@@ -161,18 +181,21 @@ export default defineTechnique({
       'Add the digits that are left. If the total has two digits, add those; a final 9 counts as 0.',
       'To check a sum or product, do this to each number, then add or multiply the results and shrink again.',
     ],
-    example: make(1, { N: 538264 }),
+    example: make(2, { N: 538264 }),
     graphic: diagram,
     caption: 'Cross out the pairs that make 9, add what is left, then shrink it to one digit.',
   },
   levels,
   generate(rng, level) {
-    if (level === 1) {
+    if (level === 1) return make(level, { N: nonRound(rng, 100, 999) });
+    if (level === 2) {
       const len = rng.int(4, 6);
       return make(level, { N: nonRound(rng, 10 ** (len - 1), 10 ** len - 1) });
     }
-    if (level === 2) return make(level, { a: operand(rng), b: operand(rng), c: operand(rng) });
-    return make(level, { a: operand(rng), b: operand(rng) });
+    if (level === 3) return make(level, { a: operand(rng), b: operand(rng), c: operand(rng) });
+    if (level === 4) return make(level, { a: operand(rng), b: operand(rng) });
+    if (level === 5) return make(level, { a: operand(rng, 5), b: operand(rng, 5) });
+    return make(level, { a: operand(rng, 4), b: operand(rng, 4), c: operand(rng, 4) });
   },
   steps: solve,
 });

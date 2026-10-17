@@ -1,7 +1,7 @@
 import { sound } from '../drill/sound';
 import { MODES } from '../drill/types';
 import { store, type KeypadPref } from '../storage/store';
-import type { Level } from '../techniques/types';
+import { LEVELS, ROMAN } from '../techniques/types';
 import { app } from './context';
 import { segmented } from './controls';
 import { h, reveal } from './dom';
@@ -40,7 +40,7 @@ export async function settingsView(): Promise<View> {
       row(
         'Starting level',
         'Used when you open a technique card.',
-        segmented('Starting level', ([1, 2, 3] as Level[]).map((l) => ({ value: l, label: ['', 'I', 'II', 'III'][l] })), p.level, (level) => store.setPrefs({ level })),
+        segmented('Starting level', LEVELS.map((l) => ({ value: l, label: ROMAN[l] })), p.level, (level) => store.setPrefs({ level })),
       ),
       row(
         'Starting mode',

@@ -1,3 +1,4 @@
+import { flashMs } from '../chain/flash';
 import { DrillSession, TWENTY, type Attempt } from '../drill/engine';
 import { sound } from '../drill/sound';
 import { drillName, parseSpec, ROMAN } from '../drill/spec';
@@ -13,8 +14,9 @@ import { soundToggle } from './shell';
 import { renderSteps } from './steps';
 
 export function backHref(spec: DrillSpec): string {
-  if (spec.kind === 'technique') return `#/t/${spec.ids[0]}`;
-  return spec.kind === 'chain' ? '#/chain' : '#/mixed';
+  if (spec.kind === 'chain') return '#/chain';
+  if (spec.mode !== 'training') return '#/challenge';
+  return spec.kind === 'technique' ? `#/t/${spec.ids[0]}` : '#/train';
 }
 
 const sizeClass = (text: string) => (text.length <= 9 ? 'xl' : text.length <= 15 ? 'lg' : text.length <= 24 ? 'md' : 'sm');
@@ -47,6 +49,9 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
   let hints = 0;
   let timer = 0;
   let feedbackTimer = 0;
+  let flashTimer = 0;
+  /** True while a running-total chain is still showing its terms. */
+  let flashing = false;
 
   // ----- Elements -----
   const levelTag = h('div', { class: 'level-tag', 'data-testid': 'level' });
@@ -86,6 +91,10 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
   } else {
     hintBtn = toolButton(ICONS.hint, 'Hint', 'hint', () => showHint());
     tools.push(hintBtn, toolButton(ICONS.eye, 'Show answer', 'reveal', () => skip()));
+    if (spec.kind === 'chain' && spec.style !== 'expression') {
+      tools.unshift(toolButton(ICONS.play, 'Replay', 'replay', () => !flashing && state === 'answering' && playSequence(session.current.sequence!)));
+      hintBtn.hidden = true;
+    }
   }
   const toolbar = h('div', { class: 'toolbar' }, tools);
   const dock = h('div', { class: `dock${usePad ? ' with-pad' : ''}` }, toolbar, usePad ? keypad(onKey) : null);
@@ -126,8 +135,48 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
     }
   }
 
+  /** Running-total chains: show each term on its own, then ask for the total. The clock waits. */
+  function playSequence(seq: string[]) {
+    clearTimeout(flashTimer);
+    flashing = true;
+    input.readOnly = true;
+    session.pause();
+    const ms = flashMs(session.level);
+    let i = 0;
+    const show = () => {
+      if (i < seq.length) {
+        problem.textContent = seq[i];
+        problem.className = 'problem xl flash-term';
+        void problem.offsetWidth;
+        problem.classList.add('enter');
+        hint.textContent = `${i + 1} of ${seq.length}`;
+        i++;
+        flashTimer = window.setTimeout(show, ms);
+        return;
+      }
+      problem.textContent = '= ?';
+      problem.className = 'problem xl';
+      hint.textContent = 'the running total';
+      flashing = false;
+      input.readOnly = false;
+      session.resume();
+      input.focus();
+    };
+    show();
+  }
+
   function showProblem() {
     const p = session.current;
+    if (p.sequence) {
+      tag.textContent = '';
+      input.value = '';
+      input.classList.remove('is-wrong', 'is-ok');
+      solution.hidden = true;
+      solution.replaceChildren();
+      dock.hidden = false;
+      playSequence(p.sequence);
+      return;
+    }
     problem.textContent = p.text;
     problem.className = `problem ${sizeClass(p.text)}`;
     fitProblem();
@@ -221,7 +270,7 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
   }
 
   function submit() {
-    if (state === 'done' || state === 'paused') return;
+    if (state === 'done' || state === 'paused' || flashing) return;
     if (state === 'review') return next();
     const raw = input.value.trim();
     if (!raw) return;
@@ -248,7 +297,7 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
   }
 
   function skip() {
-    if (state !== 'answering') return;
+    if (state !== 'answering' || flashing) return;
     const a = session.skip();
     paintStats();
     if (timed) {
@@ -259,7 +308,7 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
   }
 
   function togglePause() {
-    if (!timed || state === 'done' || state === 'review') return;
+    if (!timed || state === 'done' || state === 'review' || flashing) return;
     if (state === 'paused') {
       session.resume();
       state = 'answering';
@@ -281,7 +330,7 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
   }
 
   function onKey(k: PadKey) {
-    if (state !== 'answering') return;
+    if (state !== 'answering' || flashing) return;
     buzz(6);
     const v = applyKey(input.value, k);
     if (v === null) return submit();
@@ -335,6 +384,7 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
       removeEventListener('resize', fitProblem);
       clearInterval(timer);
       clearTimeout(feedbackTimer);
+      clearTimeout(flashTimer);
       document.body.classList.remove('drilling');
       app.art?.resume();
     },

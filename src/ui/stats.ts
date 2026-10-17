@@ -1,3 +1,4 @@
+import { flashSource } from '../chain/flash';
 import { chainSource } from '../chain/generator';
 import { MODES, type RunRecord } from '../drill/types';
 import { pct, scoreText, secs } from '../share/draw';
@@ -7,7 +8,7 @@ import { h, reveal } from './dom';
 import type { View } from './router';
 import { layout } from './shell';
 
-const ROMAN = ['', 'I', 'II', 'III'];
+import { ROMAN } from '../techniques/types';
 
 interface TechStat {
   id: string;
@@ -25,7 +26,7 @@ function byTechnique(runs: RunRecord[]): TechStat[] {
       if (!e.technique) continue;
       let s = map.get(e.technique);
       if (!s) {
-        const name = e.technique === 'chain' ? chainSource.name : getTechnique(e.technique)?.meta.name;
+        const name = e.technique === 'chain' ? chainSource.name : e.technique === 'chain-flash' ? flashSource.name : getTechnique(e.technique)?.meta.name;
         if (!name) continue;
         s = { id: e.technique, name, attempts: 0, correct: 0, ms: 0 };
         map.set(e.technique, s);
@@ -106,7 +107,7 @@ export async function statsView(): Promise<View> {
                   null,
                   h(
                     'a',
-                    { href: t.id === 'chain' ? '#/chain' : `#/t/${t.id}` },
+                    { href: t.id.startsWith('chain') ? '#/chain' : `#/t/${t.id}` },
                     h('span', { class: 'ts-name' }, t.name, weak ? h('span', { class: 'badge tier-advanced' }, 'Practise') : null),
                     h('span', { class: 'ts-bar', 'aria-hidden': 'true' }, h('i', { style: { width: pct(acc) } })),
                     h('span', { class: 'ts-num mono' }, `${pct(acc)} · ${secs(t.ms / t.attempts)} · ${t.attempts}×`),

@@ -7,14 +7,27 @@ const ID = 'square-5';
 
 function make(n: number, level: Level): Problem {
   const a = (n - 5) / 10;
-  return { technique: ID, level, text: `${n}²`, answer: String(100 * a * (a + 1) + 25), data: { n, a } };
+  return { technique: ID, level, text: `${fmt(n)}²`, answer: String(100 * a * (a + 1) + 25), data: { n, a } };
 }
 
 const levels = {
-  1: { label: '15² to 95²', bounds: { n: [15, 95], a: [1, 9] } },
-  2: { label: '105² to 195²', bounds: { n: [105, 195], a: [10, 19] } },
-  3: { label: '3-digit ending in 5', bounds: { n: [205, 995], a: [20, 99] } },
+  1: { label: '15² to 55²', bounds: { n: [15, 55], a: [1, 5] } },
+  2: { label: '15² to 95²', bounds: { n: [15, 95], a: [1, 9] } },
+  3: { label: '105² to 195²', bounds: { n: [105, 195], a: [10, 19] } },
+  4: { label: '3-digit ending in 5', bounds: { n: [205, 995], a: [20, 99] } },
+  5: { label: '1,005² to 1,995²', bounds: { n: [1005, 1995], a: [100, 199] } },
+  6: { label: '2,005² to 2,995²', bounds: { n: [2005, 2995], a: [200, 299] } },
 } as const satisfies Levels;
+
+const PLACE = ['ones', 'tens', 'hundreds', 'thousands'];
+
+/** Place-value parts of n, largest first, zeros skipped: 238 → [[200, 'hundreds'], [30, 'tens'], [8, 'ones']]. */
+function placeParts(n: number): [number, string][] {
+  const ds = String(n).split('').map(Number);
+  return ds
+    .map((d, i): [number, string] => [d * 10 ** (ds.length - 1 - i), PLACE[ds.length - 1 - i]])
+    .filter(([v]) => v > 0);
+}
 
 export default defineTechnique({
   meta: {
@@ -31,7 +44,7 @@ export default defineTechnique({
       'Write 25 after that product.',
       'For 3-digit numbers, do the product in two parts: times the tens, then times the ones.',
     ],
-    example: make(65, 1),
+    example: make(65, 2),
     graphic: () =>
       pieces({
         input: '65²',
@@ -56,18 +69,24 @@ export default defineTechnique({
   steps(p) {
     const { n, a } = p.data;
     const b = a + 1, prod = a * b;
-    const steps: Step[] = [{ op: '', expr: `${n}²` }];
+    const steps: Step[] = [{ op: '', expr: `${fmt(n)}²` }];
     if (a <= 9) {
       steps.push({ op: '', expr: `${a} × ${b} = ${prod}`, note: `${a} times the next number` });
     } else {
-      const t = b - (b % 10), u = b % 10;
       steps.push({ op: '', expr: `${a} + 1 = ${b}`, note: 'the next number up' });
-      if (u === 0) {
-        steps.push({ op: '', expr: `${a} × ${b} = ${fmt(prod)}`, note: `${a} × ${b / 10}, add a 0` });
+      const parts = placeParts(b);
+      if (parts.length === 1) {
+        const [v] = parts[0];
+        const zeros = String(v).length - 1;
+        const lead = v / 10 ** zeros;
+        const tail = zeros === 1 ? 'add a 0' : zeros === 2 ? 'add 00' : 'add 000';
+        steps.push({ op: '', expr: `${a} × ${b} = ${fmt(prod)}`, note: lead === 1 ? tail : `${a} × ${lead}, ${tail}` });
       } else {
-        steps.push({ op: '', expr: `${a} × ${t} = ${fmt(a * t)}`, note: `times the tens of ${b}` });
-        steps.push({ op: '', expr: `${a} × ${u} = ${fmt(a * u)}`, note: `times the ones of ${b}` });
-        steps.push({ op: '', expr: `${fmt(a * t)} + ${fmt(a * u)} = ${fmt(prod)}`, note: 'add the two parts' });
+        for (const [v, place] of parts) {
+          steps.push({ op: '', expr: `${a} × ${v} = ${fmt(a * v)}`, note: `times the ${place} of ${b}` });
+        }
+        const sum = parts.map(([v]) => fmt(a * v)).join(' + ');
+        steps.push({ op: '', expr: `${sum} = ${fmt(prod)}`, note: parts.length === 2 ? 'add the two parts' : 'add the parts' });
       }
     }
     steps.push({ expr: fmt(100 * prod + 25), note: `${fmt(prod)} then 25` });

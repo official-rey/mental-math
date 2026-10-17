@@ -3,11 +3,13 @@ import type { Level } from '../techniques/types';
 import type { DrillSpec, Mode } from './types';
 import { MODES } from './types';
 
-export const ROMAN = ['', 'I', 'II', 'III'] as const;
+export { ROMAN } from '../techniques/types';
+import { LEVELS, ROMAN } from '../techniques/types';
 
 export function specToHash(s: DrillSpec): string {
   const q = new URLSearchParams({ k: s.kind, l: String(s.level), m: s.mode });
   if (s.ids.length) q.set('ids', s.ids.join(','));
+  if (s.kind === 'chain') q.set('s', s.style ?? 'flash');
   return `#/drill?${q.toString().replace(/%2C/g, ',')}`;
 }
 
@@ -17,14 +19,15 @@ export function parseSpec(q: URLSearchParams): DrillSpec | null {
   const level = Number(q.get('l')) as Level;
   const mode = q.get('m') as Mode;
   const ids = (q.get('ids') ?? '').split(',').filter((id) => getTechnique(id));
-  if (![1, 2, 3].includes(level) || !MODES.some((m) => m.id === mode)) return null;
+  if (!LEVELS.includes(level) || !MODES.some((m) => m.id === mode)) return null;
   if (kind === 'technique' && ids.length !== 1) return null;
   if (kind === 'mixed' && ids.length === 0) return null;
-  return { kind, ids: kind === 'chain' ? [] : ids, level, mode };
+  const style = q.get('s') === 'expression' ? 'expression' : 'flash';
+  return kind === 'chain' ? { kind, ids: [], level, mode, style } : { kind, ids, level, mode };
 }
 
 export function drillName(s: DrillSpec): string {
-  if (s.kind === 'chain') return 'Chain drill';
+  if (s.kind === 'chain') return s.style === 'expression' ? 'Expression chains' : 'Running total chains';
   if (s.kind === 'technique') return getTechnique(s.ids[0])!.meta.name;
   return `Mixed · ${s.ids.length} technique${s.ids.length === 1 ? '' : 's'}`;
 }
@@ -32,7 +35,7 @@ export function drillName(s: DrillSpec): string {
 /** Leaderboard bucket for a drill: what is drilled and at which level, independent of mode. */
 export function drillKey(s: DrillSpec): string {
   const what =
-    s.kind === 'chain' ? 'chain' : s.kind === 'technique' ? `t:${s.ids[0]}` : `mixed:${[...s.ids].sort().join('+')}`;
+    s.kind === 'chain' ? `chain-${s.style ?? 'flash'}` : s.kind === 'technique' ? `t:${s.ids[0]}` : `mixed:${[...s.ids].sort().join('+')}`;
   return `${what}:L${s.level}`;
 }
 

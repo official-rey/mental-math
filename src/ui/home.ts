@@ -3,10 +3,12 @@ import { defaultSpec, specToHash } from '../drill/spec';
 import type { DrillSpec } from '../drill/types';
 import { store } from '../storage/store';
 import { getTechnique } from '../techniques/registry';
+import { ROMAN } from '../techniques/types';
 import { DEV_CREDIT } from '../theme';
 import { h, reveal } from './dom';
 import type { View } from './router';
 import { processReel } from './feats';
+import { pickedIds, practiceSpec } from './practice';
 import { layout } from './shell';
 
 const BOOK_URL = 'https://archive.org/details/secretsofmentalm0000arth';
@@ -24,17 +26,17 @@ function whatStarts(s: DrillSpec): string {
         : s.ids.length === d.ids.length && s.ids.every((id) => d.ids.includes(id))
           ? 'Foundation mix'
           : `Mix of ${s.ids.length} techniques`;
-  const level = s.level > 1 ? `builds to Level ${['', 'I', 'II', 'III'][s.level]}` : 'Level I';
+  const level = s.level > 1 ? `builds to Level ${ROMAN[s.level]}` : 'Level I';
   return `${what} · ${level} · ${MODE_WORDS[s.mode]}`;
 }
 
-export async function trainView(): Promise<View> {
+export async function homeView(): Promise<View> {
   const prefs = await store.setPrefs({ visits: ((await store.getPrefs()).visits ?? 0) + 1 });
-  const spec = prefs.last ?? defaultSpec();
+  const trainSpec = practiceSpec(pickedIds(prefs.mixed), prefs.level, 'training');
   const plate = prefs.art ? heroPlate() : null;
   const demo = processReel();
 
-  // First screen: just the two actions and the book. Everything else is below the fold.
+  // First screen: the four parts and the book. Everything else is below the fold.
   const why = h(
     'section',
     { class: 'why', id: 'why', 'data-testid': 'why' },
@@ -68,8 +70,14 @@ export async function trainView(): Promise<View> {
       'div',
       { class: 'actions' },
       h('a', { class: 'btn primary big block start-btn', href: '#/learn', 'data-testid': 'start-learning' }, 'Start learning', h('span', { class: 'arrow' }, '→')),
-      h('a', { class: 'btn block start-btn drill-btn', href: specToHash(spec), title: whatStarts(spec), 'data-testid': 'start' }, 'Start drilling', h('span', { class: 'arrow' }, '→')),
-      h('nav', { class: 'hero-links', 'aria-label': 'Other drills' }, h('a', { href: '#/chain' }, 'Chain drills'), h('a', { href: '#/mixed' }, 'Custom mix')),
+      h(
+        'div',
+        { class: 'then-row' },
+        // Train starts straight away (one tap to a problem); the Train tab has the full setup.
+        h('a', { class: 'btn start-btn', href: specToHash(trainSpec), title: whatStarts(trainSpec), 'data-testid': 'start' }, 'Train'),
+        h('a', { class: 'btn start-btn', href: '#/challenge', 'data-testid': 'go-challenge' }, 'Challenge'),
+        h('a', { class: 'btn start-btn', href: '#/chain', 'data-testid': 'go-chains' }, 'Chains'),
+      ),
     ),
     h(
       'div',
@@ -90,7 +98,7 @@ export async function trainView(): Promise<View> {
   const content = reveal(h('div', { class: 'landing' }, first, why, coda));
 
   return {
-    el: layout({ active: 'train' }, content),
+    el: layout({ active: 'home' }, content),
     destroy: () => {
       plate?.destroy();
       demo.destroy();

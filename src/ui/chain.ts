@@ -1,9 +1,12 @@
 import { evaluate, print, type Node } from '../chain/evaluator';
+import { FLASH_LEVELS, flashExample, flashSteps } from '../chain/flash';
 import { CHAIN_LEVELS, chainExample, chainExampleNode, chainSteps } from '../chain/generator';
 import { specToHash } from '../drill/spec';
+import { MODES, type ChainStyle, type Mode } from '../drill/types';
+import type { Level } from '../techniques/types';
 import { store } from '../storage/store';
 import { circle, line, svg, text } from '../techniques/svg';
-import { drillControls } from './controls';
+import { levelControl, segmented } from './controls';
 import { h, reveal } from './dom';
 import type { View } from './router';
 import { layout } from './shell';
@@ -53,39 +56,74 @@ function treeSvg(root: Node): string {
 
 export async function chainView(): Promise<View> {
   const prefs = await store.getPrefs();
-  const state = { level: prefs.level, mode: prefs.mode };
-  const example = chainExample();
+  let level = prefs.level;
+  let mode: Mode = prefs.mode;
+  let style: ChainStyle = 'flash';
 
-  const btn = h('a', { class: 'btn primary big block', 'data-testid': 'start-chain' }, 'Start chain drill', h('span', { class: 'arrow' }, '→'));
-  const setHref = () => btn.setAttribute('href', specToHash({ kind: 'chain', ids: [], level: state.level, mode: state.mode }));
-  setHref();
+  const btn = h('a', { class: 'btn primary big block', 'data-testid': 'start-chain' }, 'Start', h('span', { class: 'arrow' }, '→'));
+  const setHref = () => btn.setAttribute('href', specToHash({ kind: 'chain', ids: [], level, mode, style }));
 
-  const figure = h('figure', { class: 'figure' });
-  figure.innerHTML = treeSvg(chainExampleNode());
-  figure.append(h('figcaption', null, 'Read the tree bottom-up: an operator is ready once both of its inputs are numbers.'));
+  const intro = h('p', { class: 'lede' });
+  const example = h('div', { class: 'chain-example' });
+  const levelDesc = (l: Level) => (style === 'flash' ? FLASH_LEVELS[l].label : CHAIN_LEVELS[l].label);
+  const levelHost = h('div');
+
+  function paint() {
+    if (style === 'flash') {
+      intro.textContent = 'Numbers and operations appear one at a time. Keep the running total in your head and type it at the end.';
+      example.replaceChildren(renderStepper(flashSteps(flashExample())));
+    } else {
+      intro.textContent = 'One whole expression. Parentheses first, then squares, then × and ÷, then + and −.';
+      const figure = h('figure', { class: 'figure' });
+      figure.innerHTML = treeSvg(chainExampleNode());
+      example.replaceChildren(renderStepper(chainSteps(chainExample())), figure);
+    }
+    levelHost.replaceChildren(
+      levelControl(
+        level,
+        (l) => {
+          level = l;
+          store.setPrefs({ level: l });
+          setHref();
+        },
+        levelDesc,
+      ),
+    );
+    setHref();
+  }
+
+  const styles = segmented<ChainStyle>(
+    'Style',
+    [
+      { value: 'flash', label: 'Running total' },
+      { value: 'expression', label: 'Expression' },
+    ],
+    style,
+    (v) => {
+      style = v;
+      paint();
+    },
+  );
+  const modes = segmented<Mode>('Clock', MODES.map((m) => ({ value: m.id, label: m.id === 'training' ? 'No clock' : m.short })), mode, (m) => {
+    mode = m;
+    store.setPrefs({ mode: m });
+    setHref();
+  });
+  paint();
 
   const main = reveal(
     h(
       'article',
       { class: 'card' },
-      h('h1', { class: 'display' }, 'Chain drills'),
-      h('p', { class: 'lede' }, 'One expression, several operations, one answer typed at the end.'),
-      h('p', { class: 'prose' }, 'Parentheses first, then squares, then × and ÷, then + and −, each left to right.'),
-      h('p', { class: 'prose' }, 'Every intermediate result is a whole number and every division comes out exact.'),
-      renderStepper(chainSteps(example)),
-      figure,
-      drillControls(
-        state,
-        (v) => {
-          Object.assign(state, v);
-          store.setPrefs(v);
-          setHref();
-        },
-        { 1: { label: CHAIN_LEVELS[1].label }, 2: { label: CHAIN_LEVELS[2].label }, 3: { label: CHAIN_LEVELS[3].label } },
-      ),
+      h('h1', { class: 'display' }, 'Chains'),
+      h('div', { class: 'controls' }, h('div', { class: 'control' }, h('span', { class: 'control-label' }, 'Style'), styles)),
+      intro,
+      example,
+      levelHost,
+      h('div', { class: 'controls' }, h('div', { class: 'control' }, h('span', { class: 'control-label' }, 'Clock'), modes)),
       btn,
     ),
   );
 
-  return { el: layout({ active: 'train', back: { href: '#/', label: 'Train' } }, main), title: 'Chain drills' };
+  return { el: layout({ active: 'chains' }, main), title: 'Chains' };
 }

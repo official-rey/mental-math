@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { bin, EvalError, evaluate, evaluateString, num, parse, print, traceSteps, type Node } from '../src/chain/evaluator';
+import { FLASH_LEVELS, flashExample, flashSource } from '../src/chain/flash';
 import { CHAIN_LEVELS, MAX_OPERAND, chainExample, chainSource, generateChain } from '../src/chain/generator';
 import { LEVELS } from '../src/techniques/types';
 import { makeRng, normalize } from '../src/techniques/util';
@@ -116,7 +117,7 @@ describe('chain generator', () => {
         // The printed text parses back to the same value under standard precedence.
         expect(evaluateString(c.text, { strict: true })).toBe(c.value);
       }
-      expect(texts.size).toBeGreaterThan(400);
+      expect(texts.size).toBeGreaterThan(CHAIN_LEVELS[level].small ? 120 : 400);
     });
   }
 
@@ -128,5 +129,41 @@ describe('chain generator', () => {
       expect(normalize(steps[steps.length - 1].expr)).toBe(p.answer);
     }
     expect(chainExample().answer).toBe('286');
+  });
+});
+
+describe('running-total chains', () => {
+  for (const level of LEVELS) {
+    it(`level ${level}: 500 chains stay whole, small and in range`, () => {
+      const rng = makeRng(70 + level);
+      const { steps, max, cap, ops } = FLASH_LEVELS[level];
+      const seen = new Set<string>();
+      for (let i = 0; i < 500; i++) {
+        const p = flashSource.generate(rng, level);
+        const seq = p.sequence!;
+        seen.add(p.text);
+        expect(seq).toHaveLength(steps + 1);
+        let v = Number(seq[0]);
+        expect(v).toBeLessThanOrEqual(max);
+        for (const term of seq.slice(1)) {
+          const [op, n] = term.split(' ');
+          expect(ops).toContain(op);
+          const k = Number(n);
+          if (op === '+' || op === '−') expect(k).toBeLessThanOrEqual(max);
+          v = op === '+' ? v + k : op === '−' ? v - k : op === '×' ? v * k : v / k;
+          expect(Number.isInteger(v)).toBe(true);
+          expect(v).toBeGreaterThanOrEqual(0);
+          expect(v).toBeLessThanOrEqual(cap);
+        }
+        expect(String(v)).toBe(p.answer);
+        const worked = flashSource.steps(p);
+        expect(normalize(worked[worked.length - 1].expr)).toBe(p.answer);
+      }
+      expect(seen.size).toBeGreaterThan(300);
+    });
+  }
+
+  it('the example adds up', () => {
+    expect(flashExample().answer).toBe('32');
   });
 });

@@ -1,6 +1,6 @@
 import { defineTechnique } from '../define';
 import { chain } from '../svg';
-import type { Level, Levels, Problem, Step } from '../types';
+import type { Level, Levels, Problem, Rng, Step } from '../types';
 import { fmt, nonRound } from '../util';
 
 const ID = 'square-updown';
@@ -21,10 +21,21 @@ function make(n: number, level: Level): Problem {
 }
 
 const levels = {
-  1: { label: '2-digit ending in 1, 2, 8, 9', bounds: { n: [11, 99], d: [1, 2] } },
-  2: { label: 'any 2-digit', bounds: { n: [11, 99], d: [1, 5] } },
-  3: { label: '101² to 199²', bounds: { n: [101, 199], d: [1, 5] } },
+  1: { label: '2-digit ending in 1 or 9', bounds: { n: [11, 99], d: [1, 1] } },
+  2: { label: '2-digit ending in 1, 2, 8, 9', bounds: { n: [11, 99], d: [1, 2] } },
+  3: { label: 'any 2-digit', bounds: { n: [11, 99], d: [1, 5] } },
+  4: { label: '101² to 199²', bounds: { n: [101, 199], d: [1, 5] } },
+  5: { label: '201² to 499²', bounds: { n: [201, 499], d: [1, 4] } },
+  6: { label: '501² to 999²', bounds: { n: [501, 999], d: [1, 4] } },
 } as const satisfies Levels;
+
+/** A number in [lo, hi] not ending in 0 or 5 (those belong to other tricks). */
+function notFive(rng: Rng, lo: number, hi: number): number {
+  for (;;) {
+    const n = nonRound(rng, lo, hi);
+    if (n % 10 !== 5) return n;
+  }
+}
 
 export default defineTechnique({
   meta: {
@@ -41,7 +52,7 @@ export default defineTechnique({
       'Multiply the two new numbers; one ends in 0, so it is a quick product.',
       'Square the distance you moved and add it on.',
     ],
-    example: make(38, 1),
+    example: make(38, 2),
     graphic: () =>
       chain({
         start: '38²',
@@ -56,11 +67,14 @@ export default defineTechnique({
   },
   levels,
   generate(rng, level) {
-    if (level === 1) return make(10 * rng.int(1, 9) + rng.pick([1, 2, 8, 9] as const), level);
-    if (level === 2) {
+    if (level === 1) return make(10 * rng.pick([1, 2, 3, 6, 7, 8, 9] as const) + rng.pick([1, 9] as const), level);
+    if (level === 2) return make(10 * rng.int(1, 9) + rng.pick([1, 2, 8, 9] as const), level);
+    if (level === 3) {
       return make(rng.chance(0.7) ? 10 * rng.int(1, 9) + rng.int(3, 7) : nonRound(rng, 11, 99), level);
     }
-    return make(nonRound(rng, 101, 199), level);
+    if (level === 4) return make(nonRound(rng, 101, 199), level);
+    if (level === 5) return make(notFive(rng, 201, 499), level);
+    return make(notFive(rng, 501, 999), level);
   },
   steps(p) {
     const { n } = p.data;
@@ -82,13 +96,14 @@ export default defineTechnique({
       steps.push({
         op: '',
         expr: `${fmt(round)} × ${other} = ${fmt(prod)}`,
-        note: q === 1 ? 'add two 0s' : `${q} × ${other}, add 00`,
+        note: q === 1 ? 'add two 0s' : q === 10 ? 'add three 0s' : `${q} × ${other}, add 00`,
       });
     } else {
-      const t = round - 100;
-      steps.push({ op: '', expr: `${other} × 100 = ${fmt(other * 100)}`, note: `${other} times 100` });
-      steps.push({ op: '', expr: `${other} × ${t} = ${fmt(other * t)}`, note: `${other} times ${t}` });
-      steps.push({ op: '', expr: `${fmt(other * 100)} + ${fmt(other * t)} = ${fmt(prod)}`, note: `that makes ${round} × ${other}` });
+      const h = round - (round % 100), t = round % 100;
+      const hNote = h === 100 ? `${other} times 100` : `${h / 100} × ${other}, add 00`;
+      steps.push({ op: '', expr: `${other} × ${h} = ${fmt(other * h)}`, note: hNote });
+      steps.push({ op: '', expr: `${other} × ${t} = ${fmt(other * t)}`, note: h === 100 ? `${other} times ${t}` : t === 10 ? 'add a 0' : `${t / 10} × ${other}, add a 0` });
+      steps.push({ op: '', expr: `${fmt(other * h)} + ${fmt(other * t)} = ${fmt(prod)}`, note: `that makes ${round} × ${other}` });
     }
     steps.push({ op: '', expr: `${d}² = ${sq}`, note: 'square the distance' });
     steps.push({ op: '', expr: `${fmt(prod)} + ${sq}`, note: 'add it on' });

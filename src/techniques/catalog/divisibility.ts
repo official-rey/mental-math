@@ -28,32 +28,69 @@ function digitSums(steps: Step[], n: number): number {
 
 const END = ['', 'last digit', 'last two digits', 'last three digits'];
 
+/**
+ * Shrinks n by the test for a simple divisor (2, 3, 4, 5, 8, 9, 10) and takes off the nearest multiple.
+ * Returns the remainder, and why when no line was written (the end digits are already below d).
+ */
+function shrink(steps: Step[], n: number, d: number): { r: number; why?: string } {
+  if (d === 3 || d === 9) return { r: takeOff(steps, digitSums(steps, n), d) };
+  const places = d === 4 ? 2 : d === 8 ? 3 : 1;
+  let t = n % 10 ** places;
+  if (t < d) return { r: t, why: `${END[places]}, below ${d}` };
+  steps.push({ op: '', expr: `${t}`, note: `keep the ${END[places]}` });
+  if (d === 8 && t >= 200) {
+    const u = t % 200;
+    steps.push({ op: '', expr: `${t} − ${t - u} = ${u}`, note: 'drop the even hundreds' });
+    t = u;
+  }
+  return { r: takeOff(steps, t, d) };
+}
+
+/** Divisors handled as two simple tests: [big part, small part], with d = big × small. */
+const PAIRS: Record<number, [number, number]> = { 12: [4, 3], 15: [5, 3], 18: [9, 2], 24: [8, 3], 36: [9, 4], 45: [9, 5] };
+
+/** Runs one simple test of a pair, marking its first line with the divisor it is for. */
+function part(steps: Step[], n: number, d: number): number {
+  const from = steps.length;
+  const { r, why } = shrink(steps, n, d);
+  if (steps.length === from) steps.push({ op: '', expr: String(r), note: `for ${d}: ${why ?? 'remainder'}` });
+  else steps[from].note = `for ${d}: ${steps[from].note}`;
+  return r;
+}
+
 /** Applies the divisibility test for d to n. Returns the worked lines and the remainder they reach. */
 function work(n: number, d: number): { steps: Step[]; r: number } {
   const steps: Step[] = [{ op: '', expr: `${fmt(n)} mod ${d}` }];
   let r: number;
   let last = 'remainder';
+  if (d in PAIRS) {
+    // Remainder for the big part, list the choices below d, keep the one the small part agrees with.
+    const [a, b] = PAIRS[d];
+    const ra = part(steps, n, a);
+    const choices = Array.from({ length: b }, (_, i) => ra + a * i);
+    steps.push({ op: '', expr: choices.join(', '), note: `choices: ${ra} plus ${a}s, below ${d}` });
+    if (b === 2) {
+      r = choices.find((c) => c % 2 === n % 2)!;
+      last = n % 2 ? 'last digit odd: odd one' : 'last digit even: even one';
+    } else {
+      const rb = part(steps, n, b);
+      r = choices.find((c) => c % b === rb)!;
+      last = `${r} ÷ ${b} also leaves ${rb}`;
+    }
+    steps.push({ expr: String(r), note: last });
+    return { steps, r };
+  }
   switch (d) {
     case 2:
+    case 3:
     case 4:
     case 5:
     case 8:
+    case 9:
     case 10: {
-      const places = d === 4 ? 2 : d === 8 ? 3 : 1;
-      let t = n % 10 ** places;
-      if (t >= d) steps.push({ op: '', expr: `${t}`, note: `keep the ${END[places]}` });
-      else last = `${END[places]}, below ${d}`;
-      if (d === 8 && t >= 200) {
-        const u = t % 200;
-        steps.push({ op: '', expr: `${t} − ${t - u} = ${u}`, note: 'drop the even hundreds' });
-        t = u;
-      }
-      r = takeOff(steps, t, d);
-      break;
-    }
-    case 3:
-    case 9: {
-      r = takeOff(steps, digitSums(steps, n), d);
+      const s = shrink(steps, n, d);
+      r = s.r;
+      if (s.why) last = s.why;
       break;
     }
     case 6: {
@@ -105,13 +142,26 @@ function make(n: number, d: number, level: Level): Problem {
   };
 }
 
-const DIVISORS: Record<Level, number[]> = { 1: [3, 4, 5, 9], 2: [6, 8, 11], 3: [7, 13] };
+const DIVISORS: Record<Level, number[]> = {
+  1: [2, 3, 5, 9],
+  2: [3, 4, 5, 9],
+  3: [6, 8, 11],
+  4: [7, 13],
+  5: [12, 15, 18],
+  6: [24, 36, 45],
+};
 
 const levels = {
-  1: { label: '3–5-digit mod 3, 4, 5, 9', bounds: { n: [100, 99999], d: [3, 9] } },
-  2: { label: '4–6-digit mod 6, 8, 11', bounds: { n: [1000, 999999], d: [6, 11] } },
-  3: { label: '6-digit mod 7, 13', bounds: { n: [100000, 999999], d: [7, 13] } },
+  1: { label: '2–3-digit mod 2, 3, 5, 9', bounds: { n: [10, 999], d: [2, 9] } },
+  2: { label: '3–5-digit mod 3, 4, 5, 9', bounds: { n: [100, 99999], d: [3, 9] } },
+  3: { label: '4–6-digit mod 6, 8, 11', bounds: { n: [1000, 999999], d: [6, 11] } },
+  4: { label: '6-digit mod 7, 13', bounds: { n: [100000, 999999], d: [7, 13] } },
+  5: { label: '5–6-digit mod 12, 15, 18', bounds: { n: [10000, 999999], d: [12, 18] } },
+  6: { label: '6-digit mod 24, 36, 45', bounds: { n: [100000, 999999], d: [24, 45] } },
 } as const satisfies Levels;
+
+/** Number of digits a level's numbers have. */
+const LENGTHS: Record<Level, readonly [number, number]> = { 1: [2, 3], 2: [3, 5], 3: [4, 6], 4: [6, 6], 5: [5, 6], 6: [6, 6] };
 
 /** A circled stage number. */
 const badge = (x: number, y: number, i: number) => circle(x, y, 9, 'f-paper s-accent') + text(x, y, i, 't t-sm t-accent');
@@ -159,24 +209,20 @@ export default defineTechnique({
       'For 11 add and subtract digits in turn from the units. For 6 use the 3 rule, then match odd or even.',
       'For 7 and 13 take the left group of three from the right one. Then take off the nearest multiple.',
     ],
-    example: make(384621, 7, 3),
+    example: make(384621, 7, 4),
     graphic,
     caption: 'Split into groups of three, subtract left from right, then take off multiples of 7.',
   },
   levels,
   generate(rng, level) {
     const d = rng.pick(DIVISORS[level]);
-    if (level === 1) {
-      const len = rng.int(3, 5);
-      return make(nonRound(rng, 10 ** (len - 1), 10 ** len - 1), d, level);
-    }
-    if (level === 2) {
-      const len = rng.int(4, 6);
-      return make(nonRound(rng, 10 ** (len - 1), 10 ** len - 1), d, level);
-    }
+    const [a, b] = LENGTHS[level];
     for (;;) {
-      const n = nonRound(rng, 100000, 999999);
-      if (Math.floor(n / 1000) !== n % 1000) return make(n, d, level);
+      const len = rng.int(a, b);
+      const n = nonRound(rng, 10 ** (len - 1), 10 ** len - 1);
+      // Equal groups make the 7 and 13 test land on 0 straight away.
+      if (level === 4 && Math.floor(n / 1000) === n % 1000) continue;
+      return make(n, d, level);
     }
   },
   steps(p) {
