@@ -973,3 +973,80 @@
   padding-top: 24px;
   border-top: 1px solid var(--ink);
 }
+
+/* ---------- The why: lead, three feats, short close ---------- */
+
+.why .why-lead {
+  font-family: var(--f-prose);
+  font-size: clamp(23px, 5.6vw, 30px) !important;
+  line-height: 1.28;
+  color: var(--ink);
+  margin: 0 0 22px;
+  letter-spacing: -0.005em;
+}
+
+.why-lead em {
+  font-style: italic;
+  color: var(--accent);
+}
+
+.feats {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  margin: 0 0 22px;
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+}
+
+.feat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 10px 12px;
+  font-family: var(--f-mono);
+}
+
+.feat + .feat {
+  border-left: 1px solid var(--rule);
+}
+
+.feat-q {
+  font-size: clamp(15px, 4.2vw, 19px);
+  color: var(--dim);
+  white-space: nowrap;
+}
+
+.feat-a {
+  font-size: clamp(22px, 6.4vw, 30px);
+  font-weight: 600;
+  color: var(--accent);
+  animation: answer-in 0.5s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation-delay: calc(0.7s + var(--i, 0) * 0.45s);
+}
+
+@keyframes answer-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+    filter: blur(3px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+    filter: none;
+  }
+}
+
+.why p {
+  max-width: 34em;
+}
+
+.why .why-sign {
+  margin-top: 16px;
+}
+
+/* Keep the gutter aligned with a ruled result line without drawing the rule there. */
+.steps .op.ruled {
+  padding-top: 4.5px;
+  margin-top: 3px;
+}

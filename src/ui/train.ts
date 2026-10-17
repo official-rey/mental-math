@@ -39,6 +39,12 @@ export async function trainView(): Promise<View> {
   const plate = prefs.art ? heroPlate() : null;
   const title = h('h1', { class: 'display' }, 'Mental Math');
 
+  const feat = (q: string, a: string, i: number) => {
+    const el = h('div', { class: 'feat', role: 'listitem' }, h('span', { class: 'feat-q' }, q), h('span', { class: 'feat-a' }, a));
+    el.style.setProperty('--i', String(i));
+    return el;
+  };
+
   const why = h(
     'section',
     { class: `why${seasoned ? '' : ' first'}`, 'data-testid': 'why' },
@@ -46,17 +52,23 @@ export async function trainView(): Promise<View> {
     h(
       'p',
       { class: 'why-lead' },
-      'Mental arithmetic is one of the most underrated skills there is, and the most practical math most of us will ever use.',
+      'Mental arithmetic is one of the most ',
+      h('em', null, 'underrated'),
+      ' skills there is, and the most ',
+      h('em', null, 'practical'),
+      ' math most of us will ever use.',
+    ),
+    h(
+      'div',
+      { class: 'feats', role: 'list', 'aria-label': 'Examples done in your head' },
+      feat('85²', '7,225', 0),
+      feat('97 × 94', '9,118', 1),
+      feat('15% of 84', '12.6', 2),
     ),
     h(
       'p',
       null,
-      'Splitting a bill, checking a receipt, sizing up a discount, catching a wrong number in a spreadsheet: it comes up every day, and it is faster than reaching for a phone.',
-    ),
-    h(
-      'p',
-      null,
-      'It is also just cool. Squaring 85 or multiplying 97 by 94 in your head before anyone finds a calculator still lands like a magic trick, even when you know exactly why it works.',
+      'It is also just cool. Answers like these, worked out before anyone finds a calculator, land like a magic trick, even when you know exactly why they work.',
     ),
     h(
       'p',
