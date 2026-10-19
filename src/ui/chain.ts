@@ -9,7 +9,7 @@ import { levelControl, segmented } from './controls';
 import { h, reveal } from './dom';
 import type { View } from './router';
 import { layout } from './shell';
-import { renderStepper } from './steps';
+import { problemStatement, renderStepper } from './steps';
 
 const SYM: Record<string, string> = { '+': '+', '−': '−', '×': '×', '÷': '÷', '^': 'x²', mod: 'mod' };
 
@@ -71,6 +71,7 @@ export async function chainView(): Promise<View> {
     } else {
       const figure = h('figure', { class: 'figure' });
       figure.innerHTML = treeSvg(chainExampleNode());
+      figure.prepend(h('div', { class: 'figure-problem' }, problemStatement(chainExample().text)));
       example.replaceChildren(renderStepper(chainSteps(chainExample())), figure);
     }
     levelHost.replaceChildren(

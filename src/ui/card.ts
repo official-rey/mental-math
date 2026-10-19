@@ -4,7 +4,7 @@ import type { Level, Technique } from '../techniques/types';
 import { h } from './dom';
 import { learnView } from './learn';
 import type { View } from './router';
-import { renderStepper } from './steps';
+import { problemStatement, renderStepper } from './steps';
 
 /**
  * Learning one technique: the worked example (problem first, then steps), the picture of the
@@ -13,6 +13,8 @@ import { renderStepper } from './steps';
 export function cardBody(t: Technique, level: Level): HTMLElement {
   const figure = h('figure', { class: 'figure', title: t.card.caption });
   figure.innerHTML = t.card.graphic();
+  // Every picture says which problem it is working.
+  figure.prepend(h('div', { class: 'figure-problem' }, problemStatement(t.steps(t.card.example)[0].expr)));
   return h(
     'div',
     { class: 'card', 'data-technique': t.meta.id },

@@ -1725,3 +1725,32 @@
 .quick-picks {
   margin-left: 0;
 }
+
+/* ---------- Book block and figure problem label ---------- */
+
+.book .book-title {
+  font-style: italic;
+  font-family: var(--f-prose);
+  font-weight: 500;
+  font-size: 26px;
+  line-height: 1.15;
+  margin-bottom: 4px;
+}
+
+.book .book-author {
+  font-family: var(--f-mono);
+  font-size: 13px !important;
+  color: var(--dim);
+  margin-bottom: 12px;
+}
+
+.figure .figure-problem {
+  font-family: var(--f-mono);
+  font-size: 17px;
+  font-weight: 600;
+  color: var(--ink);
+  text-align: left;
+  padding-bottom: 8px;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--rule);
+}

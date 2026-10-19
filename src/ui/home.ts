@@ -7,7 +7,6 @@ import { processReel } from './feats';
 import { ICONS } from './icons';
 import { layout, SECTIONS } from './shell';
 
-const BOOK_URL = 'https://archive.org/details/secretsofmentalm0000arth';
 
 
 export async function homeView(): Promise<View> {
@@ -70,9 +69,9 @@ export async function homeView(): Promise<View> {
       h(
         'div',
         { class: 'book-text' },
-        h('h2', null, 'Where these techniques come from'),
-        h('p', null, 'Arthur T. Benjamin’s ', h('i', null, 'The Secrets of Mental Math'), ' (The Great Courses). Read it for the ideas; use this for the practice.'),
-        h('a', { class: 'book-link', href: BOOK_URL, target: '_blank', rel: 'noopener' }, 'Find the book →'),
+        h('h2', { class: 'book-title' }, 'The Secrets of Mental Math'),
+        h('p', { class: 'book-author' }, 'Arthur T. Benjamin · The Great Courses'),
+        h('p', null, 'This tool is built on ideas I took from this book.'),
       ),
     ),
     cue,
