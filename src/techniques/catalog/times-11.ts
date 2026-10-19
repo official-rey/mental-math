@@ -1,5 +1,5 @@
 import { defineTechnique } from '../define';
-import { arrowHead, circle, line, rect, svg, text } from '../svg';
+import { arrowHead, line, rect, svg, text } from '../svg';
 import type { Level, Levels, Problem, Rng, Step } from '../types';
 import { digits, fmt, nonRound } from '../util';
 
@@ -67,13 +67,11 @@ function diagram(): string {
     { x: X[1], t: '4 + 7', out: '1', tag: 'pair' },
     { x: X[0], t: '4 + 1', out: '5', tag: 'first + carry' },
   ];
-  stages.forEach((s, i) => {
+  stages.forEach((s) => {
     const w = 64;
     b += text(s.x, 58, s.tag, 't t-sm t-dim');
     b += rect(s.x - w / 2, yOp - 15, w, 30, 'f-raised s-ink');
     b += text(s.x, yOp, s.t, 't');
-    b += circle(s.x - w / 2, yOp - 15, 8, 'f-paper s-accent');
-    b += text(s.x - w / 2, yOp - 15, i + 1, 't t-sm t-accent');
     b += line(s.x, yOp + 17, s.x, yAns - 22, 's-accent') + arrowHead(s.x, yAns - 18, 0, 1);
     b += rect(s.x - 17, yAns - 17, 34, 34, 'f-soft s-accent');
     b += text(s.x, yAns, s.out, 't t-lg t-accent t-b');

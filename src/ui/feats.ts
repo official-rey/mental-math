@@ -22,7 +22,7 @@ const DEMOS: { name: string; lines: string[] }[] = [
   },
   {
     name: 'Percentages',
-    lines: ['15%@p of 84@n', '10%@t + 5%@f of 84@n', '8.4@t + 4.2@f', '12.6@t'],
+    lines: ['15%@p of 60@n', '10%@t + 5%@f of 60@n', '6@t + 3@f', '9@t'],
   },
   {
     name: 'Squares near 50',

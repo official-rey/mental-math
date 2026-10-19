@@ -123,9 +123,9 @@ export default defineTechnique({
   meta: {
     id: ID,
     name: 'Casting out elevens',
-    category: 'check',
+    category: 'est',
     tier: 'Core',
-    order: 20,
+    order: 60,
     idea: 'Add every other digit from the ones, add the skipped digits, subtract, then fix with 11s.',
   },
   card: {

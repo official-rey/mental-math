@@ -47,7 +47,7 @@ export function stack(expr: string): Line[] {
 }
 
 function block(s: Step, i: number, last: boolean): HTMLElement {
-  const lines = stack(s.expr);
+  const lines = s.inline ? [{ op: '', term: s.expr }] : stack(s.expr);
   const op = s.op ?? (i === 0 ? '' : '=');
   // Each new "=" step continues the column under a rule; side workings (→, ≈) show their mark.
   const ruled = i > 0 && op === '=';

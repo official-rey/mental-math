@@ -27,16 +27,13 @@ function make(r: number, y: number, level: Level, swap = 0): Problem {
   };
 }
 
-/** True when r% of y has at most two decimals. */
-const clean = (r: number, y: number) => Number.isInteger(pctU(toU(y), Math.round(r * 10)) / 10_000);
-
 const levels = {
   1: { label: '10% and 50%', bounds: { r: [10, 50], y: [12, 198], swap: [0, 0] } },
   2: { label: '10, 20, 5, 50, 25%', bounds: { r: [5, 50], y: [12, 999], swap: [0, 0] } },
-  3: { label: 'tips: 15, 18, 20%', bounds: { r: [15, 20], y: [12, 150.8], swap: [0, 0] } },
+  3: { label: 'tips: 15, 18, 20%', bounds: { r: [15, 20], y: [12, 150], swap: [0, 0] } },
   4: { label: 'awkward rates, swaps', bounds: { r: [3, 96], y: [12, 480], swap: [0, 1] } },
   5: { label: '9, 11, 45, 65, 75% of 3-digit', bounds: { r: [9, 75], y: [101, 999], swap: [0, 0] } },
-  6: { label: 'eighths and 2.5% steps, with cents', bounds: { r: [2.5, 87.5], y: [20, 999.96], swap: [0, 0] } },
+  6: { label: 'eighths and 2.5% steps', bounds: { r: [2.5, 87.5], y: [20, 999], swap: [0, 0] } },
 } as const satisfies Levels;
 
 /** Lines that build r% of y from 10% (or 1%), one small operation each, ending on the answer. */
@@ -150,69 +147,41 @@ export default defineTechnique({
       'Shift once more for 1%. Add or subtract the pieces to reach the rate you want.',
       'When the amount is 20, 25 or 50, swap the two: 8% of 25 is 25% of 8, a quarter of 8.',
     ],
-    example: make(15, 84, 3),
+    example: make(15, 60, 3),
     graphic: () =>
       pieces({
-        input: '15% of 84',
+        input: '15% of 60',
         ops: [
-          { text: '84 ÷ 10', out: '8.4' },
-          { text: '8.4 ÷ 2', out: '4.2' },
+          { text: '60 ÷ 10', out: '6' },
+          { text: '6 ÷ 2', out: '3' },
         ],
         answer: [
-          { text: '8.4', from: 0 },
+          { text: '6', from: 0 },
           { text: '+', from: null },
-          { text: '4.2', from: 1 },
+          { text: '3', from: 1 },
         ],
-        result: '12.6',
-        label: '15% of 84: shift the point to get 10%, 8.4; halve it to get 5%, 4.2; add them to get 12.6',
+        result: '9',
+        label: '15% of 60: 10% is 6; half of that, 5%, is 3; add them to get 9',
       }),
     caption: 'Get 10%, halve it for 5%, then add the two.',
   },
   levels,
   generate(rng, level) {
+    // Every answer is a whole number; the amounts are chosen so the rate divides evenly.
     for (;;) {
-      if (level === 1) {
-        // 10% of any amount; 50% of even amounts only, so the answer stays whole.
-        const r = rng.pick([10, 50] as const);
-        const y = rng.int(12, 198);
-        if (y % 10 === 0 || (r === 50 && y % 2 === 1)) continue;
-        return make(r, y, level);
-      }
-      if (level === 2) {
-        const r = rng.pick([10, 20, 5, 50, 25] as const);
-        const y = rng.chance(0.3) ? rng.int(12, 99) : rng.int(100, 999);
-        if (y % 10 === 0) continue;
-        return make(r, y, level);
-      }
-      if (level === 3) {
-        const r = rng.pick([15, 18, 20] as const);
-        const cents = rng.pick([0, 0, 0, 50, 50, 20, 40, 60, 80] as const);
-        const y = rng.int(12, 150) + cents / 100;
-        if (y > 150.8 || !clean(r, y)) continue;
-        return make(r, y, level);
-      }
-      if (level === 5) {
-        const r = rng.pick([9, 11, 45, 65, 75] as const);
-        const y = rng.int(101, 999);
-        if (y % 10 === 0 || !clean(r, y)) continue;
-        return make(r, y, level);
-      }
-      if (level === 6) {
-        const r = rng.pick([2.5, 12.5, 37.5, 62.5, 87.5, 22.5] as const);
-        const y = (rng.int(20, 999) * 100 + (rng.chance(0.7) ? rng.int(1, 24) * 4 : 0)) / 100;
-        if (y % 10 === 0 || !clean(r, y)) continue;
-        return make(r, y, level);
-      }
-      if (rng.chance(0.3)) {
+      let p: Problem;
+      if (level === 1) p = make(rng.pick([10, 50] as const), rng.int(12, 198), level);
+      else if (level === 2) p = make(rng.pick([10, 20, 5, 50, 25] as const), rng.chance(0.3) ? rng.int(12, 99) : rng.int(100, 999), level);
+      else if (level === 3) p = make(rng.pick([15, 18, 20] as const), rng.int(12, 150), level);
+      else if (level === 5) p = make(rng.pick([9, 11, 45, 65, 75] as const), rng.int(101, 999), level);
+      else if (level === 6) p = make(rng.pick([2.5, 12.5, 37.5, 62.5, 87.5, 22.5] as const), rng.int(20, 999), level);
+      else if (rng.chance(0.3)) {
         const y = rng.pick([20, 25, 50] as const);
         const r = rng.int(3, 96);
         if (r % 10 === 0 || r % y === 0 || r === y) continue;
-        return make(r, y, level, 1);
-      }
-      const r = rng.pick([7, 12, 35, 17.5] as const);
-      const y = rng.int(12, 480);
-      if (y % 10 === 0 || !clean(r, y)) continue;
-      return make(r, y, level);
+        p = make(r, y, level, 1);
+      } else p = make(rng.pick([7, 12, 35, 17.5] as const), rng.int(12, 480), level);
+      if (!p.answer.includes('.')) return p;
     }
   },
   steps: (p) => build(p.data.r, p.data.y, p.data.swap),

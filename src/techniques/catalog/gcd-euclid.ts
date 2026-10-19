@@ -1,5 +1,5 @@
 import { defineTechnique } from '../define';
-import { circle, rect, svg, text } from '../svg';
+import { rect, svg, text } from '../svg';
 import type { Level, Levels, Problem, Step } from '../types';
 import { fmt, gcd } from '../util';
 
@@ -47,17 +47,14 @@ const PRIMES = [11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47];
 /** Euclid's rectangle for gcd(391, 299): cut the biggest squares you can, in turn. */
 function graphic(): string {
   const s = 0.6, X = (v: number) => 24 + v * s, Y = (v: number) => 26 + v * s;
-  const badge = (x: number, y: number, n: number) => circle(x, y, 8, 'f-paper s-accent') + text(x, y, n, 't t-sm t-accent');
   let b = text(X(195.5), 12, '391', 't t-sm t-dim');
   b += rect(X(0), Y(0), 299 * s, 299 * s, 'f-raised s-ink');
-  b += text(X(149.5), Y(149.5), '299', 't t-lg') + badge(X(0) + 14, Y(0) + 14, 1);
+  b += text(X(149.5), Y(149.5), '299', 't t-lg');
   for (let i = 0; i < 3; i++) {
     b += rect(X(299), Y(92 * i), 92 * s, 92 * s, 'f-soft s-ink');
     b += text(X(345), Y(92 * i + 46), '92', 't');
   }
-  b += badge(X(299) + 12, Y(0) + 12, 2);
   for (let j = 0; j < 4; j++) b += rect(X(299 + 23 * j), Y(276), 23 * s, 23 * s, 'f-soft s-accent');
-  b += badge(X(391) + 16, Y(287.5), 3);
   b += text(X(391) + 30, Y(287.5), '23', 't t-accent t-b t-start');
   return svg(
     340,
@@ -71,7 +68,7 @@ export default defineTechnique({
   meta: {
     id: ID,
     name: 'GCD and LCM by Euclid',
-    category: 'nt',
+    category: 'higher',
     tier: 'Core',
     order: 10,
     idea: 'Keep replacing the bigger number with what is left after taking off the smaller; when one divides exactly, that is the GCD.',

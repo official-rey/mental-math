@@ -57,9 +57,9 @@ export default defineTechnique({
   meta: {
     id: ID,
     name: 'Right-triangle sides',
-    category: 'trig',
+    category: 'higher',
     tier: 'Core',
-    order: 10,
+    order: 50,
     idea: 'Take out a common factor, spot a triple you know, and scale back; otherwise square, add and take the root.',
   },
   card: {

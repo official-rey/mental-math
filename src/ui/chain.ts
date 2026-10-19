@@ -1,8 +1,7 @@
 import { evaluate, print, type Node } from '../chain/evaluator';
-import { flashExample, flashSteps } from '../chain/flash';
 import { chainExample, chainExampleNode, chainSteps } from '../chain/generator';
 import { specToHash } from '../drill/spec';
-import { MODES, type ChainStyle, type Mode } from '../drill/types';
+import { MODES, type Mode } from '../drill/types';
 import { store } from '../storage/store';
 import { circle, line, svg, text } from '../techniques/svg';
 import { levelControl, segmented } from './controls';
@@ -53,64 +52,38 @@ function treeSvg(root: Node): string {
   return svg(W, H, edges + nodes, `Expression tree for ${print(root)}; each operator shows its value in accent`);
 }
 
+/** Chains: a whole expression with brackets, solved in the right order as fast as you can. */
 export async function chainView(): Promise<View> {
   const prefs = await store.getPrefs();
   let level = prefs.level;
   let mode: Mode = prefs.mode;
-  let style: ChainStyle = 'flash';
 
   const btn = h('a', { class: 'btn primary big block', 'data-testid': 'start-chain' }, 'Start', h('span', { class: 'arrow' }, '→'));
-  const setHref = () => btn.setAttribute('href', specToHash({ kind: 'chain', ids: [], level, mode, style }));
+  const setHref = () => btn.setAttribute('href', specToHash({ kind: 'chain', ids: [], level, mode }));
+  setHref();
 
-  const example = h('div', { class: 'chain-example' });
-  const levelHost = h('div');
+  const figure = h('figure', { class: 'figure' });
+  figure.innerHTML = treeSvg(chainExampleNode());
+  figure.prepend(h('div', { class: 'figure-problem' }, problemStatement(chainExample().text)));
 
-  function paint() {
-    if (style === 'flash') {
-      example.replaceChildren(renderStepper(flashSteps(flashExample())));
-    } else {
-      const figure = h('figure', { class: 'figure' });
-      figure.innerHTML = treeSvg(chainExampleNode());
-      figure.prepend(h('div', { class: 'figure-problem' }, problemStatement(chainExample().text)));
-      example.replaceChildren(renderStepper(chainSteps(chainExample())), figure);
-    }
-    levelHost.replaceChildren(
-      levelControl(level, (l) => {
-        level = l;
-        store.setPrefs({ level: l });
-        setHref();
-      }),
-    );
-    setHref();
-  }
-
-  const styles = segmented<ChainStyle>(
-    'Style',
-    [
-      { value: 'flash', label: 'Running total' },
-      { value: 'expression', label: 'Expression' },
-    ],
-    style,
-    (v) => {
-      style = v;
-      paint();
-    },
-  );
   const modes = segmented<Mode>('Clock', MODES.map((m) => ({ value: m.id, label: m.id === 'training' ? 'No clock' : m.short })), mode, (m) => {
     mode = m;
     store.setPrefs({ mode: m });
     setHref();
   });
-  paint();
 
   const main = reveal(
     h(
       'article',
       { class: 'card' },
       h('h1', { class: 'display' }, 'Chains'),
-      h('div', { class: 'controls' }, h('div', { class: 'control' }, h('span', { class: 'control-label' }, 'Style'), styles)),
-      example,
-      levelHost,
+      h('p', { class: 'chain-rule mono' }, h('b', null, '( )'), ' first, then ', h('b', null, '× ÷'), ', then ', h('b', null, '+ −'), ', left to right'),
+      h('div', { class: 'chain-example' }, renderStepper(chainSteps(chainExample())), figure),
+      levelControl(level, (l) => {
+        level = l;
+        store.setPrefs({ level: l });
+        setHref();
+      }),
       h('div', { class: 'controls' }, h('div', { class: 'control' }, h('span', { class: 'control-label' }, 'Clock'), modes)),
       btn,
     ),

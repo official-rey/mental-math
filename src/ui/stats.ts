@@ -1,5 +1,5 @@
-import { flashSource } from '../chain/flash';
 import { chainSource } from '../chain/generator';
+import { TROPHIES } from '../drill/trophies';
 import { MODES, type RunRecord } from '../drill/types';
 import { pct, scoreText, secs } from '../share/draw';
 import { store } from '../storage/store';
@@ -26,13 +26,13 @@ function byTechnique(runs: RunRecord[]): TechStat[] {
       if (!e.technique) continue;
       let s = map.get(e.technique);
       if (!s) {
-        const name = e.technique === 'chain' ? chainSource.name : e.technique === 'chain-flash' ? flashSource.name : getTechnique(e.technique)?.meta.name;
+        const name = e.technique.startsWith('chain') ? chainSource.name : getTechnique(e.technique)?.meta.name;
         if (!name) continue;
         s = { id: e.technique, name, attempts: 0, correct: 0, ms: 0 };
         map.set(e.technique, s);
       }
       s.attempts++;
-      if (e.ok) s.correct++;
+      if (e.ok && !e.misses) s.correct++;
       s.ms += e.ms;
     }
   }
@@ -56,9 +56,35 @@ function runRow(r: RunRecord, extra?: string): HTMLElement {
   );
 }
 
+/** A small cup, drawn in the current text color. */
+export const TROPHY_ICON =
+  '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4h10v4a5 5 0 0 1-10 0V4Z M7 6H4a3 3 0 0 0 3 4 M17 6h3a3 3 0 0 1-3 4 M12 13v4 M8 20h8 M9 17h6v3H9z"/></svg>';
+
+/** Every trophy, earned ones in accent, the rest dimmed with how to get them. */
+function trophyCase(held: string[]): HTMLElement {
+  return h(
+    'section',
+    null,
+    h('h2', { class: 'section-head' }, `Trophies · ${held.length}/${TROPHIES.length}`),
+    h(
+      'ul',
+      { class: 'trophy-list', 'data-testid': 'trophies' },
+      TROPHIES.map((t) =>
+        h(
+          'li',
+          { class: `trophy${held.includes(t.id) ? ' got' : ''}` },
+          h('span', { class: 'trophy-icon', html: TROPHY_ICON }),
+          h('span', null, h('b', null, t.name), h('span', { class: 'dim' }, t.how)),
+        ),
+      ),
+    ),
+  );
+}
+
 export async function statsView(): Promise<View> {
   const runs = await store.history();
   const bests = await store.bests();
+  const held = (await store.getPrefs()).trophies;
 
   if (!runs.length) {
     return {
@@ -73,7 +99,7 @@ export async function statsView(): Promise<View> {
   }
 
   const answered = runs.reduce((a, r) => a + r.attempted, 0);
-  const correct = runs.reduce((a, r) => a + r.correct, 0);
+  const correct = runs.reduce((a, r) => a + r.accuracy * r.attempted, 0);
   const ms = runs.reduce((a, r) => a + r.avgMs * r.attempted, 0);
   const techs = byTechnique(runs);
 
@@ -116,6 +142,7 @@ export async function statsView(): Promise<View> {
             ),
           )
         : null,
+      trophyCase(held),
       bests.length
         ? h('section', null, h('h2', { class: 'section-head' }, 'Personal bests'), h('div', { class: 'menu' }, bests.slice(0, 12).map((r) => runRow(r))))
         : null,

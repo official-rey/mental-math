@@ -1,5 +1,5 @@
 import { defineTechnique } from '../define';
-import { circle, line, svg, text } from '../svg';
+import { line, svg, text } from '../svg';
 import type { Level, Levels, Problem, Rng, Step } from '../types';
 import { digits, fmt } from '../util';
 
@@ -117,9 +117,6 @@ function pick(rng: Rng, level: Level): Problem {
   }
 }
 
-/** A circled stage number. */
-const badge = (x: number, y: number, i: number) => circle(x, y, 9, 'f-paper s-accent') + text(x, y, i, 't t-sm t-accent');
-
 function graphic(): string {
   // 7,866 ÷ 23 = 342: divide by 2, flag 3.
   const xs = [112, 182, 252, 322];
@@ -139,7 +136,6 @@ function graphic(): string {
     body += text(x, 20, quot[i] || 'rem.', quot[i] ? 't t-xl t-b t-accent' : 't t-sm t-dim');
     body += text(x, 70, dividend[i], 't t-xl');
     if (rem[i]) body += text(x - 16, 58, rem[i], 't t-sm t-accent t-b');
-    body += badge(x, 124, i + 1);
     if (take[i]) body += text(x, 150, take[i], 't t-sm t-accent');
     body += text(x, 172, work[i], 't t-sm');
   });

@@ -12,10 +12,7 @@ const SHORT: Record<CategoryId, { label: string; glyph: string }> = {
   mul: { label: 'Multiply', glyph: '×' },
   div: { label: 'Divide', glyph: '÷' },
   pow: { label: 'Powers & roots', glyph: '√' },
-  est: { label: 'Estimate', glyph: '≈' },
-  check: { label: 'Check', glyph: '✓' },
-  nt: { label: 'Number theory', glyph: '≡' },
-  trig: { label: 'Trig', glyph: 'θ' },
+  est: { label: 'Estimate & check', glyph: '≈' },
   higher: { label: 'Higher math', glyph: 'Σ' },
 };
 

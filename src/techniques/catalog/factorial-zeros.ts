@@ -53,7 +53,7 @@ export default defineTechnique({
   meta: {
     id: ID,
     name: 'Zeros at the end of n!',
-    category: 'nt',
+    category: 'higher',
     tier: 'Advanced',
     order: 40,
     idea: 'Each zero needs a 5: count multiples of 5, then of 25, 125, … by dividing by 5 again and again.',

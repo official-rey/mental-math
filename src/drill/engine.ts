@@ -1,4 +1,3 @@
-import { flashSource } from '../chain/flash';
 import { chainSource } from '../chain/generator';
 import { getTechnique } from '../techniques/registry';
 import type { Level, Problem, Rng, Step } from '../techniques/types';
@@ -18,7 +17,7 @@ export const CHAIN_BONUS_MS = 4_000;
 const RECENT = 30;
 
 export function sourcesFor(spec: DrillSpec): ProblemSource[] {
-  if (spec.kind === 'chain') return [spec.style === 'expression' ? chainSource : flashSource];
+  if (spec.kind === 'chain') return [chainSource];
   return spec.ids.map((id) => {
     const t = getTechnique(id)!;
     return { id, name: t.meta.name, generate: t.generate, steps: t.steps };
@@ -34,6 +33,10 @@ export interface Attempt {
   bonusMs: number;
   /** Set when this answer moved the drill up a level. */
   levelUp?: Level;
+  /** True once the problem is over (solved or skipped); a wrong answer leaves it open to retry. */
+  done: boolean;
+  /** Right answers in a row after this one (first tries only). */
+  streak: number;
 }
 
 /**
@@ -52,7 +55,14 @@ export class DrillSession {
   private bonusTotal = 0;
   /** Texts of the last few problems, to avoid repeats within a run. */
   private recent: string[] = [];
-  private streak = 0;
+  /** Correct answers in a row toward the next level. */
+  private rampStreak = 0;
+  /** Right first time, in a row, for rewards. */
+  streak = 0;
+  bestStreak = 0;
+  /** Wrong tries on the current problem, and the first wrong input. */
+  private misses = 0;
+  private firstWrong = '';
   /**
    * Level problems are generated at. Starts at I and climbs one level after every
    * RAMP_STREAK correct answers in a row, until it reaches the level the player chose.
@@ -88,14 +98,27 @@ export class DrillSession {
     if (this.recent.length > RECENT) this.recent.shift();
     this.current = p;
     this.shownAt = this.now();
+    this.misses = 0;
+    this.firstWrong = '';
     return p;
   }
 
+  /**
+   * Check an answer. A wrong one is forgiven: the problem stays up to try again, and only
+   * counts against first-try accuracy and the streak.
+   */
   submit(input: string): Attempt {
-    return this.record(input, isCorrect(this.current, input), false);
+    const ok = isCorrect(this.current, input);
+    if (ok) return this.record(input, true, false);
+    if (!this.misses) this.firstWrong = input;
+    this.misses++;
+    this.streak = 0;
+    this.rampStreak = 0;
+    const ms = Math.max(0, Math.round(this.now() - this.shownAt));
+    return { ok: false, problem: this.current, input, ms, bonusMs: 0, done: false, streak: 0 };
   }
 
-  /** Give up on the current problem: logged as a miss. */
+  /** Give up on the current problem: logged as unsolved. */
   skip(): Attempt {
     return this.record('', false, true);
   }
@@ -103,21 +126,39 @@ export class DrillSession {
   private record(input: string, ok: boolean, skipped: boolean): Attempt {
     const ms = Math.max(0, Math.round(this.now() - this.shownAt));
     const p = this.current;
-    this.log.push({ technique: p.technique, text: p.text, answer: p.answer, input, ok, ms, ...(skipped ? { skipped } : {}) });
+    const misses = this.misses;
+    this.log.push({
+      technique: p.technique,
+      text: p.text,
+      answer: p.answer,
+      input: misses ? this.firstWrong : input,
+      ok,
+      ms,
+      ...(misses ? { misses } : {}),
+      ...(skipped ? { skipped } : {}),
+    });
+    const clean = ok && !misses;
     let bonusMs = 0;
-    if (ok && this.spec.mode === 'sprint' && this.remaining() > 0) {
+    if (clean && this.spec.mode === 'sprint' && this.remaining() > 0) {
       bonusMs = p.technique.startsWith('chain') ? CHAIN_BONUS_MS : BONUS_MS;
       this.bonusTotal += bonusMs;
     }
+    this.streak = clean ? this.streak + 1 : 0;
+    this.bestStreak = Math.max(this.bestStreak, this.streak);
     let levelUp: Level | undefined;
-    this.streak = ok ? this.streak + 1 : 0;
-    if (this.streak >= RAMP_STREAK && this.level < this.spec.level) {
+    this.rampStreak = clean ? this.rampStreak + 1 : 0;
+    if (this.rampStreak >= RAMP_STREAK && this.level < this.spec.level) {
       this.level = (this.level + 1) as Level;
-      this.streak = 0;
+      this.rampStreak = 0;
       levelUp = this.level;
     }
     if (this.isFinished()) this.endedAt = this.now();
-    return { ok, problem: p, input, ms, bonusMs, ...(levelUp ? { levelUp } : {}) };
+    return { ok, problem: p, input, ms, bonusMs, done: true, streak: this.streak, ...(levelUp ? { levelUp } : {}) };
+  }
+
+  /** Problems answered right the first time. */
+  get firstTry() {
+    return this.log.filter((e) => e.ok && !e.misses).length;
   }
 
   get paused(): boolean {
@@ -191,7 +232,8 @@ export class DrillSession {
       level: this.spec.level,
       correct,
       attempted,
-      accuracy: attempted ? correct / attempted : 0,
+      accuracy: attempted ? this.firstTry / attempted : 0,
+      bestStreak: this.bestStreak,
       totalMs,
       avgMs: attempted ? Math.round(answeredMs / attempted) : 0,
       date: Date.now(),

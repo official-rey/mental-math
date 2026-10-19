@@ -1,4 +1,7 @@
+import { sound } from '../drill/sound';
 import { specToHash } from '../drill/spec';
+import { TROPHIES } from '../drill/trophies';
+import { TROPHY_ICON } from './stats';
 import { modeLabel, pct, scoreText, secs } from '../share/draw';
 import type { DrillSpec, RunRecord } from '../drill/types';
 import { store } from '../storage/store';
@@ -16,15 +19,16 @@ function scoreParts(run: RunRecord): { value: number; suffix: string; caption: s
 }
 
 function countUp(el: HTMLElement, to: number) {
+  const places = Number.isInteger(to) ? 0 : 1;
   if (prefersReducedMotion() || to <= 0) {
-    el.textContent = String(to);
+    el.textContent = to.toFixed(places);
     return;
   }
   const start = performance.now();
   const dur = Math.min(1100, 400 + to * 25);
   const step = (now: number) => {
     const t = Math.min(1, (now - start) / dur);
-    el.textContent = String(Math.round(to * (1 - (1 - t) ** 3)));
+    el.textContent = (to * (1 - (1 - t) ** 3)).toFixed(places);
     if (t < 1) requestAnimationFrame(step);
   };
   requestAnimationFrame(step);
@@ -98,7 +102,15 @@ export async function resultsView(parts: string[]): Promise<View> {
     });
     return form;
   }
-  const misses = run.log.filter((e) => !e.ok);
+  // Problems that took more than one try, or were skipped.
+  const misses = run.log.filter((e) => !e.ok || e.misses);
+  // Compared with your earlier runs of the same drill: sprints by count, 20 problems by time.
+  const earlier = run.mode === 'training' ? [] : (await store.history()).filter((r) => r.id !== run.id && r.drillKey === run.drillKey && r.mode === run.mode);
+  const avg = (f: (r: RunRecord) => number) => earlier.reduce((a, r) => a + f(r), 0) / earlier.length;
+  const aboveAverage =
+    earlier.length >= 2 && !saved.isBest && (run.mode === 'sprint' ? run.correct > avg((r) => r.correct) : run.totalMs < avg((r) => r.totalMs));
+  const fresh = app.lastResult?.run.id === run.id ? (app.lastResult.trophies ?? []) : [];
+  const trophies = TROPHIES.filter((t) => fresh.includes(t.id));
 
   const main = reveal(
     h(
@@ -115,9 +127,18 @@ export async function resultsView(parts: string[]): Promise<View> {
           'div',
           { class: 'score-badges' },
           saved.isBest ? h('span', { class: 'badge solid' }, 'Personal best') : null,
+          aboveAverage ? h('span', { class: 'badge solid' }, 'Above your average') : null,
           saved.rank ? h('span', { class: 'badge' }, `#${saved.rank} on this device`) : null,
+          run.bestStreak && run.bestStreak >= 5 ? h('span', { class: 'badge' }, `${run.bestStreak} in a row`) : null,
         ),
       ),
+      trophies.length
+        ? h(
+            'ul',
+            { class: 'trophy-list fresh', 'data-testid': 'new-trophies' },
+            trophies.map((t) => h('li', { class: 'trophy got' }, h('span', { class: 'trophy-icon', html: TROPHY_ICON }), h('span', null, h('b', null, t.name), h('span', { class: 'dim' }, t.how)))),
+          )
+        : null,
       h(
         'dl',
         { class: 'stats' },
@@ -163,12 +184,12 @@ export async function resultsView(parts: string[]): Promise<View> {
         ? h(
             'section',
             null,
-            h('h2', { class: 'section-head' }, 'Missed'),
+            h('h2', { class: 'section-head' }, 'To look at again'),
             h(
               'ul',
               { class: 'misses mono' },
               misses.slice(0, 12).map((m) =>
-                h('li', null, h('span', null, `${m.text} = `, h('b', null, fmt(m.answer))), h('span', { class: 'dim' }, `you: ${m.input}`)),
+                h('li', null, h('span', null, `${m.text} = `, h('b', null, fmt(m.answer))), h('span', { class: 'dim' }, m.skipped ? 'skipped' : `first: ${m.input}`)),
               ),
             ),
           )
@@ -179,6 +200,9 @@ export async function resultsView(parts: string[]): Promise<View> {
   return {
     el: layout({ active: 'stats', back: spec ? { href: backHref(spec), label: 'Back' } : { href: '#/stats', label: 'Stats' } }, main),
     title: 'Results',
-    mounted: () => countUp(big, score.value),
+    mounted: () => {
+      countUp(big, score.value);
+      if (fresh.length || saved.isBest) window.setTimeout(() => sound.best(), 500);
+    },
   };
 }

@@ -153,9 +153,7 @@ export function chain(o: ChainOptions): string {
   o.moves.forEach((m, i) => {
     const y0 = top + i * gap + 16, y1 = top + (i + 1) * gap - 16;
     body += line(cx, y0, cx, y1 - 2, 's-accent') + arrowHead(cx, y1, 0, 1);
-    body += circle(cx + 28, (y0 + y1) / 2, 8, 'f-paper s-accent');
-    body += text(cx + 28, (y0 + y1) / 2, i + 1, 't t-sm t-accent');
-    body += text(cx + 44, (y0 + y1) / 2, m.op, 't t-accent t-start');
+    body += text(cx + 14, (y0 + y1) / 2, m.op, 't t-accent t-start');
     body += box(top + (i + 1) * gap, m.value, i === o.moves.length - 1);
   });
   return svg(W, H, body, o.label);
@@ -189,8 +187,6 @@ export function pieces(o: PiecesOptions): string {
     body += line(W / 2, yIn + 16, x, yOp - 20, 's-rule s-dash');
     body += rect(x - w / 2, yOp - 15, w, 30, 'f-raised s-ink');
     body += text(x, yOp, op.text, 't');
-    body += circle(x - w / 2, yOp - 15, 8, 'f-paper s-accent');
-    body += text(x - w / 2, yOp - 15, i + 1, 't t-sm t-accent');
     body += text(x, yOut, op.out, 't t-lg t-accent t-b');
   });
   // Answer chunks side by side, centered.

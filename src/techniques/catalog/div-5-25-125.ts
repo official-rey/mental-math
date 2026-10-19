@@ -1,7 +1,7 @@
 import { defineTechnique } from '../define';
 import { chain } from '../svg';
 import type { Level, Levels, Problem, Rng, Step } from '../types';
-import { fmt, nonRound, scaled } from '../util';
+import { fmt, scaled } from '../util';
 
 const ID = 'div-5-25-125';
 
@@ -30,17 +30,17 @@ function divisor(rng: Rng, level: Level): number {
   return rng.chance(level === 4 ? 0.7 : 0.75) ? 125 : 25;
 }
 
-const PLACE = ['', 'point 1 place', 'point 2 places', 'point 3 places'];
+const ZEROS = ['', 'drop the 0', 'drop two 0s', 'drop three 0s'];
 
 function graphic(): string {
   return chain({
-    start: '37',
+    start: '375',
     moves: [
-      { op: '× 2', value: '74' },
-      { op: '× 2', value: '148' },
-      { op: 'point 2 left', value: '1.48' },
+      { op: '× 2', value: '750' },
+      { op: '× 2', value: '1,500' },
+      { op: 'drop two 0s', value: '15' },
     ],
-    label: 'Dividing 37 by 25: 1, double 37 to 74; 2, double again to 148; 3, move the point two places left to get 1.48',
+    label: 'Dividing 375 by 25: double to 750, double again to 1,500, then drop two zeros to get 15',
   });
 }
 
@@ -51,22 +51,27 @@ export default defineTechnique({
     category: 'div',
     tier: 'Foundation',
     order: 20,
-    idea: 'For ÷5 double once, ÷25 double twice, ÷125 double three times; then move the point that many places left.',
+    idea: 'For ÷5 double once, ÷25 double twice, ÷125 double three times; then drop that many zeros.',
   },
   card: {
     prose: [
       'Double the number: once for ÷5, twice for ÷25, three times for ÷125.',
-      'Move the decimal point left: 1 place for ÷5, 2 for ÷25, 3 for ÷125.',
-      'Drop any zeros left at the end after the point.',
+      'Drop zeros from the end: one for ÷5, two for ÷25, three for ÷125.',
     ],
-    example: make(37, 25, 3),
+    example: make(375, 25, 3),
     graphic,
-    caption: 'Double, double again, then slide the point two places left.',
+    caption: 'Double, double again, then drop two zeros.',
   },
   levels,
   generate(rng, level) {
-    const { n } = levels[level].bounds;
-    return make(nonRound(rng, n[0], n[1]), divisor(rng, level), level);
+    const [lo, hi] = levels[level].bounds.n;
+    const d = divisor(rng, level);
+    for (;;) {
+      // Whole answers only: a multiple of d, mostly not a round one.
+      const n = d * rng.int(Math.ceil(lo / d), Math.floor(hi / d));
+      if (n % (2 * d) === 0 && rng.chance(0.7)) continue;
+      return make(n, d, level);
+    }
   },
   steps(p) {
     const { n, d } = p.data;
@@ -77,9 +82,7 @@ export default defineTechnique({
       steps.push({ op: '', expr: `${fmt(v)} × 2 = ${fmt(v * 2)}`, note: ['double', 'double again', 'double a third time'][i] });
       v *= 2;
     }
-    const ans = scaled(v, places);
-    const trimmed = !ans.includes('.') || ans.split('.')[1].length < places;
-    steps.push({ expr: fmt(ans), note: `${PLACE[places]} left${trimmed ? ', drop 0s' : ''}` });
+    steps.push({ expr: fmt(scaled(v, places)), note: ZEROS[places] });
     return steps;
   },
 });

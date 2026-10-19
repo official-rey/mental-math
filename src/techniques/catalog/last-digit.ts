@@ -105,7 +105,7 @@ export default defineTechnique({
   meta: {
     id: ID,
     name: 'Last digit of a power',
-    category: 'nt',
+    category: 'higher',
     tier: 'Core',
     order: 20,
     idea: 'Last digits of powers go round a short cycle; the exponent’s remainder picks the place.',

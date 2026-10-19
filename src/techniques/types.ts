@@ -6,18 +6,15 @@ export const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI'] as const;
 /** Where a technique sits in the overall catalog. */
 export type Tier = 'Foundation' | 'Core' | 'Advanced';
 
-export type CategoryId = 'addsub' | 'mul' | 'div' | 'pow' | 'est' | 'check' | 'nt' | 'trig' | 'higher';
+export type CategoryId = 'addsub' | 'mul' | 'div' | 'pow' | 'est' | 'higher';
 
-/** Learn and Train list the groups in this order. Number theory, trigonometry and higher math go beyond the book. */
+/** Learn and Train list the groups in this order. Higher math (number theory, trig and more) goes beyond the book. */
 export const CATEGORIES: { id: CategoryId; name: string }[] = [
   { id: 'addsub', name: 'Addition & subtraction' },
   { id: 'mul', name: 'Multiplication' },
   { id: 'div', name: 'Division' },
   { id: 'pow', name: 'Powers & roots' },
-  { id: 'est', name: 'Estimation' },
-  { id: 'check', name: 'Checking' },
-  { id: 'nt', name: 'Number theory' },
-  { id: 'trig', name: 'Trigonometry' },
+  { id: 'est', name: 'Estimating & checking' },
   { id: 'higher', name: 'Higher math' },
 ];
 
@@ -37,8 +34,6 @@ export interface Problem {
   tolerance?: number;
   /** Short qualifier shown under the problem, e.g. "first 6 decimals" or "nearest year". */
   hint?: string;
-  /** Running-total chains: the terms shown one at a time instead of `text` all at once. */
-  sequence?: string[];
 }
 
 /** One line of a vertical worked solution. */
@@ -47,6 +42,8 @@ export interface Step {
   op?: string;
   expr: string;
   note?: string;
+  /** Keep the expression on one line instead of stacking it into a column (chains). */
+  inline?: boolean;
 }
 
 /** Inclusive [min, max] for each named value in Problem.data. */

@@ -1,18 +1,12 @@
 import { defineTechnique } from '../define';
 import { chain } from '../svg';
 import type { Level, Levels, Problem } from '../types';
-import { fmt, nonRound, scaled } from '../util';
+import { fmt, nonRound } from '../util';
 
 const ID = 'mul-2x1';
 
 function make(a: number, b: number, level: Level): Problem {
   return { technique: ID, level, text: `${a} × ${b}`, answer: String(a * b), data: { a, b } };
-}
-
-/** A one-decimal number such as 6.8 (given as 68 tenths) times a digit. */
-function makeDecimal(tenths: number, b: number, level: Level): Problem {
-  const a = Number(scaled(tenths, 1));
-  return { technique: ID, level, text: `${scaled(tenths, 1)} × ${b}`, answer: scaled(tenths * b, 1), data: { a, b, tenths } };
 }
 
 const levels = {
@@ -21,7 +15,7 @@ const levels = {
   3: { label: '2-digit × 1-digit', bounds: { a: [12, 99], b: [3, 9] } },
   4: { label: 'large 2-digit × 6–9', bounds: { a: [51, 99], b: [6, 9] } },
   5: { label: 'large 2-digit × 7–9, sum crosses a hundred', bounds: { a: [51, 99], b: [7, 9] } },
-  6: { label: 'decimal x.y × 6–9', bounds: { a: [5.1, 9.9], b: [6, 9], tenths: [51, 99] } },
+  6: { label: '2-digit × 7–9, ones digit 6–9', bounds: { a: [16, 99], b: [7, 9] } },
 } as const satisfies Levels;
 
 export default defineTechnique({
@@ -66,27 +60,11 @@ export default defineTechnique({
         if ((((x - (x % 10)) * y) % 100) + (x % 10) * y >= 100) return make(x, y, level);
       }
     }
-    if (level === 6) {
-      for (;;) {
-        const t = nonRound(rng, 51, 99), y = rng.int(b[0], b[1]);
-        if (((Math.floor(t / 10) * y) % 10) * 10 + (t % 10) * y >= 100) return makeDecimal(t, y, level);
-      }
-    }
+    if (level === 6) return make(rng.int(1, 9) * 10 + rng.int(6, 9), rng.int(b[0], b[1]), level);
     return make(nonRound(rng, a[0], a[1]), rng.int(b[0], b[1]), level);
   },
   steps(p) {
-    const { a, b, tenths } = p.data;
-    if (tenths !== undefined) {
-      const whole = Math.floor(tenths / 10), frac = tenths % 10;
-      const big = whole * b, small = scaled(frac * b, 1), total = scaled(tenths * b, 1);
-      return [
-        { op: '', expr: `${scaled(tenths, 1)} × ${b}` },
-        { op: '', expr: `${whole} × ${b} = ${big}`, note: 'whole part first' },
-        { op: '', expr: `${scaled(frac, 1)} × ${b} = ${small}`, note: 'then the tenths' },
-        { op: '', expr: `${big} + ${small} = ${fmt(total)}`, note: 'add them' },
-        { expr: fmt(total), note: 'answer' },
-      ];
-    }
+    const { a, b } = p.data;
     const tens = a - (a % 10), ones = a % 10;
     const big = tens * b, small = ones * b;
     return [

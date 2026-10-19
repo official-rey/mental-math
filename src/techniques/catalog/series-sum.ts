@@ -47,7 +47,7 @@ export default defineTechnique({
     name: 'Adding a run of numbers',
     category: 'higher',
     tier: 'Core',
-    order: 20,
+    order: 90,
     idea: 'Pair the first with the last: every pair from the outside in makes the same total.',
   },
   card: {

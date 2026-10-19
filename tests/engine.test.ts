@@ -21,14 +21,17 @@ describe('drill session', () => {
     s.start();
     for (let i = 0; i < 20; i++) {
       c.tick(1500);
-      s.submit(i % 5 === 0 ? 'wrong' : s.current.answer);
+      // Every fifth problem takes a second try.
+      if (i % 5 === 0) expect(s.submit('wrong')).toMatchObject({ ok: false, done: false });
+      s.submit(s.current.answer);
       if (!s.isFinished()) s.advance();
     }
     expect(s.isFinished()).toBe(true);
     const r = s.result();
     expect(r.attempted).toBe(20);
-    expect(r.correct).toBe(16);
+    expect(r.correct).toBe(20);
     expect(r.accuracy).toBeCloseTo(0.8);
+    expect(r.log.filter((e) => e.misses === 1)).toHaveLength(4);
     expect(r.avgMs).toBe(1500);
     expect(r.totalMs).toBe(30000);
   });
@@ -41,7 +44,7 @@ describe('drill session', () => {
     for (;;) {
       c.tick(2500);
       if (s.isFinished()) break;
-      s.submit('wrong');
+      s.skip();
       s.advance();
       n++;
     }
@@ -110,6 +113,27 @@ describe('drill session', () => {
     s.submit(s.current.answer);
     expect(s.log[0].ms).toBe(12_000);
     expect(s.remaining()).toBe(48_000 + BONUS_MS);
+  });
+
+  it('a wrong answer keeps the problem up to retry; streaks count first tries', () => {
+    const s = new DrillSession(spec({ mode: 'training' }), makeRng(12), clock().now);
+    const first = s.start();
+    for (let i = 0; i < 4; i++) {
+      expect(s.submit(s.current.answer).streak).toBe(i + 1);
+      s.advance();
+    }
+    const miss = s.submit('wrong');
+    expect(miss).toMatchObject({ ok: false, done: false, streak: 0 });
+    expect(s.log).toHaveLength(4);
+    const p = s.current;
+    s.submit('still wrong');
+    const right = s.submit(p.answer);
+    expect(right).toMatchObject({ ok: true, done: true, streak: 0 });
+    expect(s.log[4]).toMatchObject({ text: p.text, ok: true, misses: 2, input: 'wrong' });
+    s.advance();
+    expect(s.submit(s.current.answer).streak).toBe(1);
+    expect(s.result()).toMatchObject({ correct: 6, attempted: 6, bestStreak: 4 });
+    expect(first.text).toBeTruthy();
   });
 
   it('skips are logged as misses with the technique id', () => {

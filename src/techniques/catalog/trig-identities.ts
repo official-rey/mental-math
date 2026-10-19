@@ -178,9 +178,9 @@ export default defineTechnique({
   meta: {
     id: ID,
     name: 'Trig from one value',
-    category: 'trig',
+    category: 'higher',
     tier: 'Advanced',
-    order: 30,
+    order: 70,
     idea: 'Turn the value you know into a right triangle, find the third side, and read every other value off it.',
     signed: true,
   },

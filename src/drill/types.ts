@@ -16,11 +16,7 @@ export interface DrillSpec {
   ids: string[];
   level: Level;
   mode: Mode;
-  /** Chains only: terms shown one at a time (running total) or the whole expression. */
-  style?: ChainStyle;
 }
-
-export type ChainStyle = 'flash' | 'expression';
 
 /** Anything that can produce problems and explain them. */
 export interface ProblemSource {
@@ -39,6 +35,8 @@ export interface RunEntry {
   ok: boolean;
   /** True when the player skipped or asked to see the solution. */
   skipped?: boolean;
+  /** Wrong tries before the right answer; `input` then holds the first wrong one. */
+  misses?: number;
   ms: number;
 }
 
@@ -49,9 +47,13 @@ export interface RunRecord {
   drillName: string;
   mode: Mode;
   level: Level;
+  /** Problems solved (skipped ones are not). */
   correct: number;
   attempted: number;
+  /** Share of problems right the first time. */
   accuracy: number;
+  /** Longest run of first-try answers. */
+  bestStreak?: number;
   totalMs: number;
   avgMs: number;
   date: number;

@@ -2,69 +2,101 @@
  * The book's big lessons, in our own words, each with a small picture of it at work on a
  * real problem. Pictures use the technique SVG kit, so they follow the theme.
  */
-import { arrowHead, circle, line, path, rect, svg, text } from '../techniques/svg';
+import { arrowHead, circle, line, path, svg, text } from '../techniques/svg';
 import { h } from './dom';
-
-/** A boxed value; the last one in a picture is the answer, in accent. */
-const box = (cx: number, cy: number, w: number, hgt: number, v: string, answer = false) =>
-  rect(cx - w / 2, cy - hgt / 2, w, hgt, answer ? 'f-soft s-accent' : 'f-raised s-ink', 3) + text(cx, cy, v, answer ? 't t-accent t-b' : 't');
 
 /** Straight arrow from (x1, y1) to (x2, y2). */
 const arrow = (x1: number, y1: number, x2: number, y2: number, cls = 's-accent') =>
   line(x1, y1, x2 - (x2 - x1) * 0.12, y2 - (y2 - y1) * 0.12, cls) + arrowHead(x2, y2, x2 - x1, y2 - y1, cls === 's-accent' ? 'f-accent' : 'f-dim', 6);
 
-/** 476 + 238: hundreds, then tens, then ones, so the answer arrives in the order you say it. */
-function leftToRight(): string {
-  let b = text(150, 11, '476 + 238 = ?', 't t-sm t-dim');
-  const xs = [32, 112, 192, 270];
-  ['476', '676', '706', '714'].forEach((v, i) => (b += box(xs[i], 46, 52, 26, v, i === 3)));
-  ['+200', '+30', '+8'].forEach((op, i) => {
-    b += arrow(xs[i] + 27, 46, xs[i + 1] - 27, 46);
-    b += text((xs[i] + xs[i + 1]) / 2, 28, op, 't t-sm t-accent');
-  });
-  ['hundreds', 'tens', 'ones'].forEach((u, i) => (b += text((xs[i] + xs[i + 1]) / 2, 72, u, 't t-sm t-dim')));
-  return svg(300, 82, b, '476 plus 238 from the left: add 200 to get 676, then 30 to get 706, then 8 to get 714');
+/** One line of a worked column: operator, value (right-aligned), and a note beside it. */
+interface Row {
+  op?: string;
+  v: string;
+  note?: string;
+  /** Draw the bar of a sum above this line. */
+  rule?: boolean;
 }
 
-/** 48 × 52: three ways in; spotting that both are near 50 makes it two squares. */
+/**
+ * Worked the way you would on paper: the problem on top, then one line per operation,
+ * numbers right-aligned in a column, a bar above each result, a short note beside each move.
+ * The last line is the answer.
+ */
+function column(problem: string, rows: Row[], label: string, right = 136): string {
+  const top = 34, gap = 19;
+  // The operator column sits just left of the widest value (mono digits are about 8.6 wide).
+  const opX = right - Math.max(...rows.map((r) => r.v.length)) * 8.6 - 16;
+  let b = text(150, 11, problem, 't t-sm t-dim');
+  rows.forEach((r, i) => {
+    const y = top + i * gap;
+    const last = i === rows.length - 1;
+    if (r.rule) b += line(opX - 4, y - gap / 2, right + 2, y - gap / 2, 's-ink s-thin');
+    if (r.op) b += text(opX, y, r.op, 't t-dim t-start');
+    b += text(right, y, r.v, last ? 't t-accent t-b t-end' : 't t-end');
+    if (r.note) b += text(right + 18, y, r.note, 't t-sm t-accent t-start');
+  });
+  return svg(300, top + (rows.length - 1) * gap + 14, b, label);
+}
+
+/** 476 + 238: hundreds, then tens, then ones, so the answer arrives in the order you say it. */
+function leftToRight(): string {
+  return column(
+    '476 + 238 = ?',
+    [
+      { v: '476' },
+      { op: '+', v: '200', note: 'hundreds first' },
+      { v: '676', rule: true },
+      { op: '+', v: '30', note: 'then tens' },
+      { v: '706', rule: true },
+      { op: '+', v: '8', note: 'then ones' },
+      { v: '714', rule: true },
+    ],
+    '476 plus 238 from the left: add 200 to get 676, then 30 to get 706, then 8 to get 714',
+  );
+}
+
+/** 48 × 52: spotting that both are 2 away from 50 turns it into two squares. */
 function lookFirst(): string {
-  let b = text(150, 11, '48 × 52 = ?', 't t-sm t-dim');
-  const opts: [number, number, string, boolean][] = [
-    [48, 84, 'long way', false],
-    [146, 84, 'factor', false],
-    [248, 100, 'both near 50', true],
-  ];
-  for (const [cx, w, label, pick] of opts) {
-    b += line(150, 20, cx, 33, pick ? 's-accent' : 's-rule s-dash');
-    b += rect(cx - w / 2, 34, w, 24, pick ? 'f-soft s-accent' : 'f-paper s-rule', 12);
-    b += text(cx, 46, label, pick ? 't t-sm t-accent t-b' : 't t-sm t-dim');
-  }
-  b += arrow(248, 60, 248, 72);
-  b += text(296, 86, '50² − 2² = 2,496', 't t-accent t-b t-end');
-  return svg(300, 96, b, '48 times 52: instead of the long way or factoring, notice both are near 50: 50 squared minus 2 squared is 2,496');
+  return column(
+    '48 × 52 = ?',
+    [
+      { v: '50 × 50', note: 'both are 2 from 50' },
+      { v: '2,500', rule: true },
+      { op: '−', v: '2 × 2', note: 'take off 2²' },
+      { v: '2,496', rule: true },
+    ],
+    '48 times 52: both are 2 away from 50, so it is 50 squared, 2,500, minus 2 squared, 4: 2,496',
+  );
 }
 
 /** 67 + 98: adding 98 is adding 100 and taking 2 back. */
 function hardToEasy(): string {
-  let b = box(40, 26, 72, 28, '67 + 98');
-  b += arrow(78, 26, 98, 26);
-  b += box(156, 26, 112, 28, '67 + 100 − 2');
-  b += arrow(214, 26, 240, 26);
-  b += box(268, 26, 52, 28, '165', true);
-  b += text(156, 56, '98 is 100 − 2', 't t-sm t-accent');
-  return svg(300, 66, b, '67 plus 98 becomes 67 plus 100 minus 2, which is 165');
+  return column(
+    '67 + 98 = ?',
+    [
+      { v: '67' },
+      { op: '+', v: '100', note: 'add 100 instead' },
+      { v: '167', rule: true },
+      { op: '−', v: '2', note: 'give back the 2' },
+      { v: '165', rule: true },
+    ],
+    '67 plus 98: add 100 to get 167, then take back 2 to get 165',
+  );
 }
 
-/** 36 × 25 → 9 × 100 → 900: each step smaller than the last. */
+/** 36 × 25 → 9 × 4 × 25 → 9 × 100 → 900: each line smaller than the last. */
 function simplify(): string {
-  let b = box(50, 24, 84, 32, '36 × 25');
-  b += arrow(94, 32, 110, 44);
-  b += box(150, 50, 76, 28, '9 × 100');
-  b += arrow(190, 58, 222, 68);
-  b += box(252, 74, 52, 24, '900', true);
-  b += text(150, 14, '36 = 9 × 4', 't t-sm t-accent');
-  b += text(250, 44, '4 × 25 = 100', 't t-sm t-accent');
-  return svg(300, 90, b, '36 times 25: split 36 into 9 times 4, and 4 times 25 is 100, so it is 9 times 100, 900');
+  return column(
+    '36 × 25 = ?',
+    [
+      { v: '36 × 25' },
+      { op: '=', v: '9 × 4 × 25', note: '36 is 9 × 4' },
+      { op: '=', v: '9 × 100', note: '4 × 25 is 100' },
+      { op: '=', v: '900' },
+    ],
+    '36 times 25: 36 is 9 times 4, and 4 times 25 is 100, so it is 9 times 100, 900',
+  );
 }
 
 /** 47 × 6 = 282? Both sides shrink to the same digit, 3. */
@@ -106,12 +138,12 @@ export const LESSONS: { head: string; body: string; picture: () => string }[] = 
   { head: 'Practise.', body: 'Knowing a trick is not the same as being fast at it.', picture: practise },
 ];
 
-/** The collapsible "Six lessons from the book" block on Learn. */
+/** The key takeaways on Learn: open to begin with, and can be folded away. */
 export function lessons(): HTMLElement {
   return h(
     'details',
-    { class: 'lessons', 'data-testid': 'lessons' },
-    h('summary', null, 'Six lessons from the book'),
+    { class: 'lessons', open: true, 'data-testid': 'lessons' },
+    h('summary', null, 'Key takeaways to improve mental math'),
     h(
       'ol',
       { class: 'lesson-grid' },

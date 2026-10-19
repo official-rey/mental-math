@@ -23,6 +23,10 @@ export interface Prefs {
   last?: DrillSpec;
   /** Times the Train screen has been opened; the landing layout changes after a while. */
   visits: number;
+  /** Ids of trophies earned on this device. */
+  trophies: string[];
+  /** Problems solved on this device, all time. */
+  solved: number;
 }
 
 export interface SaveResult {
@@ -67,6 +71,8 @@ export const DEFAULT_PREFS: Prefs = {
   mixed: [],
   learnCategory: 'addsub',
   visits: 0,
+  trophies: [],
+  solved: 0,
 };
 
 /** Better runs sort first. Sprint: most correct, then accuracy. Twenty: most correct, then fastest. */

@@ -36,15 +36,36 @@ class Sound {
     }
   }
 
-  correct() {
+  /** The ding climbs a semitone with each answer in a streak, up to an octave. */
+  correct(streak = 0) {
+    const k = 2 ** (Math.min(Math.max(streak - 1, 0), 12) / 12);
     this.play([
-      { f: 784, at: 0, dur: 0.08 },
-      { f: 1175, at: 0.055, dur: 0.12, gain: 0.09 },
+      { f: 784 * k, at: 0, dur: 0.08 },
+      { f: 1175 * k, at: 0.055, dur: 0.12, gain: 0.09 },
     ]);
   }
 
+  /** Soft "try again". */
   wrong() {
-    this.play([{ f: 196, at: 0, dur: 0.2, type: 'triangle', gain: 0.16, slide: 0.8 }]);
+    this.play([{ f: 220, at: 0, dur: 0.16, type: 'triangle', gain: 0.1, slide: 0.85 }]);
+  }
+
+  /** A streak milestone: a quick rising arpeggio. */
+  milestone() {
+    this.play([
+      { f: 659, at: 0, dur: 0.09 },
+      { f: 880, at: 0.07, dur: 0.09 },
+      { f: 1319, at: 0.14, dur: 0.2, gain: 0.1 },
+    ]);
+  }
+
+  /** Beating your best or your average. */
+  best() {
+    this.play([
+      { f: 784, at: 0, dur: 0.12, type: 'triangle' },
+      { f: 1047, at: 0.1, dur: 0.12, type: 'triangle' },
+      { f: 1568, at: 0.2, dur: 0.3, type: 'triangle', gain: 0.1 },
+    ]);
   }
 
   finish() {

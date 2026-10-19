@@ -34,7 +34,7 @@ export default defineTechnique({
     name: 'Choosing: C(n, k)',
     category: 'higher',
     tier: 'Core',
-    order: 10,
+    order: 80,
     idea: 'Multiply and divide in turn, × n ÷ 1, × (n − 1) ÷ 2, …, and every step is a whole number.',
   },
   card: {

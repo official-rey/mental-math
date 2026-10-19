@@ -126,9 +126,9 @@ export default defineTechnique({
   meta: {
     id: ID,
     name: 'Special angles',
-    category: 'trig',
+    category: 'higher',
     tier: 'Core',
-    order: 20,
+    order: 60,
     idea: 'Sine at 0°, 30°, 45°, 60°, 90° is √0, √1, √2, √3, √4 over 2; cosine reads the same list backwards.',
     signed: true,
   },

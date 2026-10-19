@@ -90,7 +90,7 @@ export default defineTechnique({
   meta: {
     id: ID,
     name: 'Counting divisors',
-    category: 'nt',
+    category: 'higher',
     tier: 'Core',
     order: 30,
     idea: 'Split into prime powers, add one to each exponent, and multiply.',

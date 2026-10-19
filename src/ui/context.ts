@@ -6,5 +6,5 @@ import type { SaveResult } from '../storage/store';
 export const app = {
   art: null as ArtController | null,
   /** The run that just finished, shown by the results screen. */
-  lastResult: null as { run: RunRecord; saved: SaveResult; spec: DrillSpec } | null,
+  lastResult: null as { run: RunRecord; saved: SaveResult; spec?: DrillSpec; trophies?: string[] } | null,
 };

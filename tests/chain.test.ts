@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import { bin, EvalError, evaluate, evaluateString, num, parse, print, traceSteps, type Node } from '../src/chain/evaluator';
-import { FLASH_LEVELS, flashExample, flashSource } from '../src/chain/flash';
 import { CHAIN_LEVELS, MAX_OPERAND, chainExample, chainSource, generateChain } from '../src/chain/generator';
 import { LEVELS } from '../src/techniques/types';
 import { makeRng, normalize } from '../src/techniques/util';
@@ -91,11 +90,21 @@ function leaves(n: Node): number[] {
   return [...leaves(n.left), ...leaves(n.right)];
 }
 
+/** Pairs of brackets and how deep they nest. */
+function brackets(text: string): { pairs: number; depth: number } {
+  let d = 0, max = 0, pairs = 0;
+  for (const c of text) {
+    if (c === '(') (pairs++, (max = Math.max(max, ++d)));
+    if (c === ')') d--;
+  }
+  return { pairs, depth: max };
+}
+
 describe('chain generator', () => {
   for (const level of LEVELS) {
-    it(`level ${level}: 500 chains are well-formed`, () => {
+    it(`level ${level}: 500 chains are well-formed PEMDAS practice`, () => {
       const rng = makeRng(31 + level);
-      const { ops, cap } = CHAIN_LEVELS[level];
+      const { ops, cap, groups, nested } = CHAIN_LEVELS[level];
       const texts = new Set<string>();
       for (let i = 0; i < 500; i++) {
         const c = generateChain(rng, level);
@@ -116,8 +125,14 @@ describe('chain generator', () => {
         for (const x of leaves(c.node)) expect(x).toBeLessThanOrEqual(MAX_OPERAND);
         // The printed text parses back to the same value under standard precedence.
         expect(evaluateString(c.text, { strict: true })).toBe(c.value);
+        // The order of operations matters: both kinds of operation, and the level's brackets.
+        expect(c.text).toMatch(/[+−]/);
+        expect(c.text).toMatch(/[×÷²]/);
+        const b = brackets(c.text);
+        expect(b.pairs).toBeGreaterThanOrEqual(groups);
+        if (nested) expect(b.depth).toBeGreaterThanOrEqual(2);
       }
-      expect(texts.size).toBeGreaterThan(CHAIN_LEVELS[level].small ? 120 : 400);
+      expect(texts.size).toBeGreaterThan(level === 1 ? 150 : 400);
     });
   }
 
@@ -128,42 +143,19 @@ describe('chain generator', () => {
       const steps = chainSource.steps(p);
       expect(normalize(steps[steps.length - 1].expr)).toBe(p.answer);
     }
-    expect(chainExample().answer).toBe('286');
   });
-});
 
-describe('running-total chains', () => {
-  for (const level of LEVELS) {
-    it(`level ${level}: 500 chains stay whole, small and in range`, () => {
-      const rng = makeRng(70 + level);
-      const { steps, max, cap, ops } = FLASH_LEVELS[level];
-      const seen = new Set<string>();
-      for (let i = 0; i < 500; i++) {
-        const p = flashSource.generate(rng, level);
-        const seq = p.sequence!;
-        seen.add(p.text);
-        expect(seq).toHaveLength(steps + 1);
-        let v = Number(seq[0]);
-        expect(v).toBeLessThanOrEqual(max);
-        for (const term of seq.slice(1)) {
-          const [op, n] = term.split(' ');
-          expect(ops).toContain(op);
-          const k = Number(n);
-          if (op === '+' || op === '−') expect(k).toBeLessThanOrEqual(max);
-          v = op === '+' ? v + k : op === '−' ? v - k : op === '×' ? v * k : v / k;
-          expect(Number.isInteger(v)).toBe(true);
-          expect(v).toBeGreaterThanOrEqual(0);
-          expect(v).toBeLessThanOrEqual(cap);
-        }
-        expect(String(v)).toBe(p.answer);
-        const worked = flashSource.steps(p);
-        expect(normalize(worked[worked.length - 1].expr)).toBe(p.answer);
-      }
-      expect(seen.size).toBeGreaterThan(300);
-    });
-  }
-
-  it('the example adds up', () => {
-    expect(flashExample().answer).toBe('32');
+  it('the example works brackets first, then ×, ÷, then −', () => {
+    const p = chainExample();
+    expect(p.text).toBe('(8 + 4) × 3 − 18 ÷ (2 + 4)');
+    expect(p.answer).toBe('33');
+    expect(chainSource.steps(p).map((s) => s.expr)).toEqual([
+      '(8 + 4) × 3 − 18 ÷ (2 + 4)',
+      '12 × 3 − 18 ÷ (2 + 4)',
+      '36 − 18 ÷ (2 + 4)',
+      '36 − 18 ÷ 6',
+      '36 − 3',
+      '33',
+    ]);
   });
 });

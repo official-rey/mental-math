@@ -66,7 +66,7 @@ export default defineTechnique({
     name: 'Logarithms',
     category: 'higher',
     tier: 'Advanced',
-    order: 30,
+    order: 100,
     idea: 'Know log 2, log 3 and log 7; every other log is a sum of those and whole numbers.',
     signed: true,
   },

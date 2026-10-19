@@ -170,9 +170,9 @@ export default defineTechnique({
   meta: {
     id: ID,
     name: 'Casting out nines',
-    category: 'check',
+    category: 'est',
     tier: 'Foundation',
-    order: 10,
+    order: 50,
     idea: 'Cross out 9s and digits that make 9, add the rest, and keep adding digits until one is left.',
   },
   card: {

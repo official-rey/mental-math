@@ -1,5 +1,5 @@
 import { defineTechnique } from '../define';
-import { arrowHead, circle, line, rect, svg, text } from '../svg';
+import { arrowHead, line, rect, svg, text } from '../svg';
 import type { Level, Levels, Problem, Step } from '../types';
 import { digits, fmt, nonRound } from '../util';
 
@@ -163,9 +163,6 @@ const levels = {
 /** Number of digits a level's numbers have. */
 const LENGTHS: Record<Level, readonly [number, number]> = { 1: [2, 3], 2: [3, 5], 3: [4, 6], 4: [6, 6], 5: [5, 6], 6: [6, 6] };
 
-/** A circled stage number. */
-const badge = (x: number, y: number, i: number) => circle(x, y, 9, 'f-paper s-accent') + text(x, y, i, 't t-sm t-accent');
-
 function graphic(): string {
   // 384,621 mod 7: groups 384 | 621, then 621 − 384 = 237, then 237 − 231 = 6.
   let body = '';
@@ -173,15 +170,12 @@ function graphic(): string {
   body += rect(176, 22, 84, 38, 'f-raised s-ink', 4);
   body += text(122, 41, '384', 't t-xl');
   body += text(218, 41, '621', 't t-xl');
-  body += badge(56, 41, 1);
   body += text(122, 74, 'left', 't t-sm t-dim');
   body += text(218, 74, 'right', 't t-sm t-dim');
   body += line(122, 84, 160, 106, 's-accent') + arrowHead(160, 106, 38, 22);
   body += line(218, 84, 180, 106, 's-accent') + arrowHead(180, 106, -38, 22);
-  body += badge(80, 124, 2);
   body += text(170, 124, '621 − 384 = 237', 't');
   body += line(170, 140, 170, 158, 's-accent') + arrowHead(170, 162, 0, 1);
-  body += badge(80, 180, 3);
   body += text(170, 180, '237 − 231 = 6', 't');
   body += text(170, 200, '231 is 7 × 33', 't t-sm t-dim');
   body += rect(140, 214, 60, 34, 'f-soft s-accent', 4);

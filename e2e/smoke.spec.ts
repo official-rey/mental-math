@@ -26,7 +26,10 @@ test('answers can be typed on the number pad', async ({ page }) => {
 
 test('completes a 20-problem run and records it', async ({ page }) => {
   await playTwenty(page);
-  await expect(page.getByTestId('score')).toHaveText('19');
+  // Every problem gets solved (the miss was retried), so the score is the time.
+  await expect(page.getByTestId('score')).toHaveText(/^\d+\.\d$/);
+  await expect(page.locator('.score-caption')).toHaveText('for 20/20 problems');
+  await expect(page.getByTestId('new-trophies')).toContainText('First run');
   await expect(page.getByTestId('leaderboard').locator('tbody tr')).toHaveCount(1);
   await expect(page.getByText('Personal best')).toBeVisible();
   // First time: add a name to the leaderboard; the run picks it up.
@@ -39,22 +42,42 @@ test('completes a 20-problem run and records it', async ({ page }) => {
   await expect(page.getByTestId('totals')).toContainText('20');
 });
 
-test('training: hints reveal steps one at a time; a miss shows the full solution', async ({ page }) => {
+test('training: a miss keeps the problem to retry; Show answer gives the full solution', async ({ page }) => {
   await page.goto('/?e2e=1#/drill?k=technique&ids=complements&l=2&m=training');
   await page.getByTestId('hint').tap();
   await expect(page.getByTestId('hint-steps').locator('.step')).toHaveCount(2);
-  await page.getByTestId('hint').tap();
-  await expect(page.getByTestId('hint-steps').locator('.step')).toHaveCount(3);
+  const problem = await page.getByTestId('problem').textContent();
   await answer(page, false);
+  // Same problem, a nudge, and one more line of the method.
+  await expect(page.getByTestId('feedback')).toHaveText(/try again/);
+  await expect(page.getByTestId('problem')).toHaveText(problem!);
+  await expect(page.getByTestId('hint-steps').locator('.step')).toHaveCount(3);
+  await expect(page.getByTestId('keypad')).toBeVisible();
+  await page.getByTestId('reveal').tap();
   const solution = page.getByTestId('solution');
   await expect(solution).toBeVisible();
   // Level II was chosen, but drills start at Level I: 100 − a 2-digit number.
   await expect(solution.locator('.steps .step').first()).toHaveText(/^100\s*−\s*\d+$/);
-  await expect(page.getByTestId('keypad')).toBeHidden();
   await page.getByTestId('next').tap();
   await expect(solution).toBeHidden();
   await answer(page, true);
   await expect(page.getByTestId('stat')).toHaveText('✓1 ✗1');
+});
+
+test('timed: a wrong answer is retried, and a streak shows from 3 in a row', async ({ page }) => {
+  await page.goto('/?e2e=1#/drill?k=technique&ids=times-11&l=1&m=sprint');
+  const problem = await page.getByTestId('problem').textContent();
+  await answer(page, false);
+  await expect(page.getByTestId('problem')).toHaveText(problem!);
+  await answer(page, true);
+  await expect(page.getByTestId('streak')).toBeHidden();
+  await answer(page, true);
+  await answer(page, true);
+  await answer(page, true);
+  await expect(page.getByTestId('streak')).toHaveText('3 in a row');
+  await answer(page, true);
+  await answer(page, true);
+  await expect(page.getByTestId('toast')).toHaveText('5 in a row!');
 });
 
 test('timed: pause stops the clock, skip counts as a miss', async ({ page }) => {
@@ -72,22 +95,13 @@ test('timed: pause stops the clock, skip counts as a miss', async ({ page }) => 
   expect(log[0].skipped).toBe(true);
 });
 
-test('running-total chains flash one term at a time, then take the total', async ({ page }) => {
+test('chains show the whole expression with brackets and take the final answer', async ({ page }) => {
   await page.goto('/?e2e=1#/chain');
+  await expect(page.locator('.stepper-problem')).toContainText('(8 + 4) × 3 − 18 ÷ (2 + 4)');
+  await page.getByRole('group', { name: 'Level' }).getByRole('button', { name: 'III' }).tap();
   await page.getByTestId('start-chain').click();
-  const problem = page.getByTestId('problem');
-  await expect(problem).toHaveText(/^\d+$/);
-  await expect(page.getByTestId('answer')).toHaveAttribute('readonly', '');
-  await expect(problem).toHaveText('= ?', { timeout: 15000 });
-  await answer(page, true);
-  await expect(page.getByTestId('feedback')).toHaveText(/✓/);
-});
-
-test('expression chains accept the final answer', async ({ page }) => {
-  await page.goto('/?e2e=1#/chain');
-  await page.getByRole('group', { name: 'Style' }).getByRole('button', { name: 'Expression' }).tap();
-  await page.getByTestId('start-chain').click();
-  await expect(page.getByTestId('problem')).toHaveText(/[×÷+−]/);
+  await expect(page.getByTestId('problem')).toHaveText(/[×÷²]/);
+  await expect(page.getByTestId('problem')).toHaveText(/[+−]/);
   await answer(page, true);
   await expect(page.getByTestId('feedback')).toHaveText(/✓/);
 });
@@ -191,12 +205,15 @@ test('trig drills add a minus key; negative answers can be typed on the pad', as
   throw new Error('no negative answer came up');
 });
 
-test('learn: each book lesson has its picture', async ({ page }) => {
+test('learn: the key takeaways start open, each with its picture, and fold away', async ({ page }) => {
   await page.goto('/?e2e=1#/learn');
-  await page.getByTestId('lessons').locator('summary').tap();
+  const takeaways = page.getByTestId('lessons');
+  await expect(takeaways.locator('summary')).toHaveText('Key takeaways to improve mental math');
   await expect(page.locator('.lesson .graphic')).toHaveCount(6);
   await expect(page.locator('.lesson').first()).toContainText('Work left to right.');
-  await page.getByRole('tab', { name: /Trig/ }).tap();
+  await takeaways.locator('summary').tap();
+  await expect(page.locator('.lesson').first()).toBeHidden();
+  await page.getByRole('tab', { name: /Higher math/ }).tap();
   await page.getByTestId('open-trig-special').tap();
   await expect(page.locator('.tech.open .figure-problem')).toHaveText('cos 120° = ?');
 });
