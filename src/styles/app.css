@@ -1789,3 +1789,15 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* Keep the sticky Start button above the phone tab bar. */
+.layout .sticky-go {
+  bottom: calc(64px + env(safe-area-inset-bottom));
+  z-index: 5;
+}
+
+@media (min-width: 760px) {
+  .layout .sticky-go {
+    bottom: 0;
+  }
+}

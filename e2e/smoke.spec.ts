@@ -169,3 +169,12 @@ test('landing: the first screen is the four parts and the book; the why is below
   await expect(page.getByTestId('demo').locator('.tok.is-answer')).toHaveCount(3, { timeout: 25000 });
   await expect(line).toHaveText('517');
 });
+
+test('the Train Start button is not hidden behind the tab bar', async ({ page }) => {
+  await page.goto('/?e2e=1#/train');
+  const start = await page.getByTestId('start-train').boundingBox();
+  const tabs = await page.locator('.tabbar').boundingBox();
+  expect(start!.y + start!.height).toBeLessThanOrEqual(tabs!.y + 1);
+  await page.getByTestId('start-train').tap();
+  await expect(page.getByTestId('problem')).toBeVisible();
+});
