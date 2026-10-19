@@ -40,6 +40,8 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
   const spec: DrillSpec = parsed;
   const prefs = await store.setPrefs({ last: spec });
   const usePad = prefs.keypad === 'on' || (prefs.keypad === 'auto' && matchMedia('(pointer: coarse)').matches);
+  // Trig and logs can have negative answers: offer a minus key (or a keyboard that has one).
+  const signed = spec.kind !== 'chain' && spec.ids.some((id) => getTechnique(id)?.meta.signed);
   const buzz = (ms: number) => {
     if (prefs.haptics) navigator.vibrate?.(ms);
   };
@@ -67,7 +69,7 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
   const input = h('input', {
     class: 'answer',
     type: 'text',
-    inputmode: usePad ? 'none' : 'decimal',
+    inputmode: usePad ? 'none' : signed ? 'text' : 'decimal',
     autocomplete: 'off',
     autocorrect: 'off',
     autocapitalize: 'off',
@@ -98,7 +100,7 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
     }
   }
   const toolbar = h('div', { class: 'toolbar' }, tools);
-  const dock = h('div', { class: `dock${usePad ? ' with-pad' : ''}` }, toolbar, usePad ? keypad(onKey) : null);
+  const dock = h('div', { class: `dock${usePad ? ' with-pad' : ''}` }, toolbar, usePad ? keypad(onKey, signed) : null);
 
   const doneBtn = timed ? null : h('button', { class: 'iconbtn done', type: 'button', 'data-testid': 'done', onclick: () => end() }, 'Done');
 

@@ -170,6 +170,37 @@ test('landing: the first screen is the four parts and the book; the why is below
   await expect(line).toHaveText('517');
 });
 
+test('trig drills add a minus key; negative answers can be typed on the pad', async ({ page }) => {
+  await page.goto('/?e2e=1#/drill?k=technique&ids=mul-2x1&l=1&m=training');
+  await expect(page.locator('[data-key="neg"]')).toHaveCount(0);
+  await page.goto('/?e2e=1#/drill?k=technique&ids=trig-special&l=4&m=training');
+  // Answer the easy problems until the drill climbs to Level IV, where signs come in; type a negative one.
+  for (let i = 0; i < 40; i++) {
+    const answer = await page.evaluate(() => (window as unknown as { __mm: { answer(): string } }).__mm.answer());
+    if (answer.startsWith('-')) {
+      await page.locator('[data-key="neg"]').tap();
+      for (const d of answer.slice(1)) await page.locator(`[data-key="${d}"]`).tap();
+      await expect(page.getByTestId('answer')).toHaveValue(`−${answer.slice(1)}`);
+      await page.locator('[data-key="enter"]').tap();
+      await expect(page.getByTestId('feedback')).toHaveText(/✓ −/);
+      return;
+    }
+    await page.getByTestId('answer').fill(answer);
+    await page.getByTestId('answer').press('Enter');
+  }
+  throw new Error('no negative answer came up');
+});
+
+test('learn: each book lesson has its picture', async ({ page }) => {
+  await page.goto('/?e2e=1#/learn');
+  await page.getByTestId('lessons').locator('summary').tap();
+  await expect(page.locator('.lesson .graphic')).toHaveCount(6);
+  await expect(page.locator('.lesson').first()).toContainText('Work left to right.');
+  await page.getByRole('tab', { name: /Trig/ }).tap();
+  await page.getByTestId('open-trig-special').tap();
+  await expect(page.locator('.tech.open .figure-problem')).toHaveText('cos 120° = ?');
+});
+
 test('the Train Start button is not hidden behind the tab bar', async ({ page }) => {
   await page.goto('/?e2e=1#/train');
   const start = await page.getByTestId('start-train').boundingBox();

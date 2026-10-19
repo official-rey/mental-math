@@ -41,7 +41,7 @@ export default defineTechnique({
   meta: {
     id: ID,
     name: 'Squaring by going up and down',
-    category: 'mul',
+    category: 'pow',
     tier: 'Core',
     order: 70,
     idea: 'Go to the nearest ten and the same distance the other way, multiply those, then add the distance squared.',

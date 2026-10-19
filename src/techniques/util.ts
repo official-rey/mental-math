@@ -65,6 +65,18 @@ export function isCorrect(p: Problem, input: string): boolean {
   return got === normalize(p.answer);
 }
 
+const SUPERSCRIPT = '⁰¹²³⁴⁵⁶⁷⁸⁹';
+
+/** Exponent as superscript digits: 13 → "¹³". */
+export function sup(n: number): string {
+  return String(n).replace(/\d/g, (d) => SUPERSCRIPT[Number(d)]);
+}
+
+export function gcd(a: number, b: number): number {
+  while (b) [a, b] = [b, a % b];
+  return Math.abs(a);
+}
+
 /** Digits of a non-negative integer, most significant first. */
 export function digits(n: number): number[] {
   return String(Math.abs(Math.trunc(n))).split('').map(Number);

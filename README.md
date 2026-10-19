@@ -24,7 +24,7 @@ First Playwright run needs a browser: `npx playwright install chromium`.
 
 Create one file, `src/techniques/catalog/<id>.ts`, that default-exports `defineTechnique({...})`. The registry picks it up automatically. Copy `mul-2x1.ts` as a starting point. A technique provides:
 
-- `meta`: id (same as the file name), name, category, tier, sort order, one-line idea.
+- `meta`: id (same as the file name), name, category (one of the groups in `src/techniques/types.ts`), tier, sort order, one-line idea, and `signed: true` if some answers are negative (drills then show a minus key).
 - `card`: up to three short lines of prose, an `example` problem, a `graphic()` returning inline SVG built from `src/techniques/svg.ts` (theme classes only, no hard-coded colors), and a caption.
 - `levels`: a label and inclusive bounds for each value in `Problem.data`, for levels 1–6 (I is the gentlest, VI the hardest).
 - `generate(rng, level)`: returns a `Problem` with the display text, the answer as a plain number string, and its data.
@@ -40,7 +40,7 @@ src/techniques/   registry, types, SVG kit, one module per technique in catalog/
 src/chain/        expression parser/evaluator, expression chains and running-total chains
 src/drill/        drill engine, sounds, drill specs
 src/storage/      Store interface + localStorage implementation (swap for a backend later)
-src/share/        score card PNG, GIF replay, Web Share / download
-src/ui/           screens: home, Learn, Train, Challenge, Chains, Stats, Settings, drill (with number pad), results
-src/art/          times-table plate, margin art (wide screens only)
+src/share/        score card PNG and GIF replay, saved to the device
+src/ui/           screens: home, Learn (with the book's six lessons), Train, Challenge, Chains, Stats, Settings, drill (with number pad), results
+src/art/          landing plate (animated only while on screen), background grid and margin columns (CSS transforms, no per-frame script)
 ```

@@ -55,7 +55,7 @@ export default defineTechnique({
   meta: {
     id: ID,
     name: '3-digit squares',
-    category: 'mul',
+    category: 'pow',
     tier: 'Advanced',
     order: 160,
     idea: 'Go to the nearest hundred and the same distance the other way, multiply those, then add the distance squared.',

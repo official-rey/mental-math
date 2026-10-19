@@ -82,8 +82,27 @@ export function processReel(): { el: HTMLElement; destroy(): void } {
   const spoken = h('span', { class: 'sr-only', 'aria-live': 'polite' });
   const stage = h('div', { class: 'morph-stage' }, line);
   const el = h('div', { class: 'demo', 'data-testid': 'demo' }, name, problem, stage, spoken);
-  const timers: number[] = [];
-  const later = (ms: number, f: () => void) => timers.push(window.setTimeout(f, ms));
+  const timers = new Set<number>();
+  const later = (ms: number, f: () => void) => {
+    const id = window.setTimeout(() => {
+      timers.delete(id);
+      f();
+    }, ms);
+    timers.add(id);
+  };
+  // The demo sits below the fold: it starts when scrolled into view and waits while away.
+  let visible = false;
+  let queued: (() => void) | null = null;
+  const whenVisible = (f: () => void) => (visible ? f() : (queued = f));
+  const io = new IntersectionObserver(([entry]) => {
+    visible = entry.isIntersecting;
+    if (visible && queued) {
+      const f = queued;
+      queued = null;
+      f();
+    }
+  });
+  io.observe(el);
 
   function render(tokens: Token[], final: boolean): Map<string, HTMLElement> {
     const map = new Map<string, HTMLElement>();
@@ -163,9 +182,15 @@ export function processReel(): { el: HTMLElement; destroy(): void } {
         later(450, () => play(i + 1));
       });
     };
-    later(HOLD, step);
+    whenVisible(() => later(HOLD, step));
   }
 
   play(0);
-  return { el, destroy: () => timers.forEach(clearTimeout) };
+  return {
+    el,
+    destroy: () => {
+      timers.forEach(clearTimeout);
+      io.disconnect();
+    },
+  };
 }

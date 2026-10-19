@@ -6,14 +6,19 @@ export const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI'] as const;
 /** Where a technique sits in the overall catalog. */
 export type Tier = 'Foundation' | 'Core' | 'Advanced';
 
-export type CategoryId = 'addsub' | 'mul' | 'div' | 'est' | 'check';
+export type CategoryId = 'addsub' | 'mul' | 'div' | 'pow' | 'est' | 'check' | 'nt' | 'trig' | 'higher';
 
+/** Learn and Train list the groups in this order. Number theory, trigonometry and higher math go beyond the book. */
 export const CATEGORIES: { id: CategoryId; name: string }[] = [
   { id: 'addsub', name: 'Addition & subtraction' },
   { id: 'mul', name: 'Multiplication' },
   { id: 'div', name: 'Division' },
+  { id: 'pow', name: 'Powers & roots' },
   { id: 'est', name: 'Estimation' },
   { id: 'check', name: 'Checking' },
+  { id: 'nt', name: 'Number theory' },
+  { id: 'trig', name: 'Trigonometry' },
+  { id: 'higher', name: 'Higher math' },
 ];
 
 export interface Problem {
@@ -22,7 +27,7 @@ export interface Problem {
   level: Level;
   /** What the player sees, e.g. "47 × 6". */
   text: string;
-  /** Canonical answer as a plain number string: "282", "12.6", "0.428571". */
+  /** Canonical answer as a plain number string: "282", "12.6", "0.428571", "-0.5". */
   answer: string;
   /** Operands and any other generator choices; checked against level bounds in tests. */
   data: Record<string, number>;
@@ -73,6 +78,8 @@ export interface Technique {
     order: number;
     /** One-line core idea. */
     idea: string;
+    /** Some answers are negative, so drills offer a minus key. */
+    signed?: boolean;
   };
   card: {
     /** At most 3 short lines of prose. */

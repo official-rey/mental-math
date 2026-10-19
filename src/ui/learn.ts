@@ -3,6 +3,7 @@ import { byCategory, techniques } from '../techniques/registry';
 import type { CategoryId, Technique, Tier } from '../techniques/types';
 import { cardBody } from './card';
 import { h } from './dom';
+import { lessons } from './lessons';
 import type { View } from './router';
 import { layout } from './shell';
 
@@ -10,40 +11,15 @@ const SHORT: Record<CategoryId, { label: string; glyph: string }> = {
   addsub: { label: 'Add & subtract', glyph: '±' },
   mul: { label: 'Multiply', glyph: '×' },
   div: { label: 'Divide', glyph: '÷' },
+  pow: { label: 'Powers & roots', glyph: '√' },
   est: { label: 'Estimate', glyph: '≈' },
   check: { label: 'Check', glyph: '✓' },
+  nt: { label: 'Number theory', glyph: '≡' },
+  trig: { label: 'Trig', glyph: 'θ' },
+  higher: { label: 'Higher math', glyph: 'Σ' },
 };
 
 const TIERS: Tier[] = ['Foundation', 'Core', 'Advanced'];
-
-/** The book's big lessons, in our own words, with one short quote. */
-const LESSONS: [string, string][] = [
-  ['Work left to right.', 'Start with the biggest part. You find the answer in the order you say it.'],
-  ['Look before you calculate.', 'Near a round number? Close together? Easy to factor? Pick the method that makes it easy.'],
-  ['Turn hard into easy.', 'A hard addition can be an easy subtraction, and the other way round.'],
-  ['Keep simplifying.', 'Break any big problem into small steps you can hold in your head.'],
-  ['Check your answer.', 'Casting out nines catches most slips in a few seconds.'],
-  ['Practise.', 'Knowing a trick is not the same as being fast at it.'],
-];
-
-function lessons(): HTMLElement {
-  return h(
-    'details',
-    { class: 'lessons', 'data-testid': 'lessons' },
-    h('summary', null, 'Six lessons from the book'),
-    h(
-      'ol',
-      null,
-      LESSONS.map(([head, body]) => h('li', null, h('b', null, head), ' ', body)),
-    ),
-    h(
-      'figure',
-      { class: 'lesson-quote' },
-      h('blockquote', null, '“It’s never too late to start looking at numbers in a new way.”'),
-      h('figcaption', null, '— Arthur T. Benjamin, ', h('i', null, 'The Secrets of Mental Math')),
-    ),
-  );
-}
 
 /**
  * Learn only teaches: techniques by group, each opening in place with its idea, a worked

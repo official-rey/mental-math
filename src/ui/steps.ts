@@ -40,7 +40,7 @@ function splitTop(expr: string, ops: string[]): Line[] | null {
  * or special notation stay on one line.
  */
 export function stack(expr: string): Line[] {
-  if (/[a-zA-Z|%→]|,\s/.test(expr)) return [{ op: '', term: expr }];
+  if (/[a-zA-Z|%→…]|,\s/.test(expr)) return [{ op: '', term: expr }];
   const eq = expr.split(' = ');
   if (eq.length === 2) return [...stack(eq[0]), { op: '', term: eq[1], rule: true }];
   return splitTop(expr, SPLIT_ADD) ?? splitTop(expr, SPLIT_MUL) ?? [{ op: '', term: expr }];

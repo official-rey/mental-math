@@ -48,7 +48,7 @@ export default defineTechnique({
   meta: {
     id: ID,
     name: 'Squares near 50',
-    category: 'mul',
+    category: 'pow',
     tier: 'Core',
     order: 60,
     idea: 'First digits: 25 plus the distance from 50. Last two digits: the distance squared.',

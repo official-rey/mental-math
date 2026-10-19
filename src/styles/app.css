@@ -556,6 +556,10 @@
   grid-column: 1 / span 2;
 }
 
+.keypad.signed .key.zero {
+  grid-column: auto;
+}
+
 .paused-cover {
   position: absolute;
   inset: 0;
@@ -1582,20 +1586,40 @@
   content: '+';
 }
 
-.lessons ol {
+.lesson-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  gap: 10px;
   margin: 0;
-  padding-left: 1.4em;
+  padding: 0;
+  list-style: none;
   font-size: 16px;
   line-height: 1.4;
 }
 
-.lessons li {
-  margin-bottom: 7px;
+.lesson {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px 12px;
+  background: var(--paper);
+  border: 1px solid var(--rule);
 }
 
-.lessons li::marker {
-  font-family: var(--f-mono);
+.lesson-art .graphic {
+  max-width: none;
+  height: 92px;
+  margin: 0;
+}
+
+.lesson p {
+  margin: 0;
+}
+
+.lesson-n {
+  margin-right: 8px;
   color: var(--accent);
+  font-weight: 600;
 }
 
 .lesson-quote {

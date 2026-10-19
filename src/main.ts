@@ -16,7 +16,7 @@ import { homeView } from './ui/home';
 import { challengeView, trainView } from './ui/practice';
 import { startRouter } from './ui/router';
 
-app.art = startArt(document.getElementById('art') as HTMLCanvasElement);
+app.art = startArt(document.getElementById('art')!);
 
 store.getPrefs().then((p) => {
   sound.muted = p.muted;

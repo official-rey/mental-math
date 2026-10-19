@@ -67,9 +67,9 @@ export default defineTechnique({
   meta: {
     id: ID,
     name: 'Estimating square roots',
-    category: 'est',
+    category: 'pow',
     tier: 'Core',
-    order: 30,
+    order: 90,
     idea: 'Start from the nearest square root, then add the leftover divided by twice that root.',
   },
   card: {

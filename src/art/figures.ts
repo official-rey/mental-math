@@ -56,17 +56,23 @@ export function drawTimesTable(
     ctx.stroke(path);
   });
 
-  // Points
+  // Points, filled in one go.
   ctx.globalAlpha = 0.55 * a;
   ctx.fillStyle = o.colors.ink;
   const step = n > 150 ? Math.ceil(n / 120) : 1;
+  const dots = new Path2D();
   for (let i = 0; i < n; i += step) {
     const [x, y] = P(i);
-    ctx.beginPath();
-    ctx.arc(x, y, 1.1 * w, 0, TAU);
-    ctx.fill();
+    dot(dots, x, y, 1.1 * w);
   }
+  ctx.fill(dots);
   ctx.restore();
+}
+
+/** Adds a filled circle to a path, so many dots can be filled with one call. */
+function dot(path: Path2D, x: number, y: number, r: number) {
+  path.moveTo(x + r, y);
+  path.arc(x, y, r, 0, TAU);
 }
 
 /** Blend two #rrggbb colors; t = 0 gives a, t = 1 gives b. */
@@ -83,18 +89,20 @@ export function drawPhyllotaxis(
 ) {
   const shown = Math.floor(o.count * (o.progress ?? 1));
   const c = o.r / Math.sqrt(o.count);
-  ctx.save();
+  const plain = new Path2D(), hot = new Path2D();
   for (let i = 1; i < shown; i++) {
     const rad = c * Math.sqrt(i);
     const t = i * GOLDEN_ANGLE;
-    const x = o.cx + rad * Math.cos(t), y = o.cy + rad * Math.sin(t);
-    const hot = i % 21 === 0 || i % 13 === 0;
-    ctx.beginPath();
-    ctx.arc(x, y, (hot ? 1.9 : 1.4) * (0.55 + (0.45 * rad) / o.r), 0, TAU);
-    ctx.fillStyle = hot ? o.colors.accent : o.colors.rule;
-    ctx.globalAlpha = (hot ? 0.7 : 1) * (o.alpha ?? 1);
-    ctx.fill();
+    const isHot = i % 21 === 0 || i % 13 === 0;
+    dot(isHot ? hot : plain, o.cx + rad * Math.cos(t), o.cy + rad * Math.sin(t), (isHot ? 1.9 : 1.4) * (0.55 + (0.45 * rad) / o.r));
   }
+  ctx.save();
+  ctx.fillStyle = o.colors.rule;
+  ctx.globalAlpha = o.alpha ?? 1;
+  ctx.fill(plain);
+  ctx.fillStyle = o.colors.accent;
+  ctx.globalAlpha = 0.7 * (o.alpha ?? 1);
+  ctx.fill(hot);
   ctx.restore();
 }
 
@@ -152,16 +160,11 @@ export function drawUlam(
   const shown = Math.floor(total * (o.progress ?? 1));
   const cell = o.size / o.side;
   let x = 0, y = 0, dx = 1, dy = 0, run = 1, left = 1, turns = 0;
-  ctx.save();
-  ctx.globalAlpha = o.alpha ?? 1;
+  // Primes of the form 4k + 1 in accent, the rest in ink: one fill per color.
+  const one = new Path2D(), three = new Path2D();
+  const r = Math.max(0.8, cell * 0.4);
   for (let n = 1; n <= shown; n++) {
-    const px = o.cx + x * cell, py = o.cy + y * cell;
-    if (isPrime(n)) {
-      ctx.fillStyle = n % 4 === 1 ? o.colors.accent : o.colors.ink;
-      ctx.beginPath();
-      ctx.arc(px, py, Math.max(0.8, cell * 0.4), 0, TAU);
-      ctx.fill();
-    }
+    if (isPrime(n)) dot(n % 4 === 1 ? one : three, o.cx + x * cell, o.cy + y * cell, r);
     x += dx;
     y += dy;
     if (--left === 0) {
@@ -171,6 +174,12 @@ export function drawUlam(
       left = run;
     }
   }
+  ctx.save();
+  ctx.globalAlpha = o.alpha ?? 1;
+  ctx.fillStyle = o.colors.accent;
+  ctx.fill(one);
+  ctx.fillStyle = o.colors.ink;
+  ctx.fill(three);
   ctx.restore();
 }
 
@@ -195,27 +204,31 @@ export function drawPascal(
   const shownRows = Math.floor(o.rows * (o.progress ?? 1));
   const cell = o.size / o.rows;
   let row = [1];
-  ctx.save();
-  ctx.globalAlpha = o.alpha ?? 1;
+  // Entries ≡ 1 in accent, the other non-zero ones in ink: one fill per color.
+  const ones = new Path2D(), rest = new Path2D();
   for (let n = 0; n < shownRows; n++) {
     const y = o.top + n * cell * 0.9;
     for (let k = 0; k <= n; k++) {
       const r = row[k];
       if (r === 0) continue;
       const x = o.cx + (k - n / 2) * cell;
-      ctx.fillStyle = r === 1 ? o.colors.accent : o.colors.ink;
-      ctx.globalAlpha = (o.alpha ?? 1) * (r === 1 ? 0.9 : 0.55);
-      ctx.beginPath();
-      ctx.moveTo(x, y - cell * 0.42);
-      ctx.lineTo(x + cell * 0.45, y + cell * 0.36);
-      ctx.lineTo(x - cell * 0.45, y + cell * 0.36);
-      ctx.closePath();
-      ctx.fill();
+      const path = r === 1 ? ones : rest;
+      path.moveTo(x, y - cell * 0.42);
+      path.lineTo(x + cell * 0.45, y + cell * 0.36);
+      path.lineTo(x - cell * 0.45, y + cell * 0.36);
+      path.closePath();
     }
     const next = [1];
     for (let k = 1; k <= n; k++) next.push((row[k - 1] + row[k]) % o.p);
     next.push(1);
     row = next;
   }
+  ctx.save();
+  ctx.fillStyle = o.colors.accent;
+  ctx.globalAlpha = (o.alpha ?? 1) * 0.9;
+  ctx.fill(ones);
+  ctx.fillStyle = o.colors.ink;
+  ctx.globalAlpha = (o.alpha ?? 1) * 0.55;
+  ctx.fill(rest);
   ctx.restore();
 }

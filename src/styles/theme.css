@@ -41,13 +41,136 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
+/*
+ * Background art. Only transforms animate, on their own layers, so the compositor moves
+ * them without repainting and without any script running per frame.
+ */
 #art {
   position: fixed;
   inset: 0;
-  width: 100%;
-  height: 100%;
   pointer-events: none;
   z-index: 0;
+  overflow: hidden;
+  contain: strict;
+}
+
+#art.is-off {
+  display: none;
+}
+
+/* Graph paper, faded to a trace behind the reading column. */
+.art-paper {
+  --half: min(50%, calc(var(--measure) / 2));
+  --fade: linear-gradient(
+    to right,
+    #000 calc(50% - var(--half) - 160px),
+    rgb(0 0 0 / 0.12) calc(50% - var(--half)),
+    rgb(0 0 0 / 0.12) calc(50% + var(--half)),
+    #000 calc(50% + var(--half) + 160px)
+  );
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  -webkit-mask-image: var(--fade);
+  mask-image: var(--fade);
+}
+
+/* One major cell (130px) larger than the screen on the top and left; drifting by exactly one cell loops seamlessly. */
+.art-grid {
+  --major: color-mix(in srgb, var(--rule) 60%, transparent);
+  --minor: color-mix(in srgb, var(--rule) 30%, transparent);
+  position: absolute;
+  inset: -130px 0 0 -130px;
+  background-image:
+    linear-gradient(to right, var(--major) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--major) 1px, transparent 1px),
+    linear-gradient(to right, var(--minor) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--minor) 1px, transparent 1px);
+  background-size:
+    130px 130px,
+    130px 130px,
+    26px 26px,
+    26px 26px;
+  will-change: transform;
+  animation: grid-drift 26s linear infinite;
+}
+
+@keyframes grid-drift {
+  to {
+    transform: translate3d(130px, 130px, 0);
+  }
+}
+
+/* Worked results scrolling up the empty side margins on wide screens. */
+.art-col {
+  --fade: linear-gradient(transparent, #000 140px, #000 calc(100% - 140px), transparent);
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: calc((100% - var(--measure)) / 2);
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+  -webkit-mask-image: var(--fade);
+  mask-image: var(--fade);
+  font: 14px/40px var(--f-mono);
+  white-space: nowrap;
+}
+
+.art-col.left {
+  left: 0;
+}
+
+.art-col.right {
+  right: 0;
+}
+
+/* 48 lines of 40px, listed twice: scrolling by half (1,920px) at 9px a second loops seamlessly. */
+.art-track {
+  will-change: transform;
+  animation: art-scroll 213s linear infinite;
+}
+
+.art-col.right .art-track {
+  animation-delay: -107s;
+}
+
+.art-track div {
+  height: 40px;
+  text-align: center;
+}
+
+.art-track span {
+  color: color-mix(in srgb, var(--dim) 32%, transparent);
+}
+
+.art-track b {
+  font-weight: 400;
+  color: color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+@keyframes art-scroll {
+  to {
+    transform: translate3d(0, -50%, 0);
+  }
+}
+
+@media (max-width: 1099px) {
+  .art-col {
+    display: none;
+  }
+}
+
+#art.is-paused .art-grid,
+#art.is-paused .art-track {
+  animation-play-state: paused;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .art-grid,
+  .art-track {
+    animation: none !important;
+  }
 }
 
 #app {

@@ -33,7 +33,7 @@ export default defineTechnique({
   meta: {
     id: ID,
     name: 'Squaring numbers ending in 5',
-    category: 'mul',
+    category: 'pow',
     tier: 'Foundation',
     order: 50,
     idea: 'Drop the 5, multiply what is left by the next number up, then write 25 after it.',

@@ -12,7 +12,8 @@ function fail(t: Technique, p: Problem, msg: string): never {
 
 /** The answer matches an independent evaluation, and the worked steps end on it. */
 function checkProblem(t: Technique, p: Problem) {
-  if (!/^\d+(\.\d+)?$/.test(p.answer)) fail(t, p, `answer "${p.answer}" is not a plain non-negative number`);
+  if (!/^-?\d+(\.\d+)?$/.test(p.answer) || p.answer === '-0') fail(t, p, `answer "${p.answer}" is not a plain number`);
+  if (p.answer.startsWith('-') && !t.meta.signed) fail(t, p, 'negative answer from a technique not marked signed');
   if (!p.text || /NaN|undefined|Infinity/.test(p.text)) fail(t, p, 'bad text');
 
   const ref = t.reference ? t.reference(p) : evaluateString(p.expr ?? p.text);

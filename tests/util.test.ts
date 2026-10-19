@@ -44,4 +44,15 @@ describe('number pad', () => {
     expect(applyKey('123', 'enter')).toBeNull();
     expect(applyKey('123456789012', '3')).toBe('123456789012');
   });
+
+  it('the minus key toggles the sign, and signed answers are checked', () => {
+    let v = '';
+    for (const k of ['neg', '.', '8', '6', '6'] as const) v = applyKey(v, k)!;
+    expect(v).toBe('−0.866');
+    expect(applyKey(v, 'neg')).toBe('0.866');
+    expect(applyKey('−0', '5')).toBe('−5');
+    expect(isCorrect(P('-0.866', 0.001), v)).toBe(true);
+    expect(isCorrect(P('-0.866', 0.001), '0.866')).toBe(false);
+    expect(isCorrect(P('-1.398', 0.003), '-1.4')).toBe(true);
+  });
 });

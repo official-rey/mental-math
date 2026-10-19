@@ -1,7 +1,7 @@
 import { h } from './dom';
 import { ICONS } from './icons';
 
-export type PadKey = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '.' | 'back' | 'clear' | 'enter';
+export type PadKey = '0' | '1' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '.' | 'neg' | 'back' | 'clear' | 'enter';
 
 const LAYOUT: { key: PadKey; label: string; cls?: string; aria?: string }[] = [
   // Phone order: 1 2 3 on top, 7 8 9 at the bottom.
@@ -21,12 +21,18 @@ const LAYOUT: { key: PadKey; label: string; cls?: string; aria?: string }[] = [
   { key: '.', label: '.', aria: 'Decimal point' },
 ];
 
-/** Phone-style number pad. Buttons never take focus, so the answer field keeps its caret. */
-export function keypad(onKey: (k: PadKey) => void): HTMLElement {
+const NEG = { key: 'neg', label: '−', cls: 'fn', aria: 'Minus sign' } as const;
+
+/**
+ * Phone-style number pad. Buttons never take focus, so the answer field keeps its caret.
+ * With `sign`, a minus key takes half of the wide 0 for drills whose answers can be negative.
+ */
+export function keypad(onKey: (k: PadKey) => void, sign = false): HTMLElement {
+  const keys = sign ? [...LAYOUT.slice(0, 12), NEG, ...LAYOUT.slice(12)] : LAYOUT;
   return h(
     'div',
-    { class: 'keypad', role: 'group', 'aria-label': 'Number pad', 'data-testid': 'keypad' },
-    LAYOUT.map((k) => {
+    { class: `keypad${sign ? ' signed' : ''}`, role: 'group', 'aria-label': 'Number pad', 'data-testid': 'keypad' },
+    keys.map((k) => {
       const b = h('button', {
         type: 'button',
         class: `key ${k.cls ?? ''}`,
@@ -48,7 +54,9 @@ export function applyKey(value: string, key: PadKey): string | null {
   if (key === 'enter') return null;
   if (key === 'back') return value.slice(0, -1);
   if (key === 'clear') return '';
-  if (key === '.') return value.includes('.') ? value : (value || '0') + '.';
-  if (value.replace('.', '').length >= 12) return value;
-  return value === '0' ? key : value + key;
+  if (key === 'neg') return value.startsWith('−') ? value.slice(1) : '−' + value;
+  if (key === '.') return value.includes('.') ? value : (value === '' || value === '−' ? value + '0' : value) + '.';
+  if (value.replace(/[.−]/g, '').length >= 12) return value;
+  if (value === '0') return key;
+  return value === '−0' ? '−' + key : value + key;
 }
