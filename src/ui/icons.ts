@@ -11,6 +11,7 @@ export const ICONS = {
   settings: icon('<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>'),
   challenge: icon('<circle cx="12" cy="13.5" r="7.5"/><path d="M12 13.5V9.5M10 3h4M18.5 6.5l1.5-1.5"/>'),
   chains: icon('<path d="M10 14a4 4 0 0 0 5.66 0l3-3a4 4 0 0 0-5.66-5.66l-1 1"/><path d="M14 10a4 4 0 0 0-5.66 0l-3 3a4 4 0 0 0 5.66 5.66l1-1"/>'),
+  info: icon('<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/>'),
   pause: icon('<path d="M9 6v12M15 6v12"/>'),
   play: icon('<path d="M8 5.5l11 6.5-11 6.5z"/>'),
   skip: icon('<path d="M6 6l7 6-7 6zM16 6v12"/>'),

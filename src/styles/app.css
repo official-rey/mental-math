@@ -1616,3 +1616,112 @@
   font-size: 14px;
   color: var(--dim);
 }
+
+/* ---------- Home: one button per part ---------- */
+
+.mode-btn {
+  justify-content: flex-start;
+  gap: 14px;
+  min-height: 60px;
+  padding: 0 18px;
+  font-size: 19px;
+}
+
+.mode-btn .mode-label {
+  flex: 1;
+  text-align: left;
+}
+
+.mode-btn .mode-icon svg {
+  display: block;
+  width: 22px;
+  height: 22px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 1.6;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.first-screen .actions {
+  gap: 10px;
+}
+
+/* ---------- Learn ---------- */
+
+.tech-head {
+  grid-template-columns: 2.4ch 1fr 20px;
+  padding: 15px 0;
+}
+
+.tech-idea {
+  margin: 0 0 10px;
+  font-size: 17px;
+  color: var(--ink);
+}
+
+.tech-body {
+  padding-left: 0;
+}
+
+/* ---------- Train: solved counts ---------- */
+
+.picklist .solved {
+  font-size: 13px;
+  color: var(--ok);
+  min-width: 2.5ch;
+  text-align: right;
+}
+
+.picklist .solved.none {
+  color: var(--rule);
+}
+
+.menu-row.selection {
+  margin: 4px 0 16px;
+  border-top: 1px solid var(--ink);
+}
+
+/* ---------- Lesson sheet in a drill ---------- */
+
+.lesson-sheet {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  background: rgba(43, 38, 32, 0.35);
+}
+
+.sheet-inner {
+  width: min(100%, 560px);
+  max-height: 85dvh;
+  overflow-y: auto;
+  background: var(--paper);
+  border-top: 2px solid var(--ink);
+  padding: 8px 16px calc(18px + env(safe-area-inset-bottom));
+  animation: rise 0.25s both;
+}
+
+.sheet-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.sheet-head h2 {
+  font-size: 20px;
+}
+
+.tech-head {
+  width: 100%;
+}
+
+.menu-row.selection .menu-title {
+  flex: 1;
+}
+
+.quick-picks {
+  margin-left: 0;
+}

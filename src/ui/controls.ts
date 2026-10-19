@@ -62,16 +62,8 @@ export function drillControls(
   );
 }
 
-/** Level picker on its own (I–VI), with a line describing the chosen level. */
-export function levelControl(
-  init: Level,
-  onChange: (l: Level) => void,
-  describe: (l: Level) => string,
-): HTMLElement {
-  const desc = h('div', { class: 'level-desc mono dim' }, describe(init));
-  const seg = segmented('Level', LEVELS.map((l) => ({ value: l, label: ROMAN[l] })), init, (l) => {
-    desc.textContent = describe(l);
-    onChange(l);
-  });
-  return h('div', { class: 'controls' }, h('div', { class: 'control' }, h('span', { class: 'control-label' }, 'Level'), seg), desc);
+/** Level picker on its own (I–VI). */
+export function levelControl(init: Level, onChange: (l: Level) => void): HTMLElement {
+  const seg = segmented('Level', LEVELS.map((l) => ({ value: l, label: ROMAN[l] })), init, onChange);
+  return h('div', { class: 'controls' }, h('div', { class: 'control' }, h('span', { class: 'control-label' }, 'Level'), seg));
 }

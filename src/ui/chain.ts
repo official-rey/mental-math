@@ -1,9 +1,8 @@
 import { evaluate, print, type Node } from '../chain/evaluator';
-import { FLASH_LEVELS, flashExample, flashSteps } from '../chain/flash';
-import { CHAIN_LEVELS, chainExample, chainExampleNode, chainSteps } from '../chain/generator';
+import { flashExample, flashSteps } from '../chain/flash';
+import { chainExample, chainExampleNode, chainSteps } from '../chain/generator';
 import { specToHash } from '../drill/spec';
 import { MODES, type ChainStyle, type Mode } from '../drill/types';
-import type { Level } from '../techniques/types';
 import { store } from '../storage/store';
 import { circle, line, svg, text } from '../techniques/svg';
 import { levelControl, segmented } from './controls';
@@ -63,31 +62,23 @@ export async function chainView(): Promise<View> {
   const btn = h('a', { class: 'btn primary big block', 'data-testid': 'start-chain' }, 'Start', h('span', { class: 'arrow' }, '→'));
   const setHref = () => btn.setAttribute('href', specToHash({ kind: 'chain', ids: [], level, mode, style }));
 
-  const intro = h('p', { class: 'lede' });
   const example = h('div', { class: 'chain-example' });
-  const levelDesc = (l: Level) => (style === 'flash' ? FLASH_LEVELS[l].label : CHAIN_LEVELS[l].label);
   const levelHost = h('div');
 
   function paint() {
     if (style === 'flash') {
-      intro.textContent = 'Numbers and operations appear one at a time. Keep the running total in your head and type it at the end.';
       example.replaceChildren(renderStepper(flashSteps(flashExample())));
     } else {
-      intro.textContent = 'One whole expression. Parentheses first, then squares, then × and ÷, then + and −.';
       const figure = h('figure', { class: 'figure' });
       figure.innerHTML = treeSvg(chainExampleNode());
       example.replaceChildren(renderStepper(chainSteps(chainExample())), figure);
     }
     levelHost.replaceChildren(
-      levelControl(
-        level,
-        (l) => {
-          level = l;
-          store.setPrefs({ level: l });
-          setHref();
-        },
-        levelDesc,
-      ),
+      levelControl(level, (l) => {
+        level = l;
+        store.setPrefs({ level: l });
+        setHref();
+      }),
     );
     setHref();
   }
@@ -117,7 +108,6 @@ export async function chainView(): Promise<View> {
       { class: 'card' },
       h('h1', { class: 'display' }, 'Chains'),
       h('div', { class: 'controls' }, h('div', { class: 'control' }, h('span', { class: 'control-label' }, 'Style'), styles)),
-      intro,
       example,
       levelHost,
       h('div', { class: 'controls' }, h('div', { class: 'control' }, h('span', { class: 'control-label' }, 'Clock'), modes)),

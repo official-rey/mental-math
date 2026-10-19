@@ -65,8 +65,8 @@ export async function statsView(): Promise<View> {
       el: layout(
         { active: 'stats' },
         h('h1', { class: 'display' }, 'Stats'),
-        h('p', { class: 'lede' }, 'Nothing here yet. Finish a drill and its score, accuracy and timing show up here.'),
-        h('a', { class: 'btn primary block', href: '#/' }, 'Go to Train', h('span', { class: 'arrow' }, '→')),
+        h('p', { class: 'lede' }, 'No runs yet.'),
+        h('a', { class: 'btn primary block', href: '#/train' }, 'Train', h('span', { class: 'arrow' }, '→')),
       ),
       title: 'Stats',
     };
@@ -82,7 +82,6 @@ export async function statsView(): Promise<View> {
       'div',
       null,
       h('h1', { class: 'display' }, 'Stats'),
-      h('p', { class: 'lede' }, `Your last ${runs.length} run${runs.length === 1 ? '' : 's'} on this device.`),
       h(
         'dl',
         { class: 'stats four', 'data-testid': 'totals' },

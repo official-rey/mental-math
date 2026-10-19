@@ -11,7 +11,8 @@ import { ICONS } from './icons';
 import { applyKey, keypad, type PadKey } from './keypad';
 import { go, type View } from './router';
 import { soundToggle } from './shell';
-import { renderSteps } from './steps';
+import { renderStepper, renderSteps } from './steps';
+import { getTechnique } from '../techniques/registry';
 
 export function backHref(spec: DrillSpec): string {
   if (spec.kind === 'chain') return '#/chain';
@@ -90,7 +91,7 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
     tools.push(pauseBtn, toolButton(ICONS.skip, 'Skip', 'skip', () => skip()));
   } else {
     hintBtn = toolButton(ICONS.hint, 'Hint', 'hint', () => showHint());
-    tools.push(hintBtn, toolButton(ICONS.eye, 'Show answer', 'reveal', () => skip()));
+    tools.push(toolButton(ICONS.info, 'How', 'how', () => openLesson()), hintBtn, toolButton(ICONS.eye, 'Show answer', 'reveal', () => skip()));
     if (spec.kind === 'chain' && spec.style !== 'expression') {
       tools.unshift(toolButton(ICONS.play, 'Replay', 'replay', () => !flashing && state === 'answering' && playSequence(session.current.sequence!)));
       hintBtn.hidden = true;
@@ -133,6 +134,29 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
     } else {
       stat.textContent = `✓${ok} ✗${log.length - ok}`;
     }
+  }
+
+  /** The current technique's lesson (example and picture) in a sheet over the problem. */
+  function openLesson() {
+    const t = getTechnique(session.current.technique);
+    if (!t) return;
+    const sheet = h(
+      'div',
+      { class: 'lesson-sheet', role: 'dialog', 'aria-modal': 'true', 'aria-label': t.meta.name, 'data-testid': 'lesson-sheet' },
+      h(
+        'div',
+        { class: 'sheet-inner' },
+        h('div', { class: 'sheet-head' }, h('h2', null, t.meta.name), h('button', { class: 'iconbtn', type: 'button', 'aria-label': 'Close', html: ICONS.close, onclick: () => close() })),
+        h('p', { class: 'tech-idea' }, t.meta.idea),
+        renderStepper(t.steps(t.card.example)),
+      ),
+    );
+    const close = () => {
+      sheet.remove();
+      input.focus();
+    };
+    sheet.addEventListener('click', (e) => e.target === sheet && close());
+    el.append(sheet);
   }
 
   /** Running-total chains: show each term on its own, then ask for the total. The clock waits. */
@@ -199,7 +223,7 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
   /** "Level I → III" while the drill is still climbing to the chosen level, then just the level. */
   function paintLevel() {
     const cur = session.level, target = spec.level;
-    levelTag.textContent = cur < target ? `Level ${ROMAN[cur]}, building to ${ROMAN[target]}` : `Level ${ROMAN[cur]}`;
+    levelTag.textContent = cur < target ? `Level ${ROMAN[cur]} → ${ROMAN[target]}` : `Level ${ROMAN[cur]}`;
   }
 
   /** Brief "+2 s" beside the clock when a correct sprint answer adds time. */

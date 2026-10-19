@@ -1,38 +1,17 @@
 import { heroPlate } from '../art/hero';
-import { defaultSpec, specToHash } from '../drill/spec';
-import type { DrillSpec } from '../drill/types';
 import { store } from '../storage/store';
-import { getTechnique } from '../techniques/registry';
-import { ROMAN } from '../techniques/types';
 import { DEV_CREDIT } from '../theme';
 import { h, reveal } from './dom';
 import type { View } from './router';
 import { processReel } from './feats';
-import { pickedIds, practiceSpec } from './practice';
-import { layout } from './shell';
+import { ICONS } from './icons';
+import { layout, SECTIONS } from './shell';
 
 const BOOK_URL = 'https://archive.org/details/secretsofmentalm0000arth';
 
-const MODE_WORDS = { training: 'untimed', sprint: 'sprint', twenty: '20 problems' } as const;
-
-/** Plain description of exactly what the Start button launches. */
-function whatStarts(s: DrillSpec): string {
-  const d = defaultSpec();
-  const what =
-    s.kind === 'chain'
-      ? 'Chain drill'
-      : s.kind === 'technique'
-        ? getTechnique(s.ids[0])!.meta.name
-        : s.ids.length === d.ids.length && s.ids.every((id) => d.ids.includes(id))
-          ? 'Foundation mix'
-          : `Mix of ${s.ids.length} techniques`;
-  const level = s.level > 1 ? `builds to Level ${ROMAN[s.level]}` : 'Level I';
-  return `${what} · ${level} · ${MODE_WORDS[s.mode]}`;
-}
 
 export async function homeView(): Promise<View> {
   const prefs = await store.setPrefs({ visits: ((await store.getPrefs()).visits ?? 0) + 1 });
-  const trainSpec = practiceSpec(pickedIds(prefs.mixed), prefs.level, 'training');
   const plate = prefs.art ? heroPlate() : null;
   const demo = processReel();
 
@@ -56,7 +35,11 @@ export async function homeView(): Promise<View> {
       null,
       'You could argue calculators made it obsolete. But working a number out in your head is math in its most old-school form, and to a math major that never stops being cool.',
     ),
-    h('p', null, 'So I made this for anyone curious enough to try. It also happens to be a great way to impress your friends ;p'),
+    h(
+      'p',
+      null,
+      'I built this for our math community and for my students: a place to pick up each trick and practise it until it sticks. Anyone else curious enough is welcome too. It also happens to be a great way to impress your friends ;p',
+    ),
     h('p', { class: 'why-sign' }, `— ${DEV_CREDIT.replace('dev: ', '')}`),
   );
 
@@ -69,14 +52,15 @@ export async function homeView(): Promise<View> {
     h(
       'div',
       { class: 'actions' },
-      h('a', { class: 'btn primary big block start-btn', href: '#/learn', 'data-testid': 'start-learning' }, 'Start learning', h('span', { class: 'arrow' }, '→')),
-      h(
-        'div',
-        { class: 'then-row' },
-        // Train starts straight away (one tap to a problem); the Train tab has the full setup.
-        h('a', { class: 'btn start-btn', href: specToHash(trainSpec), title: whatStarts(trainSpec), 'data-testid': 'start' }, 'Train'),
-        h('a', { class: 'btn start-btn', href: '#/challenge', 'data-testid': 'go-challenge' }, 'Challenge'),
-        h('a', { class: 'btn start-btn', href: '#/chain', 'data-testid': 'go-chains' }, 'Chains'),
+      // One button per part of the app, in the order you use them.
+      SECTIONS.map((sec, i) =>
+        h(
+          'a',
+          { class: `btn block mode-btn${i === 0 ? ' primary' : ''}`, href: sec.href, 'data-testid': `home-${sec.id}` },
+          h('span', { class: 'mode-icon', html: ICONS[sec.icon] }),
+          h('span', { class: 'mode-label' }, sec.label),
+          h('span', { class: 'arrow' }, '→'),
+        ),
       ),
     ),
     h(

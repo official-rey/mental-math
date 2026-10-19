@@ -9,7 +9,7 @@ import { h, reveal } from './dom';
 import type { View } from './router';
 import { layout } from './shell';
 
-/** The techniques Train and Challenge use: the ones ticked in Learn, or Foundation to begin with. */
+/** The techniques Train and Challenge use: the ones ticked in Train, or Foundation to begin with. */
 export function pickedIds(mixed: string[]): string[] {
   const known = new Set(techniques.map((t) => t.meta.id));
   const ids = mixed.filter((id) => known.has(id));
@@ -20,27 +20,29 @@ export function practiceSpec(ids: string[], level: Level, mode: Mode): DrillSpec
   return { kind: ids.length === 1 ? 'technique' : 'mixed', ids, level, mode };
 }
 
-/**
- * Train (untimed, steps after a miss) and Challenge (timed, scored) share one setup:
- * which techniques, which level, and for Challenge which clock.
- */
-export async function practiceView(kind: 'train' | 'challenge'): Promise<View> {
+/** Correct answers per technique across saved runs. */
+function solvedCounts(runs: RunRecord[]): Map<string, number> {
+  const m = new Map<string, number>();
+  for (const r of runs) for (const e of r.log) if (e.ok) m.set(e.technique, (m.get(e.technique) ?? 0) + 1);
+  return m;
+}
+
+/** Train: pick techniques (with how many you have solved), pick a level, start. No clock. */
+export async function trainView(): Promise<View> {
   const prefs = await store.getPrefs();
   const picked = new Set(pickedIds(prefs.mixed));
+  const solved = solvedCounts(await store.history());
   let level = prefs.level;
-  let mode: Mode = kind === 'train' ? 'training' : prefs.mode === 'twenty' ? 'twenty' : 'sprint';
 
-  const go = h('a', { class: 'btn primary big block', 'data-testid': `start-${kind}` });
-  const count = h('span', { class: 'mono dim' });
+  const go = h('a', { class: 'btn primary big block', 'data-testid': 'start-train' });
   const boxes: HTMLInputElement[] = [];
 
   function sync() {
     const ids = techniques.map((t) => t.meta.id).filter((id) => picked.has(id));
-    go.replaceChildren(ids.length ? (kind === 'train' ? 'Start training' : 'Start the challenge') : 'Pick at least one technique', h('span', { class: 'arrow' }, '→'));
-    if (ids.length) go.setAttribute('href', specToHash(practiceSpec(ids, level, mode)));
+    go.replaceChildren(ids.length ? `Start · ${ids.length}` : 'Tick a technique', h('span', { class: 'arrow' }, '→'));
+    if (ids.length) go.setAttribute('href', specToHash(practiceSpec(ids, level, 'training')));
     else go.removeAttribute('href');
     go.toggleAttribute('aria-disabled', !ids.length);
-    count.textContent = `${ids.length} selected`;
     boxes.forEach((b) => (b.checked = picked.has(b.value)));
     store.setPrefs({ mixed: ids });
   }
@@ -68,6 +70,7 @@ export async function practiceView(kind: 'train' | 'challenge'): Promise<View> {
           const box = h('input', {
             type: 'checkbox',
             value: t.meta.id,
+            'data-testid': `pick-${t.meta.id}`,
             onchange: (e: Event) => {
               if ((e.target as HTMLInputElement).checked) picked.add(t.meta.id);
               else picked.delete(t.meta.id);
@@ -75,67 +78,49 @@ export async function practiceView(kind: 'train' | 'challenge'): Promise<View> {
             },
           });
           boxes.push(box);
-          return h('li', null, h('label', null, box, h('span', { class: 'name' }, t.meta.name)));
+          const n = solved.get(t.meta.id) ?? 0;
+          return h(
+            'li',
+            null,
+            h('label', null, box, h('span', { class: 'name' }, t.meta.name), h('span', { class: `solved mono${n ? '' : ' none'}`, title: 'Solved' }, String(n))),
+          );
         }),
       ),
     ),
   );
 
-  const chooser = h(
-    'details',
-    { class: 'chooser' },
-    h('summary', null, h('span', null, 'Techniques'), count),
-    h('div', { class: 'quick-picks' }, quick('Foundation', (t) => t === 'Foundation'), quick('Core', (t) => t === 'Core'), quick('All', () => true), quick('None', () => false)),
-    lists,
+  sync();
+  const content = reveal(
+    h(
+      'div',
+      null,
+      h('h1', { class: 'display' }, 'Train'),
+      levelControl(level, (l) => {
+        level = l;
+        store.setPrefs({ level: l });
+        sync();
+      }),
+      h('div', { class: 'quick-picks' }, quick('Foundation', (t) => t === 'Foundation'), quick('All', () => true), quick('None', () => false)),
+      lists,
+      h('div', { class: 'sticky-go' }, go),
+    ),
   );
 
-  const levels = levelControl(
-    level,
-    (l) => {
-      level = l;
-      store.setPrefs({ level: l });
-      sync();
-    },
-    (l) => (l > 1 ? `Starts at Level I and climbs to ${ROMAN[l]}` : 'Level I throughout'),
-  );
+  return { el: layout({ active: 'train' }, content), title: 'Train' };
+}
 
-  const clock =
-    kind === 'challenge'
-      ? h(
-          'div',
-          { class: 'controls' },
-          h(
-            'div',
-            { class: 'control' },
-            h('span', { class: 'control-label' }, 'Clock'),
-            segmented<Mode>(
-              'Clock',
-              [
-                { value: 'sprint', label: 'Sprint' },
-                { value: 'twenty', label: '20 problems' },
-              ],
-              mode,
-              (m) => {
-                mode = m;
-                store.setPrefs({ mode: m });
-                sync();
-                paintHint();
-              },
-            ),
-          ),
-        )
-      : null;
-  const clockHint = h('p', { class: 'dim small-note' });
-  const paintHint = () =>
-    (clockHint.textContent =
-      kind === 'train'
-        ? 'No clock. A miss shows the steps for that exact problem.'
-        : mode === 'sprint'
-          ? '60 seconds, plus 2 seconds for every correct answer.'
-          : '20 problems, as fast as you can.');
-  paintHint();
+/** Challenge: your Train selection against the clock, with your best runs. */
+export async function challengeView(): Promise<View> {
+  const prefs = await store.getPrefs();
+  const ids = pickedIds(prefs.mixed);
+  let level = prefs.level;
+  let mode: Mode = prefs.mode === 'twenty' ? 'twenty' : 'sprint';
 
-  const bests = kind === 'challenge' ? (await store.bests()).filter((r) => r.mode !== 'training').slice(0, 5) : [];
+  const go = h('a', { class: 'btn primary big block', 'data-testid': 'start-challenge' }, 'Start', h('span', { class: 'arrow' }, '→'));
+  const sync = () => go.setAttribute('href', specToHash(practiceSpec(ids, level, mode)));
+  sync();
+
+  const bests = (await store.bests()).filter((r) => r.mode !== 'training').slice(0, 6);
   const bestRow = (r: RunRecord) => {
     const s = scoreText(r);
     return h(
@@ -146,20 +131,35 @@ export async function practiceView(kind: 'train' | 'challenge'): Promise<View> {
     );
   };
 
-  sync();
   const content = reveal(
     h(
       'div',
       null,
-      h('h1', { class: 'display' }, kind === 'train' ? 'Train' : 'Challenge'),
-      clockHint,
-      clock,
-      levels,
-      chooser,
-      h('div', { class: 'sticky-go' }, go),
-      bests.length ? h('section', null, h('h2', { class: 'section-head' }, 'Your best challenges'), h('div', { class: 'menu' }, bests.map(bestRow))) : null,
+      h('h1', { class: 'display' }, 'Challenge'),
+      h(
+        'div',
+        { class: 'controls' },
+        h(
+          'div',
+          { class: 'control' },
+          h('span', { class: 'control-label' }, 'Clock'),
+          segmented<Mode>('Clock', [{ value: 'sprint', label: 'Sprint' }, { value: 'twenty', label: '20 problems' }], mode, (m) => {
+            mode = m;
+            store.setPrefs({ mode: m });
+            sync();
+          }),
+        ),
+      ),
+      levelControl(level, (l) => {
+        level = l;
+        store.setPrefs({ level: l });
+        sync();
+      }),
+      h('a', { class: 'menu-row selection', href: '#/train' }, h('span', { class: 'menu-title' }, 'Techniques'), h('span', { class: 'menu-score mono' }, String(ids.length))),
+      go,
+      bests.length ? h('section', null, h('h2', { class: 'section-head' }, 'Best'), h('div', { class: 'menu' }, bests.map(bestRow))) : null,
     ),
   );
 
-  return { el: layout({ active: kind }, content), title: kind === 'train' ? 'Train' : 'Challenge' };
+  return { el: layout({ active: 'challenge' }, content), title: 'Challenge' };
 }

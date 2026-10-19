@@ -13,7 +13,7 @@ import { resultsView } from './ui/results';
 import { settingsView } from './ui/settings';
 import { statsView } from './ui/stats';
 import { homeView } from './ui/home';
-import { practiceView } from './ui/practice';
+import { challengeView, trainView } from './ui/practice';
 import { startRouter } from './ui/router';
 
 app.art = startArt(document.getElementById('art') as HTMLCanvasElement);
@@ -25,15 +25,15 @@ store.getPrefs().then((p) => {
     document.getElementById('app')!,
     {
       '': homeView,
-      train: () => practiceView('train'),
-      challenge: () => practiceView('challenge'),
+      train: trainView,
+      challenge: challengeView,
       chains: chainView,
       learn: learnView,
       stats: statsView,
       settings: settingsView,
       t: cardView,
       drill: drillView,
-      mixed: () => practiceView('train'),
+      mixed: trainView,
       chain: chainView,
       results: resultsView,
       about: aboutView,

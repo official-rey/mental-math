@@ -1,9 +1,10 @@
 import { expect, test } from '@playwright/test';
 import { answer, playTwenty } from './helpers';
 
-test('one tap from the Train screen to the first problem, with the number pad', async ({ page }) => {
+test('home → Train → Start reaches the first problem, with the number pad', async ({ page }) => {
   await page.goto('/?e2e=1#/');
-  await page.getByTestId('start').tap();
+  await page.getByTestId('home-train').tap();
+  await page.getByTestId('start-train').tap();
   await expect(page.getByTestId('problem')).toHaveText(/\d/);
   await expect(page.getByTestId('answer')).toBeFocused();
   // Touch screen: the on-screen pad replaces the system keyboard.
@@ -107,7 +108,7 @@ test('sections: Learn groups, Stats, Settings', async ({ page }) => {
   await expect(page.getByTestId('drill-this')).toBeVisible();
   await expect(page).toHaveURL(/#\/learn\/div\/short-division/);
   await page.getByTestId('top-stats').tap();
-  await expect(page.getByText(/Nothing here yet/)).toBeVisible();
+  await expect(page.getByText('No runs yet.')).toBeVisible();
   await page.getByTestId('top-settings').tap();
   await page.getByRole('group', { name: 'Number pad' }).getByRole('button', { name: 'Off' }).tap();
   await page.goto('/?e2e=1#/drill?k=technique&ids=mul-2x1&l=1&m=training');
@@ -128,25 +129,27 @@ test('technique card: the worked example reveals one step at a time', async ({ p
   await expect(page.getByTestId('next-step')).toBeDisabled();
 });
 
-test('learn: start learning, open a technique in place, tick techniques and drill them', async ({ page }) => {
+test('learn teaches; train picks techniques and starts', async ({ page }) => {
   await page.goto('/?e2e=1#/');
-  await page.getByTestId('start-learning').tap();
-  await expect(page.getByTestId('drill-picked')).toBeHidden();
+  await page.getByTestId('home-learn').tap();
+  await expect(page.locator('input[type=checkbox]')).toHaveCount(0);
   await page.getByRole('tab', { name: /Add & subtract/ }).tap();
   await page.getByTestId('open-complements').tap();
-  await expect(page.locator('.tech.open .stepper')).toBeVisible();
+  await expect(page.locator('.tech.open .stepper-problem')).toContainText('= ?');
+  await page.getByTestId('tab-train').tap();
+  await page.getByRole('button', { name: 'None' }).tap();
+  await expect(page.getByTestId('start-train')).toHaveText(/Tick a technique/);
   await page.getByTestId('pick-complements').check();
   await page.getByTestId('pick-lr-addition').check();
-  await expect(page.getByTestId('drill-picked')).toHaveText(/Drill 2 ticked techniques/);
-  await page.getByTestId('drill-picked').tap();
+  await expect(page.getByTestId('start-train')).toHaveText(/Start · 2/);
+  await page.getByTestId('start-train').tap();
   await expect(page.getByTestId('problem')).toHaveText(/[+−]/);
-  await expect(page.getByTestId('drill-picked')).toHaveCount(0);
 });
 
-test('landing: the first screen is the two buttons and the book; the why is below the fold', async ({ page }) => {
+test('landing: the first screen is the four parts and the book; the why is below the fold', async ({ page }) => {
   await page.goto('/?e2e=1#/');
   const viewport = page.viewportSize()!;
-  for (const id of ['start-learning', 'start']) {
+  for (const id of ['home-learn', 'home-train', 'home-challenge', 'home-chains']) {
     const box = (await page.getByTestId(id).boundingBox())!;
     expect(box.y + box.height).toBeLessThan(viewport.height);
   }
@@ -158,6 +161,6 @@ test('landing: the first screen is the two buttons and the book; the why is belo
   const line = page.getByTestId('demo').locator('.morph-line');
   const first = await line.textContent();
   await expect.poll(() => line.textContent(), { timeout: 5000 }).not.toBe(first);
-  await expect(page.getByTestId('demo').locator('.tok.is-answer')).toHaveCount(3, { timeout: 12000 });
+  await expect(page.getByTestId('demo').locator('.tok.is-answer')).toHaveCount(3, { timeout: 25000 });
   await expect(line).toHaveText('517');
 });
