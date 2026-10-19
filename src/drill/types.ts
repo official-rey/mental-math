@@ -58,4 +58,6 @@ export interface RunRecord {
   log: RunEntry[];
   /** What was drilled, so the run can be replayed from history. */
   spec?: DrillSpec;
+  /** Nickname of whoever played this run on this device. */
+  player?: string;
 }

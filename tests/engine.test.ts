@@ -217,3 +217,16 @@ describe('problem routing', () => {
     }
   });
 });
+
+describe('leaderboard names', () => {
+  it('names earlier unnamed runs and keeps existing names', async () => {
+    const m = new Map<string, string>();
+    const st = new LocalStore({ getItem: (k) => m.get(k) ?? null, setItem: (k, v) => void m.set(k, v), removeItem: (k) => void m.delete(k) });
+    const base = { drillKey: 'k', drillName: 'K', mode: 'twenty' as const, level: 1 as const, attempted: 20, accuracy: 1, totalMs: 1, avgMs: 1, date: 1, log: [] };
+    await st.saveRun({ ...base, id: 'a', correct: 20 });
+    await st.saveRun({ ...base, id: 'b', correct: 19, player: 'Ana' });
+    await st.nameRuns('Rey');
+    expect((await st.topRuns('k', 'twenty')).map((r) => r.player)).toEqual(['Rey', 'Ana']);
+    expect((await st.history()).map((r) => r.player)).toEqual(['Ana', 'Rey']);
+  });
+});

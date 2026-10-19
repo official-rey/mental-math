@@ -1754,3 +1754,38 @@
   margin-bottom: 10px;
   border-bottom: 1px solid var(--rule);
 }
+
+/* ---------- Leaderboard names ---------- */
+
+.name-form {
+  display: flex;
+  gap: 8px;
+  margin: 4px 0 12px;
+}
+
+.name-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1.5px solid var(--ink);
+  background: var(--paper);
+  font-family: var(--f-mono);
+  font-size: 16px;
+  color: var(--ink);
+}
+
+.name-input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.setting .name-input {
+  flex: 0 1 220px;
+}
+
+.board td.who {
+  max-width: 9em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

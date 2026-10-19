@@ -47,6 +47,11 @@ export async function renderScoreCard(run: RunRecord): Promise<Blob> {
     ctx.fillText(l, M, y + 4);
     y += 36;
   }
+  if (run.player) {
+    ctx.fillStyle = PALETTE.accent;
+    ctx.font = `600 30px ${FONTS.mono}`;
+    ctx.fillText(run.player, M, y + 20);
+  }
   doubleRule(ctx, M, 640, W, 2);
 
   // Score

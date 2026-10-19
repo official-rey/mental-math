@@ -15,6 +15,17 @@ function row(label: string, desc: string | null, control: HTMLElement): HTMLElem
   );
 }
 
+/** Leaderboard name; saved as you type, and put on earlier unnamed runs. */
+function nameField(value: string): HTMLElement {
+  const input = h('input', { class: 'name-input', type: 'text', maxlength: '20', placeholder: 'Your name', value, autocomplete: 'nickname', 'aria-label': 'Name', 'data-testid': 'settings-name' });
+  input.addEventListener('change', async () => {
+    const name = input.value.trim().slice(0, 20);
+    await store.setPrefs({ nickname: name || undefined });
+    if (name) await store.nameRuns(name);
+  });
+  return input;
+}
+
 const onOff = (name: string, value: boolean, set: (v: boolean) => void) =>
   segmented(name, [{ value: 'on', label: 'On' }, { value: 'off', label: 'Off' }], value ? 'on' : 'off', (v) => set(v === 'on'));
 
@@ -34,6 +45,7 @@ export async function settingsView(): Promise<View> {
       'div',
       null,
       h('h1', { class: 'display' }, 'Settings'),
+      row('Name', null, nameField(p.nickname ?? '')),
       h('h2', { class: 'section-head' }, 'Drills'),
       row(
         'Number pad',

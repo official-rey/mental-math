@@ -15,10 +15,10 @@ First Playwright run needs a browser: `npx playwright install chromium`.
 
 ## Deploy
 
-`npm run build` writes a static site to `dist/`. Asset paths are relative and routing uses the URL hash, so `dist/` works from any sub-path.
+`npm run build` writes a static site to `dist/`. Asset paths are relative and routing uses the URL hash, so it works from any sub-path. There is no server: scores, names and the leaderboard live in each visitor's browser.
 
-- **Netlify:** build command `npm run build`, publish directory `dist`.
-- **GitHub Pages:** push `dist/` to a `gh-pages` branch (for example `npx gh-pages -d dist`), or use the Pages "GitHub Actions" source with a workflow that runs `npm ci && npm run build` and uploads `dist`.
+- **GitHub Pages (set up):** create a GitHub repository, push this project to it, then in the repository's Settings → Pages choose "GitHub Actions" as the source. `.github/workflows/deploy.yml` runs the tests, builds, and publishes on every push to `main` or `master`. The site appears at `https://<user>.github.io/<repo>/`.
+- **Netlify (alternative):** "Add new site" → import the repository. `netlify.toml` already sets the build command and the `dist` folder.
 
 ## Add a technique
 

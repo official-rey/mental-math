@@ -370,6 +370,8 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
     if (session.log.length === 0) return go(backHref(spec));
     sound.finish();
     const run = session.result();
+    const nickname = (await store.getPrefs()).nickname;
+    if (nickname) run.player = nickname;
     const saved = await store.saveRun(run);
     app.lastResult = { run, saved, spec };
     go('#/results');

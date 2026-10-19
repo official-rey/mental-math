@@ -29,6 +29,11 @@ test('completes a 20-problem run and records it', async ({ page }) => {
   await expect(page.getByTestId('score')).toHaveText('19');
   await expect(page.getByTestId('leaderboard').locator('tbody tr')).toHaveCount(1);
   await expect(page.getByText('Personal best')).toBeVisible();
+  // First time: add a name to the leaderboard; the run picks it up.
+  await page.getByTestId('nickname').fill('Rey');
+  await page.getByTestId('nickname').press('Enter');
+  await expect(page.getByTestId('leaderboard').locator('td.who').first()).toHaveText('Rey');
+  await expect(page.getByTestId('nickname')).toHaveCount(0);
   // The run shows up in Stats.
   await page.getByTestId('top-stats').tap();
   await expect(page.getByTestId('totals')).toContainText('20');

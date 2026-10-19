@@ -30,14 +30,14 @@ function countUp(el: HTMLElement, to: number) {
   requestAnimationFrame(step);
 }
 
-/** Score card and GIF buttons. The drawing code loads on first use. */
+/** Save the score card (PNG) or the replay (GIF) to the device. The drawing code loads on first use. */
 function shareButtons(run: RunRecord): HTMLElement[] {
   const status = h('div', { class: 'share-status', 'aria-live': 'polite', 'data-testid': 'share-status' });
   const make = (kind: 'png' | 'gif', label: string) => {
     const btn = h('button', { class: 'btn', type: 'button', 'data-testid': `share-${kind}` }, label);
     btn.addEventListener('click', async () => {
       btn.disabled = true;
-      status.textContent = kind === 'png' ? 'Drawing the score card…' : 'Encoding the replay…';
+      status.textContent = 'Drawing…';
       try {
         const [share, render] = await Promise.all([
           import('../share/share'),
@@ -46,11 +46,8 @@ function shareButtons(run: RunRecord): HTMLElement[] {
             : import('../share/gif').then((m) => m.renderHighlightGif),
         ]);
         const blob = await render(run);
-        (window as unknown as { __mmShare?: object }).__mmShare = { kind, size: blob.size, type: blob.type };
-        const out = await share.shareOrDownload(blob, share.fileName(run, kind), share.shareLine(run));
-        const kb = `${Math.max(1, Math.round(blob.size / 1024))} KB`;
-        status.textContent =
-          out === 'shared' ? 'Shared.' : out === 'downloaded' ? `Saved ${kind.toUpperCase()} (${kb}). Summary copied.` : '';
+        share.saveFile(blob, share.fileName(run, kind));
+        status.textContent = `Saved ${kind.toUpperCase()} (${Math.max(1, Math.round(blob.size / 1024))} KB).`;
       } catch {
         status.textContent = 'Could not create the image.';
       } finally {
@@ -59,7 +56,7 @@ function shareButtons(run: RunRecord): HTMLElement[] {
     });
     return btn;
   };
-  return [make('png', 'Score card'), make('gif', 'GIF replay'), status];
+  return [make('png', 'Save image'), make('gif', 'Save GIF'), status];
 }
 
 export async function resultsView(parts: string[]): Promise<View> {
@@ -85,6 +82,22 @@ export async function resultsView(parts: string[]): Promise<View> {
   const big = h('span', { class: 'score-num', 'data-testid': 'score' }, '0');
 
   const board = run.mode === 'training' ? [] : await store.topRuns(run.drillKey, run.mode);
+  const nickname = (await store.getPrefs()).nickname;
+
+  /** Asked once: the name that goes on this device's leaderboard. */
+  function nameForm(): HTMLElement {
+    const input = h('input', { class: 'name-input', type: 'text', maxlength: '20', placeholder: 'Your name', autocomplete: 'nickname', 'aria-label': 'Your name for the leaderboard', 'data-testid': 'nickname' });
+    const form = h('form', { class: 'name-form' }, input, h('button', { class: 'btn ink', type: 'submit' }, 'Save'));
+    form.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const name = input.value.trim().slice(0, 20);
+      if (!name) return;
+      await store.setPrefs({ nickname: name });
+      await store.nameRuns(name);
+      go(location.hash);
+    });
+    return form;
+  }
   const misses = run.log.filter((e) => !e.ok);
 
   const main = reveal(
@@ -122,11 +135,12 @@ export async function resultsView(parts: string[]): Promise<View> {
         ? h(
             'section',
             null,
-            h('h2', { class: 'section-head' }, 'Best runs on this device'),
+            h('h2', { class: 'section-head' }, 'Leaderboard'),
+            nickname ? null : nameForm(),
             h(
               'table',
               { class: 'board', 'data-testid': 'leaderboard' },
-              h('thead', null, h('tr', null, h('th', null, '#'), h('th', null, 'Score'), h('th', null, 'Acc.'), h('th', null, 'Avg'), h('th', null, 'Date'))),
+              h('thead', null, h('tr', null, h('th', null, '#'), h('th', null, 'Name'), h('th', null, 'Score'), h('th', null, 'Acc.'), h('th', null, 'Avg'))),
               h(
                 'tbody',
                 null,
@@ -135,10 +149,10 @@ export async function resultsView(parts: string[]): Promise<View> {
                     'tr',
                     { class: r.id === run.id ? 'me' : '' },
                     h('td', null, String(i + 1)),
+                    h('td', { class: 'who' }, r.player ?? '—'),
                     h('td', null, r.mode === 'twenty' ? `${r.correct}/20 · ${secs(r.totalMs)}` : String(r.correct)),
                     h('td', null, pct(r.accuracy)),
                     h('td', null, secs(r.avgMs)),
-                    h('td', null, new Date(r.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })),
                   ),
                 ),
               ),

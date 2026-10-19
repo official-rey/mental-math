@@ -17,6 +17,8 @@ export interface Prefs {
   mixed: string[];
   /** Category last opened on the Learn screen. */
   learnCategory: CategoryId;
+  /** Name shown on the leaderboard for runs on this device. */
+  nickname?: string;
   /** Last drill started, used by the Train screen's one-tap start. */
   last?: DrillSpec;
   /** Times the Train screen has been opened; the landing layout changes after a while. */
@@ -46,6 +48,8 @@ export interface Store {
   /** Recent runs of any mode, newest first. */
   history(limit?: number): Promise<RunRecord[]>;
   getRun(id: string): Promise<RunRecord | null>;
+  /** Put `name` on every saved run that has no player yet. */
+  nameRuns(name: string): Promise<void>;
   /** Erase runs, bests and history (settings are kept). */
   clearRuns(): Promise<void>;
 }
@@ -156,6 +160,12 @@ export class LocalStore implements Store {
       if (r) return r;
     }
     return null;
+  }
+
+  async nameRuns(name: string): Promise<void> {
+    const named = (runs: RunRecord[]) => runs.map((r) => (r.player ? r : { ...r, player: name }));
+    this.write('history', named(this.read<RunRecord[]>('history', [])));
+    for (const k of this.read<string[]>('boards', [])) this.write(k, named(this.read<RunRecord[]>(k, [])));
   }
 
   async clearRuns(): Promise<void> {
