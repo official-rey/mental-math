@@ -38,10 +38,10 @@ function countUp(el: HTMLElement, to: number, places = 0) {
  * One "Share result" button; it then offers the format, and the picture is saved straight to
  * the device. No share sheet, no links, nothing uploaded.
  */
-function shareResult(run: RunRecord, best: boolean): HTMLElement {
+function shareResult(run: RunRecord, best: boolean): [button: HTMLElement, panel: HTMLElement] {
   const status = h('div', { class: 'share-status', 'aria-live': 'polite', 'data-testid': 'share-status' });
   const make = (kind: 'png' | 'gif', label: string) => {
-    const btn = h('button', { class: 'btn', type: 'button', 'data-testid': `share-${kind}` }, label);
+    const btn = h('button', { class: 'tool', type: 'button', 'data-testid': `share-${kind}` }, label);
     btn.addEventListener('click', async () => {
       btn.disabled = true;
       status.textContent = 'Drawing…';
@@ -61,12 +61,12 @@ function shareResult(run: RunRecord, best: boolean): HTMLElement {
     return btn;
   };
   const choices = h('div', { class: 'share-choices', hidden: true, 'data-testid': 'share-choices' }, make('png', 'Image'), make('gif', 'GIF'));
-  const open = h('button', { class: 'btn block', type: 'button', 'data-testid': 'share', 'aria-expanded': 'false' }, 'Share result');
+  const open = h('button', { class: 'btn big', type: 'button', 'data-testid': 'share', 'aria-expanded': 'false' }, 'Share');
   open.addEventListener('click', () => {
     choices.hidden = !choices.hidden;
     open.setAttribute('aria-expanded', String(!choices.hidden));
   });
-  return h('div', { class: 'share-row' }, open, choices, status);
+  return [open, h('div', { class: 'share-panel' }, choices, status)];
 }
 
 export async function resultsView(parts: string[]): Promise<View> {
@@ -118,37 +118,43 @@ export async function resultsView(parts: string[]): Promise<View> {
   const fresh = app.lastResult?.run.id === run.id ? (app.lastResult.trophies ?? []) : [];
   const trophies = TROPHIES.filter((t) => fresh.includes(t.id));
 
+  const [shareButton, sharePanel] = shareResult(run, saved.isBest);
+  const delta = run.ratingDelta ?? 0;
+  // Small marks under the score: what was special about this run, if anything.
+  const marks = [
+    saved.isBest ? h('span', { class: 'mark best' }, 'Personal best') : null,
+    aboveAverage ? h('span', { class: 'mark best' }, 'Above your average') : null,
+    saved.rank && !saved.isBest ? h('span', { class: 'mark' }, `#${saved.rank} here`) : null,
+    run.bestStreak && run.bestStreak >= 5 ? h('span', { class: 'mark' }, `${run.bestStreak} in a row`) : null,
+  ].filter((m): m is HTMLElement => !!m);
+
   const main = reveal(
     h(
       'div',
       { class: 'results', 'data-testid': 'results' },
       h('h1', { class: 'display' }, run.drillName),
-      h('p', { class: 'dim result-mode' }, modeLabel(run)),
+      h('p', { class: 'dim result-mode mono' }, modeLabel(run)),
       h(
         'div',
-        { class: 'score' },
-        h('div', { class: 'score-line' }, big, h('span', { class: 'score-suffix' }, score.suffix)),
-        h('div', { class: 'score-caption' }, score.caption),
+        { class: 'result-hero' },
         h(
           'div',
-          { class: 'score-badges' },
-          saved.isBest ? h('span', { class: 'badge solid' }, 'Personal best') : null,
-          aboveAverage ? h('span', { class: 'badge solid' }, 'Above your average') : null,
-          saved.rank ? h('span', { class: 'badge' }, `#${saved.rank} on this device`) : null,
-          run.bestStreak && run.bestStreak >= 5 ? h('span', { class: 'badge' }, `${run.bestStreak} in a row`) : null,
+          { class: 'score' },
+          h('div', { class: 'score-line' }, big, h('span', { class: 'score-suffix' }, score.suffix)),
+          h('div', { class: 'score-caption' }, score.caption),
         ),
+        run.rating !== undefined
+          ? h(
+              'div',
+              { class: 'agility', 'data-testid': 'rating' },
+              h('div', { class: 'agility-label' }, 'Mental math agility'),
+              h('div', { class: 'agility-value mono' }, ratingLabel(run.rating), h('span', { class: delta >= 0 ? 'up' : 'down' }, ` ${deltaLabel(delta)}`)),
+              h('div', { class: 'agility-title' }, title(run.rating).name),
+            )
+          : null,
       ),
-      run.rating !== undefined
-        ? h(
-            'p',
-            { class: 'rating-line', 'data-testid': 'rating' },
-            'Agility rating ',
-            h('b', { class: 'mono' }, ratingLabel(run.rating)),
-            ' ',
-            h('span', { class: `mono ${(run.ratingDelta ?? 0) >= 0 ? 'up' : 'down'}` }, deltaLabel(run.ratingDelta ?? 0)),
-            h('span', { class: 'dim' }, ` · ${title(run.rating).name}`),
-          )
-        : null,
+      marks.length ? h('div', { class: 'marks' }, marks) : null,
+      h('p', { class: 'result-facts mono' }, `${pct(run.accuracy)} first try · ${secs(run.avgMs)} each`),
       trophies.length
         ? h(
             'ul',
@@ -157,18 +163,12 @@ export async function resultsView(parts: string[]): Promise<View> {
           )
         : null,
       h(
-        'dl',
-        { class: 'stats' },
-        h('div', null, h('dt', { class: 'kicker' }, 'Accuracy'), h('dd', null, pct(run.accuracy))),
-        h('div', null, h('dt', { class: 'kicker' }, 'Avg / problem'), h('dd', null, secs(run.avgMs))),
-        h('div', null, h('dt', { class: 'kicker' }, 'Answered'), h('dd', null, String(run.attempted))),
-      ),
-      h(
         'div',
         { class: 'result-actions' },
-        spec ? h('a', { class: 'btn primary big block', href: specToHash(spec), 'data-testid': 'again' }, 'Again', h('span', { class: 'arrow' }, '→')) : null,
-        shareResult(run, saved.isBest),
+        spec ? h('a', { class: 'btn primary big', href: specToHash(spec), 'data-testid': 'again' }, 'Again', h('span', { class: 'arrow' }, '→')) : null,
+        shareButton,
       ),
+      sharePanel,
       board.length
         ? h(
             'section',
@@ -178,7 +178,6 @@ export async function resultsView(parts: string[]): Promise<View> {
             h(
               'table',
               { class: 'board', 'data-testid': 'leaderboard' },
-              h('thead', null, h('tr', null, h('th', null, '#'), h('th', null, 'Name'), h('th', null, 'Score'), h('th', null, 'Acc.'), h('th', null, 'Avg'))),
               h(
                 'tbody',
                 null,
@@ -186,11 +185,9 @@ export async function resultsView(parts: string[]): Promise<View> {
                   h(
                     'tr',
                     { class: r.id === run.id ? 'me' : '' },
-                    h('td', null, String(i + 1)),
+                    h('td', { class: 'rank' }, String(i + 1)),
                     h('td', { class: 'who' }, r.player ?? '—'),
-                    h('td', null, r.mode === 'twenty' ? `${r.correct}/20 · ${secs(r.totalMs)}` : String(r.correct)),
-                    h('td', null, pct(r.accuracy)),
-                    h('td', null, secs(r.avgMs)),
+                    h('td', { class: 'num' }, r.mode === 'twenty' ? secs(r.totalMs) : String(r.correct)),
                   ),
                 ),
               ),
@@ -201,7 +198,7 @@ export async function resultsView(parts: string[]): Promise<View> {
         ? h(
             'section',
             null,
-            h('h2', { class: 'section-head' }, 'To look at again'),
+            h('h2', { class: 'section-head' }, 'Review'),
             h(
               'ul',
               { class: 'misses mono' },

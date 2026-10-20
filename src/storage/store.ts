@@ -15,8 +15,8 @@ export interface Prefs {
   haptics: boolean;
   /** Technique ids picked for the Mixed drill. */
   mixed: string[];
-  /** Category last opened on the Learn screen. */
-  learnCategory: CategoryId;
+  /** Tab last opened on the Learn screen: Featured or a group. */
+  learnCategory: CategoryId | 'featured';
   /** Name shown on the leaderboard for runs on this device. */
   nickname?: string;
   /** Last drill started, used by the Train screen's one-tap start. */
@@ -29,6 +29,8 @@ export interface Prefs {
   solved: number;
   /** Highest Chains level reached (I–X). */
   chainBest: number;
+  /** Chains: a level to play at, or 0 for Auto (climb from I). */
+  chainPick: number;
   /** Highest Challenge level reached (I–X). */
   challengeBest: number;
   /** Agility rating (Elo-style) and its highest point. */
@@ -76,11 +78,12 @@ export const DEFAULT_PREFS: Prefs = {
   art: true,
   haptics: true,
   mixed: [],
-  learnCategory: 'addsub',
+  learnCategory: 'featured',
   visits: 0,
   trophies: [],
   solved: 0,
   chainBest: 1,
+  chainPick: 0,
   challengeBest: 1,
   rating: 1000,
   ratingPeak: 1000,

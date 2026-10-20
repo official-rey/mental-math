@@ -41,6 +41,7 @@ export default defineTechnique({
     category: 'mul',
     tier: 'Foundation',
     order: 70,
+    featured: true,
     idea: 'Add one number to the other’s ones digit, times the tens, plus the two ones digits multiplied.',
   },
   card: {

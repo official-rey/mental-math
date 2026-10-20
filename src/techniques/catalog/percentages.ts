@@ -139,6 +139,7 @@ export default defineTechnique({
     category: 'est',
     tier: 'Foundation',
     order: 20,
+    featured: true,
     idea: 'Find 10% by shifting the decimal point, then halve, double or shift it again and add the pieces.',
   },
   card: {

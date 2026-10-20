@@ -25,6 +25,7 @@ export default defineTechnique({
     category: 'mul',
     tier: 'Foundation',
     order: 10,
+    featured: true,
     idea: 'Multiply the tens first, then the ones, and add the small product on.',
   },
   card: {

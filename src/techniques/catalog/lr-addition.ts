@@ -46,6 +46,7 @@ export default defineTechnique({
     category: 'addsub',
     tier: 'Foundation',
     order: 10,
+    featured: true,
     idea: 'Add the second number one place at a time, biggest place first, keeping one running total.',
   },
   card: {

@@ -21,8 +21,8 @@ interface Row {
  */
 function column(problem: string, rows: Row[], label: string, right = 136): string {
   const top = 34, gap = 19;
-  // The operator column sits just left of the widest value (mono digits are about 8.6 wide).
-  const opX = right - Math.max(...rows.map((r) => r.v.length)) * 8.6 - 16;
+  // The operator column sits just left of the widest value (mono digits are about 8.6 wide), never off the picture.
+  const opX = Math.max(8, right - Math.max(...rows.map((r) => r.v.length)) * 8.6 - 16);
   let b = text(150, 11, problem, 't t-sm t-dim');
   rows.forEach((r, i) => {
     const y = top + i * gap;
@@ -100,11 +100,10 @@ function check(): string {
   return column(
     '47 × 6 = 282 ?',
     [
-      { v: '4 + 7 = 11 → 2', note: 'shrink 47' },
-      { op: '×', v: '6', note: 'keep the 6' },
-      { v: '12 → 3', rule: true },
-      { v: '2 + 8 + 2 = 12 → 3', note: 'shrink 282' },
-      { op: '=', v: '3 ✓', note: 'they match' },
+      { v: '2 × 6', note: '47: 4 + 7 = 11 → 2' },
+      { op: '=', v: '12 → 3', note: '1 + 2' },
+      { v: '282 → 3', note: '2 + 8 + 2 = 12 → 3' },
+      { op: '=', v: '3 ✓', note: 'both 3: they match' },
     ],
     'Check 47 times 6 equals 282: 47 shrinks to 2, times 6 is 12, which shrinks to 3; 282 adds to 12, which shrinks to 3; they match',
   );

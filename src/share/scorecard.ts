@@ -143,7 +143,9 @@ export async function renderScoreCard(run: RunRecord, opts: { best?: boolean } =
     const y2 = totalY + 150;
     ctx.fillStyle = PALETTE.ink;
     ctx.font = `700 28px ${FONTS.mono}`;
-    ctx.fillText('AGILITY RATING', L, y2);
+    ctx.font = `700 24px ${FONTS.mono}`;
+    ctx.fillText('MENTAL MATH', L, y2 - 14);
+    ctx.fillText('AGILITY RATING', L, y2 + 16);
     const d = run.ratingDelta ?? 0;
     const delta = deltaLabel(d);
     ctx.textAlign = 'right';

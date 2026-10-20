@@ -104,7 +104,7 @@ test('chains show the whole expression with brackets and take the final answer',
   // No level to pick: the ladder shows the highest level reached, and every run starts at I.
   await expect(page.getByTestId('chain-ladder')).toContainText('I of X');
   await page.getByTestId('start-chain').click();
-  await expect(page.getByTestId('level')).toHaveText('♙ Level I');
+  await expect(page.getByTestId('level')).toHaveText(/Level I$/);
   await expect(page.getByTestId('problem')).toHaveText(/[×÷²]/);
   await expect(page.getByTestId('problem')).toHaveText(/[+−]/);
   await answer(page, true);
@@ -241,6 +241,18 @@ test('about: the maker is on the About page, not the landing', async ({ page }) 
   await page.getByTestId('top-settings').tap();
   await page.getByTestId('about-link').tap();
   await expect(page.getByTestId('maker')).toContainText('Central Mindanao University');
+});
+
+test('featured techniques lead Learn and Train; chains can start at a picked level', async ({ page }) => {
+  await page.goto('/?e2e=1#/learn');
+  await expect(page.getByRole('tab', { name: /Featured/ })).toHaveAttribute('aria-selected', 'true');
+  await expect(page.getByTestId('featured-list').locator('li')).toHaveCount(10);
+  await page.goto('/?e2e=1#/train');
+  await expect(page.getByTestId('feat-times-11')).toBeChecked();
+  await page.goto('/?e2e=1#/chain');
+  await page.locator('.ladder .rung[data-level="4"]').click();
+  await page.getByTestId('start-chain').click();
+  await expect(page.getByTestId('level')).toHaveText(/Level IV$/);
 });
 
 test('the Train Start button is not hidden behind the tab bar', async ({ page }) => {

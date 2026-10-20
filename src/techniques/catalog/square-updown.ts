@@ -44,6 +44,7 @@ export default defineTechnique({
     category: 'pow',
     tier: 'Core',
     order: 70,
+    featured: true,
     idea: 'Go to the nearest ten and the same distance the other way, multiply those, then add the distance squared.',
   },
   card: {

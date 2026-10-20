@@ -2140,7 +2140,8 @@
   display: block;
   font-size: 18px;
   line-height: 1.1;
-  font-family: 'Segoe UI Symbol', 'Noto Sans Symbols 2', 'DejaVu Sans', serif;
+  font-family: 'Noto Sans Symbols 2', serif;
+  font-size: 20px;
 }
 
 .bonus.minus {
@@ -2165,4 +2166,141 @@
 .rating-line .down {
   color: var(--bad);
   font-weight: 600;
+}
+
+/* Pickable ladder: Auto plus the ten rungs, as buttons. */
+.ladder.pickable .ladder-steps {
+  grid-template-columns: 1.3fr repeat(10, 1fr);
+}
+
+.ladder .rung {
+  padding: 6px 0;
+  font-family: var(--f-mono);
+  font-size: 11px;
+  color: var(--dim);
+  background: var(--raised);
+  border: 1px solid var(--rule);
+  cursor: pointer;
+}
+
+.ladder .rung.got {
+  color: var(--paper);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.ladder .rung[aria-pressed='true'] {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+  position: relative;
+  z-index: 1;
+}
+
+.ladder .rung.auto .piece {
+  font-family: var(--f-mono);
+}
+
+/* ---------- Results: light, few words ---------- */
+
+.result-mode {
+  margin: 2px 0 6px;
+  font-size: 14px;
+}
+
+.result-hero {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.agility {
+  text-align: right;
+  padding-bottom: 10px;
+}
+
+.agility-label {
+  font-family: var(--f-mono);
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.agility-value {
+  font-size: 34px;
+  font-weight: 600;
+  color: var(--accent);
+  line-height: 1.1;
+}
+
+.agility-value .up {
+  font-size: 18px;
+  color: var(--ok);
+}
+
+.agility-value .down {
+  font-size: 18px;
+  color: var(--bad);
+}
+
+.agility-title {
+  font-style: italic;
+  color: var(--dim);
+}
+
+.marks {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 14px;
+  margin: 4px 0 2px;
+  font-family: var(--f-mono);
+  font-size: 13px;
+  color: var(--dim);
+}
+
+.mark.best {
+  color: var(--accent);
+  font-weight: 600;
+}
+
+.result-facts {
+  margin: 4px 0 18px;
+  font-size: 15px;
+  color: var(--dim);
+}
+
+.result-actions {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 8px;
+}
+
+.share-panel .share-choices {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.share-panel .share-choices[hidden] {
+  display: none;
+}
+
+.share-panel .share-status:empty {
+  display: none;
+}
+
+.board td.rank {
+  width: 2.5em;
+  color: var(--dim);
+}
+
+.board td.num {
+  text-align: right;
+  font-family: var(--f-mono);
+}
+
+.agility {
+  margin-left: auto;
 }

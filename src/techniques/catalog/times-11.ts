@@ -90,6 +90,7 @@ export default defineTechnique({
     category: 'mul',
     tier: 'Foundation',
     order: 30,
+    featured: true,
     idea: 'Keep the last digit, add neighbouring pairs for the middle, add any carry to the first digit.',
   },
   card: {

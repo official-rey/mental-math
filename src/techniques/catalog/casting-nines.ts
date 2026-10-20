@@ -173,6 +173,7 @@ export default defineTechnique({
     category: 'est',
     tier: 'Foundation',
     order: 50,
+    featured: true,
     idea: 'Cross out 9s and digits that make 9, add the rest, and keep adding digits until one is left.',
   },
   card: {

@@ -7,7 +7,11 @@ import { lessons } from './lessons';
 import type { View } from './router';
 import { layout } from './shell';
 
-const SHORT: Record<CategoryId, { label: string; glyph: string }> = {
+/** Learn's tabs: Featured (the handful worth learning first), then every group. */
+export type LearnTab = CategoryId | 'featured';
+
+const SHORT: Record<LearnTab, { label: string; glyph: string }> = {
+  featured: { label: 'Featured', glyph: '★' },
   addsub: { label: 'Add & subtract', glyph: '±' },
   mul: { label: 'Multiply', glyph: '×' },
   div: { label: 'Divide', glyph: '÷' },
@@ -24,9 +28,12 @@ const TIERS: Tier[] = ['Foundation', 'Core', 'Advanced'];
  */
 export async function learnView(parts: string[]): Promise<View> {
   const prefs = await store.getPrefs();
-  const groups = byCategory();
+  const groups: { id: LearnTab; name: string; items: Technique[] }[] = [
+    { id: 'featured', name: 'Featured', items: techniques.filter((t) => t.meta.featured) },
+    ...byCategory(),
+  ];
   const known = new Set(techniques.map((t) => t.meta.id));
-  let current: CategoryId =
+  let current: LearnTab =
     groups.find((g) => g.id === parts[0])?.id ?? (groups.some((g) => g.id === prefs.learnCategory) ? prefs.learnCategory : groups[0].id);
   let openId: string | null = parts[1] && known.has(parts[1]) ? parts[1] : null;
 
@@ -80,6 +87,11 @@ export async function learnView(parts: string[]): Promise<View> {
     const g = groups.find((x) => x.id === current)!;
     chips.forEach((c) => c.setAttribute('aria-selected', String(c.dataset.cat === current)));
     let n = 0;
+    // Featured is one short list, in the order worth learning; the groups split by tier.
+    if (current === 'featured') {
+      list.replaceChildren(h('ol', { class: 'tech-list featured', 'data-testid': 'featured-list' }, g.items.map((t) => row(t, ++n))));
+      return;
+    }
     list.replaceChildren(
       ...TIERS.map((tier) => {
         const items = g.items.filter((t) => t.meta.tier === tier);
@@ -94,7 +106,7 @@ export async function learnView(parts: string[]): Promise<View> {
     );
   }
 
-  function select(id: CategoryId) {
+  function select(id: LearnTab) {
     current = id;
     openId = null;
     store.setPrefs({ learnCategory: id });

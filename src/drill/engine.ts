@@ -126,6 +126,7 @@ export class DrillSession {
     private now: () => number = () => performance.now(),
   ) {
     this.sources = sourcesFor(spec);
+    this.level = this.peak = spec.from ?? 1;
   }
 
   start(): Problem {

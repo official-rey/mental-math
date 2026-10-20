@@ -9,9 +9,10 @@
   --ok: #4f7359;
   --bad: #a5432e;
 
-  --f-head: 'Bricolage Grotesque', system-ui, sans-serif;
-  --f-prose: 'Newsreader', Georgia, 'Times New Roman', serif;
-  --f-mono: 'IBM Plex Mono', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
+  /* Noto Sans Symbols 2 only supplies the chess pieces; every other character comes from the first font. */
+  --f-head: 'Bricolage Grotesque', 'Noto Sans Symbols 2', system-ui, sans-serif;
+  --f-prose: 'Newsreader', 'Noto Sans Symbols 2', Georgia, 'Times New Roman', serif;
+  --f-mono: 'IBM Plex Mono', 'Noto Sans Symbols 2', ui-monospace, 'SFMono-Regular', Menlo, Consolas, monospace;
 
   --gutter: 16px;
   --measure: 720px;

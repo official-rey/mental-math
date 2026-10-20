@@ -12,6 +12,7 @@ export function specToHash(s: DrillSpec): string {
   if (s.ids.length) q.set('ids', s.ids.join(','));
   if (s.known) q.set('f', String(s.known));
   if (s.ladder) q.set('z', '1');
+  if (s.from) q.set('s', String(s.from));
   return `#/drill?${q.toString().replace(/%2C/g, ',')}`;
 }
 
@@ -23,7 +24,12 @@ export function parseSpec(q: URLSearchParams): DrillSpec | null {
   const ids = (q.get('ids') ?? '').split(',').filter((id) => getTechnique(id));
   if (!MODES.some((m) => m.id === mode)) return null;
   // Chains climb on their own from Level I; the highest level reached before goes by faster.
-  if (kind === 'chain') return { kind, ids: [], level: CHAIN_MAX, mode, known: Math.min(CHAIN_MAX, Math.max(1, Number(q.get('f')) || 1)) };
+  if (kind === 'chain') {
+    // A picked level: play there. Otherwise Auto: climb from I.
+    const from = Number(q.get('s'));
+    if (from >= 1 && from <= CHAIN_MAX) return { kind, ids: [], level: from, mode, from };
+    return { kind, ids: [], level: CHAIN_MAX, mode, known: Math.min(CHAIN_MAX, Math.max(1, Number(q.get('f')) || 1)) };
+  }
   // Challenge: a ladder from Level I to X, climbing on its own.
   if (q.get('z') && (kind === 'technique' ? ids.length === 1 : ids.length > 0)) return { kind, ids, level: 10, mode, ladder: true, known: Math.min(10, Math.max(1, Number(q.get('f')) || 1)) };
   if (!LEVELS.includes(level as Level)) return null;

@@ -36,6 +36,7 @@ export default defineTechnique({
     category: 'pow',
     tier: 'Foundation',
     order: 50,
+    featured: true,
     idea: 'Drop the 5, multiply what is left by the next number up, then write 25 after it.',
   },
   card: {

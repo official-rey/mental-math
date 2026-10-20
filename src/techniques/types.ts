@@ -78,6 +78,8 @@ export interface Technique {
     idea: string;
     /** Some answers are negative, so drills offer a minus key. */
     signed?: boolean;
+    /** One of the handful worth learning first: listed under Featured in Learn and Train. */
+    featured?: boolean;
   };
   card: {
     /** At most 3 short lines of prose. */

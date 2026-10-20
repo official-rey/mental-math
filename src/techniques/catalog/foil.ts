@@ -37,6 +37,7 @@ export default defineTechnique({
     category: 'mul',
     tier: 'Core',
     order: 105,
+    featured: true,
     idea: 'Tens × tens, then the two cross products, then ones × ones; add them left to right as hundreds, tens and ones.',
   },
   card: {

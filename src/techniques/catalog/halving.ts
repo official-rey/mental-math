@@ -25,6 +25,7 @@ export default defineTechnique({
     category: 'mul',
     tier: 'Foundation',
     order: 40,
+    featured: true,
     idea: 'Halve the number, then shift: one place for × 5, two for × 50. For × 25, halve twice and shift two.',
   },
   card: {

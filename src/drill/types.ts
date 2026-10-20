@@ -4,9 +4,9 @@ export type Mode = 'training' | 'sprint' | 'twenty' | 'endless';
 
 export const MODES: { id: Mode; label: string; short: string }[] = [
   { id: 'training', label: 'Training', short: 'Train' },
-  { id: 'sprint', label: 'Sprint (60 s, +2 s per correct)', short: 'Sprint' },
+  { id: 'sprint', label: 'Sprint', short: 'Sprint' },
   { id: 'twenty', label: '20 problems', short: '20 ×' },
-  { id: 'endless', label: 'Endless (3 lives)', short: 'Endless' },
+  { id: 'endless', label: 'Endless', short: 'Endless' },
 ];
 
 export type DrillKind = 'technique' | 'mixed' | 'chain';
@@ -22,6 +22,8 @@ export interface DrillSpec {
   known?: number;
   /** Challenge: levels run I–X on a ladder that blends the techniques' six levels. */
   ladder?: boolean;
+  /** Chains: a level picked by the player; the run stays there instead of climbing from I. */
+  from?: number;
 }
 
 /** Anything that can produce problems and explain them. */

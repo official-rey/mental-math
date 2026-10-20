@@ -3,7 +3,7 @@ import { MODES, type DrillSpec, type Mode, type RunRecord } from '../drill/types
 import { scoreText } from '../share/draw';
 import { store } from '../storage/store';
 import { byCategory, techniques } from '../techniques/registry';
-import { ROMAN } from '../techniques/types';
+import { ROMAN, type Technique } from '../techniques/types';
 import { levelControl, segmented } from './controls';
 import { h, reveal } from './dom';
 import type { View } from './router';
@@ -11,11 +11,11 @@ import { ratingLabel, title } from '../drill/rating';
 import { ladder } from './ladder';
 import { layout } from './shell';
 
-/** The techniques Train and Challenge use: the ones ticked in Train, or Foundation to begin with. */
+/** The techniques Train and Challenge use: the ones ticked in Train, or the Featured ones to begin with. */
 export function pickedIds(mixed: string[]): string[] {
   const known = new Set(techniques.map((t) => t.meta.id));
   const ids = mixed.filter((id) => known.has(id));
-  return ids.length ? ids : techniques.filter((t) => t.meta.tier === 'Foundation').map((t) => t.meta.id);
+  return ids.length ? ids : techniques.filter((t) => t.meta.featured).map((t) => t.meta.id);
 }
 
 export function practiceSpec(ids: string[], level: number, mode: Mode): DrillSpec {
@@ -49,47 +49,47 @@ export async function trainView(): Promise<View> {
     store.setPrefs({ mixed: ids });
   }
 
-  const quick = (label: string, pick: (tier: string) => boolean) =>
+  /** Quick picks choose a set of techniques in one tap. */
+  const quick = (label: string, pick: (t: Technique) => boolean) =>
     h('button', {
       class: 'tool',
       type: 'button',
       onclick: () => {
         picked.clear();
-        techniques.filter((t) => pick(t.meta.tier)).forEach((t) => picked.add(t.meta.id));
+        techniques.filter(pick).forEach((t) => picked.add(t.meta.id));
         sync();
       },
     }, label);
 
-  const lists = byCategory().map((cat) =>
-    h(
-      'section',
+  /** One tickable row. Featured rows repeat a technique from its group, so they get their own test id. */
+  const item = (t: Technique, testid: string) => {
+    const box = h('input', {
+      type: 'checkbox',
+      value: t.meta.id,
+      'data-testid': testid,
+      onchange: (e: Event) => {
+        if ((e.target as HTMLInputElement).checked) picked.add(t.meta.id);
+        else picked.delete(t.meta.id);
+        sync();
+      },
+    });
+    boxes.push(box);
+    const n = solved.get(t.meta.id) ?? 0;
+    return h(
+      'li',
       null,
-      h('h3', { class: 'pick-head' }, cat.name),
-      h(
-        'ul',
-        { class: 'picklist' },
-        cat.items.map((t) => {
-          const box = h('input', {
-            type: 'checkbox',
-            value: t.meta.id,
-            'data-testid': `pick-${t.meta.id}`,
-            onchange: (e: Event) => {
-              if ((e.target as HTMLInputElement).checked) picked.add(t.meta.id);
-              else picked.delete(t.meta.id);
-              sync();
-            },
-          });
-          boxes.push(box);
-          const n = solved.get(t.meta.id) ?? 0;
-          return h(
-            'li',
-            null,
-            h('label', null, box, h('span', { class: 'name' }, t.meta.name), h('span', { class: `solved mono${n ? '' : ' none'}`, title: 'Solved' }, String(n))),
-          );
-        }),
-      ),
-    ),
-  );
+      h('label', null, box, h('span', { class: 'name' }, t.meta.name), h('span', { class: `solved mono${n ? '' : ' none'}`, title: 'Solved' }, String(n))),
+    );
+  };
+
+  const section = (name: string, items: Technique[], prefix: string, cls = '') =>
+    h('section', { class: cls }, h('h3', { class: 'pick-head' }, name), h('ul', { class: 'picklist' }, items.map((t) => item(t, `${prefix}${t.meta.id}`))));
+
+  // Featured first: the handful worth learning first. Then every group.
+  const lists = [
+    section('★ Featured', techniques.filter((t) => t.meta.featured), 'feat-', 'featured'),
+    ...byCategory().map((cat) => section(cat.name, cat.items, 'pick-')),
+  ];
 
   sync();
   const content = reveal(
@@ -102,7 +102,7 @@ export async function trainView(): Promise<View> {
         store.setPrefs({ level: l });
         sync();
       }),
-      h('div', { class: 'quick-picks' }, quick('Foundation', (t) => t === 'Foundation'), quick('All', () => true), quick('None', () => false)),
+      h('div', { class: 'quick-picks' }, quick('Featured', (t) => !!t.meta.featured), quick('Foundation', (t) => t.meta.tier === 'Foundation'), quick('All', () => true), quick('None', () => false)),
       lists,
       h('div', { class: 'sticky-go' }, go),
     ),
@@ -139,7 +139,7 @@ export async function challengeView(): Promise<View> {
       'div',
       null,
       h('h1', { class: 'display' }, 'Challenge'),
-      h('p', { class: 'rating-line', 'data-testid': 'rating' }, 'Agility rating ', h('b', { class: 'mono' }, ratingLabel(prefs.rating)), h('span', { class: 'dim' }, ` · ${title(prefs.rating).name}`)),
+      h('p', { class: 'rating-line', 'data-testid': 'rating' }, 'Mental math agility ', h('b', { class: 'mono' }, ratingLabel(prefs.rating)), h('span', { class: 'dim' }, ` · ${title(prefs.rating).name}`)),
       h(
         'div',
         { class: 'controls' },
