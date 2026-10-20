@@ -2305,25 +2305,47 @@
   margin-left: auto;
 }
 
-/* Queen and king are drawn taller and wider than the other pieces in the font. */
-.ladder-steps .piece.royal {
-  font-size: 16px;
-  line-height: 22px;
-}
 
 /* Typeset square roots: the bar runs over the whole radicand. */
 .rad {
+  position: relative;
+  display: inline-block;
+  padding-left: 0.6em;
   white-space: nowrap;
 }
 
+/* The drawn sign fills the radical's height; its last stroke meets the bar at the top. */
 .rad-sign {
-  padding-right: 0.02em;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 0.62em;
+  height: calc(100% + 0.12em);
+  overflow: visible;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 0.07em;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.rad-sign path {
+  vector-effect: non-scaling-stroke;
 }
 
 /* An inline-block keeps the text's baseline; nested roots grow it, so their bars stack. */
 .rad-in {
   display: inline-block;
-  border-top: 0.06em solid currentColor;
-  padding: 0.02em 0.08em 0 0.04em;
+  border-top: 0.07em solid currentColor;
+  padding: 0.1em 0.1em 0 0.04em;
   line-height: 1.05;
+}
+
+/* Drawn queen and king: sized like a glyph, in the text color. */
+.piece-svg {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.12em;
+  fill: currentColor;
 }

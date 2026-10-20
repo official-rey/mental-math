@@ -12,7 +12,7 @@ import { h } from './dom';
 import { ICONS } from './icons';
 import { applyKey, keypad, type PadKey } from './keypad';
 import { go, type View } from './router';
-import { PIECE } from './ladder';
+import { pieceHTML } from './ladder';
 import { setMath } from './math';
 import { soundToggle } from './shell';
 import { renderStepper, renderSteps } from './steps';
@@ -233,7 +233,8 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
   function paintLevel() {
     const cur = session.level, target = spec.level;
     // Chains and Challenge climb a ladder of pieces as far as you can take them: no target to show.
-    levelTag.textContent = climbs ? `${PIECE[cur]} Level ${ROMAN[cur]}` : cur < target ? `Level ${ROMAN[cur]} → ${ROMAN[target]}` : `Level ${ROMAN[cur]}`;
+    if (climbs) levelTag.innerHTML = `<span class="piece">${pieceHTML(cur)}</span> Level ${ROMAN[cur]}`;
+    else levelTag.textContent = cur < target ? `Level ${ROMAN[cur]} → ${ROMAN[target]}` : `Level ${ROMAN[cur]}`;
   }
 
   /** Brief "+2 s" beside the clock when a correct sprint answer adds time. */
@@ -312,7 +313,9 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
       ladderBest = a.levelUp;
       store.setPrefs({ [bestKey]: ladderBest });
       sound.best();
-      return cheer(`${PIECE[a.levelUp]} Level ${ROMAN[a.levelUp]} unlocked!`);
+      cheer(`Level ${ROMAN[a.levelUp]} unlocked!`);
+      toast.insertAdjacentHTML('afterbegin', `<span class="piece">${pieceHTML(a.levelUp)}</span> `);
+      return;
     }
     if (counted && bestRun && !passedBest && session.correct > bestRun.correct) {
       passedBest = passedAverage = true;

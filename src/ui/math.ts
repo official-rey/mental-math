@@ -41,8 +41,17 @@ export function parseMath(text: string): MathPart[] {
   return out;
 }
 
+/**
+ * The sign is drawn, not typed: a stroke that stretches to the radicand's height and runs
+ * straight into the bar, so sign and bar read as one line, as in typeset math.
+ */
+const SIGN = '<svg class="rad-sign" viewBox="0 0 10 32" preserveAspectRatio="none" aria-hidden="true"><path d="M0.6 19.5 3.2 17.4 5.8 30.6 9.7 1 11 1"/></svg>';
+
 const toHTML = (parts: MathPart[]): string =>
-  parts.map((p) => ('text' in p ? esc(p.text) : `<span class="rad"><span class="rad-sign">√</span><span class="rad-in">${toHTML(p.root)}</span></span>`)).join('');
+  parts.map((p) => ('text' in p ? esc(p.text) : `<span class="rad" role="img" aria-label="square root of ${esc(plain(p.root))}">${SIGN}<span class="rad-in">${toHTML(p.root)}</span></span>`)).join('');
+
+/** The radicand as plain text, for screen readers. */
+const plain = (parts: MathPart[]): string => parts.map((p) => ('text' in p ? p.text : `√(${plain(p.root)})`)).join('');
 
 /** HTML for math text, with typeset roots. */
 export const mathHTML = (text: string): string => toHTML(parseMath(text));
@@ -56,7 +65,9 @@ export function setMath(el: HTMLElement, text: string): void {
 /** Draw math text on a canvas from (x, y), left-aligned, with typeset roots. Returns the width. */
 export function drawMath(ctx: CanvasRenderingContext2D, text: string, x: number, y: number, draw = true): number {
   const size = parseFloat(/(\d+(?:\.\d+)?)px/.exec(ctx.font)?.[1] ?? '16');
-  const walk = (parts: MathPart[], x0: number, depth: number): number => {
+  /** How many roots sit inside these parts; an outer bar clears every bar inside it. */
+  const nest = (parts: MathPart[]): number => Math.max(0, ...parts.map((p) => ('text' in p ? 0 : 1 + nest(p.root))));
+  const walk = (parts: MathPart[], x0: number): number => {
     let cx = x0;
     for (const p of parts) {
       if ('text' in p) {
@@ -64,15 +75,28 @@ export function drawMath(ctx: CanvasRenderingContext2D, text: string, x: number,
         cx += ctx.measureText(p.text).width;
         continue;
       }
-      const sign = ctx.measureText('√').width;
-      if (draw) ctx.fillText('√', cx, y);
-      const start = cx + sign * 0.92;
-      const end = walk(p.root, start + size * 0.06, depth + 1) + size * 0.06;
-      // The bar: from the top of the sign across the radicand, a little higher for each nested root.
-      if (draw) ctx.fillRect(start, y - size * (0.86 + 0.08 * depth), end - start, Math.max(1.5, size * 0.06));
+      // A drawn sign that runs straight into the bar, a little higher for each nested root.
+      const w = size * 0.5, line = Math.max(1.5, size * 0.065);
+      const top = y - size * (0.86 + 0.16 * nest(p.root)), bottom = y + size * 0.16;
+      const start = cx + w;
+      const end = walk(p.root, start + size * 0.06) + size * 0.08;
+      if (draw) {
+        ctx.save();
+        ctx.strokeStyle = ctx.fillStyle as string;
+        ctx.lineWidth = line;
+        ctx.lineJoin = 'round';
+        ctx.beginPath();
+        ctx.moveTo(cx + w * 0.06, y - size * 0.3);
+        ctx.lineTo(cx + w * 0.32, y - size * 0.37);
+        ctx.lineTo(cx + w * 0.58, bottom);
+        ctx.lineTo(start, top);
+        ctx.lineTo(end, top);
+        ctx.stroke();
+        ctx.restore();
+      }
       cx = end;
     }
     return cx;
   };
-  return walk(parseMath(text), x, 0) - x;
+  return walk(parseMath(text), x) - x;
 }
