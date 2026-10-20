@@ -1,6 +1,6 @@
 import { MODES, type RunRecord } from '../drill/types';
 import { ROMAN } from '../techniques/types';
-import { APP_NAME, FONTS, PALETTE } from '../theme';
+import { APP_MEANING, APP_NAME, FONTS, PALETTE } from '../theme';
 import { drawSplits, loadFonts, longestStreak, makeCanvas, pct, wrap } from './draw';
 
 export const CARD_W = 1080;
@@ -27,10 +27,15 @@ export async function renderScoreCard(run: RunRecord, opts: { best?: boolean } =
   ctx.fillRect(0, 0, CARD_W, CARD_H);
   ctx.textBaseline = 'alphabetic';
 
-  // Brand and date
+  // The name as a dictionary entry, and the date
   ctx.fillStyle = PALETTE.ink;
-  ctx.font = `800 46px ${FONTS.head}`;
-  ctx.fillText(APP_NAME, M, 130);
+  ctx.font = `italic 500 58px ${FONTS.prose}`;
+  const word = APP_NAME.toLowerCase();
+  ctx.fillText(word, M, 128);
+  const ww = ctx.measureText(word).width;
+  ctx.fillStyle = PALETTE.dim;
+  ctx.font = `italic 400 28px ${FONTS.prose}`;
+  ctx.fillText(APP_MEANING.join(' ').replace(/\.$/, ''), M + ww + 22, 126);
   ctx.textAlign = 'right';
   ctx.fillStyle = PALETTE.dim;
   ctx.font = `500 26px ${FONTS.mono}`;

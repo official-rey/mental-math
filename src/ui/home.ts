@@ -1,6 +1,6 @@
 import { heroPlate } from '../art/hero';
 import { store } from '../storage/store';
-import { APP_NAME, DEV_CREDIT } from '../theme';
+import { APP_MEANING, APP_NAME, APP_SYLLABLES, DEV_CREDIT } from '../theme';
 import { h, reveal } from './dom';
 import type { View } from './router';
 import { processReel } from './feats';
@@ -59,7 +59,14 @@ export async function homeView(): Promise<View> {
   const first = h(
     'section',
     { class: 'first-screen', 'data-testid': 'first-screen' },
-    h('h1', { class: 'display' }, APP_NAME),
+    // The name as a dictionary entry: the word, its syllables, what it means.
+    h(
+      'header',
+      { class: 'entry' },
+      h('h1', { class: 'entry-word' }, APP_NAME.toLowerCase()),
+      h('p', { class: 'entry-say mono' }, `/${APP_SYLLABLES}/`),
+      h('ol', { class: 'entry-meanings' }, APP_MEANING.map((m) => h('li', null, m))),
+    ),
     h(
       'div',
       { class: 'actions' },

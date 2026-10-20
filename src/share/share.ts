@@ -4,7 +4,7 @@ export function fileName(run: RunRecord, ext: 'png' | 'gif'): string {
   const slug = run.drillName.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 40);
   const d = new Date(run.date);
   const stamp = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
-  return `mental-math-${slug}-${stamp}.${ext}`;
+  return `kuwenta-${slug}-${stamp}.${ext}`;
 }
 
 /** Save the image to the device. Nothing is sent anywhere. */

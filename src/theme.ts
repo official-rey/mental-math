@@ -22,4 +22,7 @@ export const DEV_CREDIT = 'dev: Rey S.';
 export const DEV_PLACE = 'BS Math · CMU, Bukidnon';
 
 /** The app's name: header, page titles and shared images. */
-export const APP_NAME = 'Carry the One';
+export const APP_NAME = 'Kuwenta';
+/** What the name means, written like a dictionary entry: Tagalog for to compute, and (may kuwenta) worthwhile. */
+export const APP_MEANING = ['to compute.', 'or, worthwhile.'] as const;
+export const APP_SYLLABLES = 'ku·wen·ta';

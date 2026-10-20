@@ -41,8 +41,8 @@ export async function renderHighlightGif(run: RunRecord): Promise<Blob> {
     ctx.fillRect(0, 0, W, H);
     drawMotif(ctx, art, 2 + (finalK - 2) * progress);
     ctx.fillStyle = PALETTE.dim;
-    ctx.font = `800 18px ${FONTS.head}`;
-    ctx.fillText(APP_NAME, M, 44);
+    ctx.font = `italic 500 24px ${FONTS.prose}`;
+    ctx.fillText(APP_NAME.toLowerCase(), M, 46);
   };
 
   const title = (ctx: CanvasRenderingContext2D, size: number, y0: number) => {

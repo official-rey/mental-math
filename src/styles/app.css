@@ -2062,3 +2062,43 @@
 .dev p {
   margin: 0;
 }
+
+/* ---------- Home: the name as a dictionary entry ---------- */
+
+.entry {
+  margin: 18px 0 20px;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--ink);
+}
+
+.entry-word {
+  margin: 0;
+  font-family: var(--f-prose);
+  font-style: italic;
+  font-weight: 500;
+  font-size: clamp(54px, 15vw, 84px);
+  line-height: 0.95;
+  letter-spacing: -0.01em;
+}
+
+.entry-say {
+  margin: 6px 0 8px;
+  font-size: 15px;
+  color: var(--dim);
+}
+
+.entry-meanings {
+  margin: 0;
+  padding-left: 1.3em;
+  font-family: var(--f-prose);
+  font-style: italic;
+  font-size: 20px;
+  line-height: 1.35;
+}
+
+.entry-meanings li::marker {
+  font-family: var(--f-mono);
+  font-style: normal;
+  font-size: 14px;
+  color: var(--accent);
+}

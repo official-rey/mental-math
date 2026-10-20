@@ -28,6 +28,8 @@ export async function loadFonts(): Promise<void> {
       `500 40px ${FONTS.mono}`,
       `400 40px ${FONTS.mono}`,
       `400 40px ${FONTS.prose}`,
+      `italic 400 40px ${FONTS.prose}`,
+      `italic 500 40px ${FONTS.prose}`,
     ].map((f) => document.fonts.load(f).catch(() => undefined)),
   );
 }
