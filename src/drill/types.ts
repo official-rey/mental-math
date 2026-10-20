@@ -1,11 +1,12 @@
 import type { Problem, Rng, Step } from '../techniques/types';
 
-export type Mode = 'training' | 'sprint' | 'twenty';
+export type Mode = 'training' | 'sprint' | 'twenty' | 'endless';
 
 export const MODES: { id: Mode; label: string; short: string }[] = [
   { id: 'training', label: 'Training', short: 'Train' },
   { id: 'sprint', label: 'Sprint (60 s, +2 s per correct)', short: 'Sprint' },
   { id: 'twenty', label: '20 problems', short: '20 ×' },
+  { id: 'endless', label: 'Endless (3 lives)', short: 'Endless' },
 ];
 
 export type DrillKind = 'technique' | 'mixed' | 'chain';

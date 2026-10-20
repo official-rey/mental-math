@@ -220,6 +220,26 @@ test('learn: the key takeaways start open, each with its picture, and fold away'
   await expect(page.locator('.tech.open .figure-problem')).toHaveText('cos 120° = ?');
 });
 
+test('endless: hearts go down on misses and the run ends on the last one', async ({ page }) => {
+  await page.goto('/?e2e=1#/drill?k=technique&ids=times-11&l=1&m=endless');
+  await expect(page.getByTestId('stat')).toHaveText('♥♥♥ · ✓0');
+  await answer(page, true);
+  await answer(page, false);
+  await expect(page.getByTestId('stat')).toHaveText('♥♥♡ · ✓1');
+  await answer(page, false);
+  await answer(page, false);
+  await expect(page.getByTestId('results')).toBeVisible();
+  await expect(page.getByTestId('score')).toHaveText('1');
+});
+
+test('about: the maker is on the About page, not the landing', async ({ page }) => {
+  await page.goto('/?e2e=1#/');
+  await expect(page.getByText('Central Mindanao University')).toHaveCount(0);
+  await page.getByTestId('top-settings').tap();
+  await page.getByTestId('about-link').tap();
+  await expect(page.getByTestId('maker')).toContainText('Central Mindanao University');
+});
+
 test('the Train Start button is not hidden behind the tab bar', async ({ page }) => {
   await page.goto('/?e2e=1#/train');
   const start = await page.getByTestId('start-train').boundingBox();

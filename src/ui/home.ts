@@ -18,40 +18,28 @@ export async function homeView(): Promise<View> {
   const why = h(
     'section',
     { class: 'why', id: 'why', 'data-testid': 'why' },
-    h('h2', null, 'Bakit mental math?'),
+    h('h2', null, 'Why practice mental math'),
     h(
       'p',
       { class: 'why-lead' },
       'Mental arithmetic is one of the most ',
       h('em', null, 'underrated'),
-      ' skills sa math, and one of the most ',
+      ' skills in math, and one of the most ',
       h('em', null, 'practical'),
-      '. Gamit mo siya araw-araw, sa palengke man o sa exam.',
+      ' ones to have in real life.',
     ),
     demo.el,
     h(
       'p',
       null,
-      'Sabi ng iba, wala na raw silbi kasi may calculator na. Pero ang pag-compute sa isip is math in its most old-school form, and para sa isang math major, hindi nawawala ang pagka-astig niyan.',
+      'You could argue calculators made it obsolete. But working a number out in your head is math in its most old-school form, and to a math major that never stops being cool.',
     ),
     h(
       'p',
       null,
-      'Ginawa ko ’to para sa math community namin at para sa mga students ko: isang lugar para matutunan ang bawat trick at i-practice hanggang tumatak. Welcome din ang kahit sinong curious. Bonus pa, pang-impress sa barkada ;p',
+      'I built this for our math community and for my students: a place to pick up each trick and practise it until it sticks. Anyone else curious enough is welcome too. It also happens to be a great way to impress your friends ;p',
     ),
     h('p', { class: 'why-sign' }, `— ${DEV_CREDIT.replace('dev: ', '')}`),
-  );
-
-  // Who made it.
-  const dev = h(
-    'section',
-    { class: 'dev', 'data-testid': 'dev' },
-    h('h2', null, 'Made in Bukidnon'),
-    h(
-      'p',
-      null,
-      'Ako si Rey, a BS Mathematics student at Central Mindanao University (CMU), Bukidnon. Mahilig ako sa numbers at sa pagtuturo, and I believe na kahit sino kayang matuto mag-compute nang mabilis sa isip. Padayon!',
-    ),
   );
 
   const cue = h('button', { type: 'button', class: 'scroll-cue', onclick: () => why.scrollIntoView({ behavior: 'smooth' }) }, 'Why practice mental math', h('span', { 'aria-hidden': 'true' }, '↓'));
@@ -97,7 +85,7 @@ export async function homeView(): Promise<View> {
   );
 
   const coda = plate ? h('section', { class: 'coda' }, plate.el) : null;
-  const content = reveal(h('div', { class: 'landing' }, first, why, dev, coda));
+  const content = reveal(h('div', { class: 'landing' }, first, why, coda));
 
   return {
     el: layout({ active: 'home' }, content),

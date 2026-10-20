@@ -1,6 +1,6 @@
 import { sound } from '../drill/sound';
 import { store } from '../storage/store';
-import { APP_NAME, DEV_CREDIT, DEV_PLACE } from '../theme';
+import { APP_NAME, DEV_CREDIT } from '../theme';
 import { h, type Child } from './dom';
 import { ICONS } from './icons';
 
@@ -72,7 +72,7 @@ export function tabbar(active?: Section): HTMLElement {
 }
 
 export function footer(): HTMLElement {
-  return h('footer', { class: 'footer' }, h('span', null, `${DEV_CREDIT} · ${DEV_PLACE}`), h('a', { href: '#/about' }, 'About'));
+  return h('footer', { class: 'footer' }, h('span', null, DEV_CREDIT), h('a', { href: '#/about' }, 'About'));
 }
 
 /** Standard page: top bar, content, footer, tab bar. */

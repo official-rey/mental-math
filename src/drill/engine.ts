@@ -7,6 +7,12 @@ import { drillKey, drillName } from './spec';
 import type { DrillSpec, ProblemSource, RunEntry, RunRecord } from './types';
 
 export const SPRINT_MS = 60_000;
+/** Endless: lives, and the clock on each problem (it shrinks by a share of the start per solve, down to a floor). */
+export const LIVES = 3;
+export const ENDLESS_START_MS = 15_000;
+export const ENDLESS_CHAIN_MS = 40_000;
+const ENDLESS_SHRINK = 0.02;
+const ENDLESS_FLOOR = 0.35;
 export const TWENTY = 20;
 /** Correct answers in a row at a level before the drill steps up toward the chosen level. */
 export const RAMP_STREAK = 3;
@@ -39,6 +45,8 @@ export interface Attempt {
   done: boolean;
   /** Right answers in a row after this one (first tries only). */
   streak: number;
+  /** Endless: this answer (or skip, or timeout) cost a life. */
+  lifeLost?: boolean;
 }
 
 /**
@@ -62,6 +70,8 @@ export class DrillSession {
   /** Right first time, in a row, for rewards. */
   streak = 0;
   bestStreak = 0;
+  /** Endless: lives left. */
+  lives = LIVES;
   /** Wrong tries on the current problem, and the first wrong input. */
   private misses = 0;
   private firstWrong = '';
@@ -118,13 +128,32 @@ export class DrillSession {
     this.misses++;
     this.streak = 0;
     this.rampStreak = 0;
+    // Endless: a wrong answer costs a life; losing the last one ends the run on this problem.
+    if (this.spec.mode === 'endless' && --this.lives <= 0) return { ...this.record(input, false, false), lifeLost: true };
     const ms = Math.max(0, Math.round(this.now() - this.shownAt));
-    return { ok: false, problem: this.current, input, ms, bonusMs: 0, done: false, streak: 0 };
+    return { ok: false, problem: this.current, input, ms, bonusMs: 0, done: false, streak: 0, ...(this.spec.mode === 'endless' ? { lifeLost: true } : {}) };
   }
 
-  /** Give up on the current problem: logged as unsolved. */
+  /** Give up on the current problem: logged as unsolved. In Endless it costs a life. */
   skip(): Attempt {
+    if (this.spec.mode === 'endless') {
+      this.lives--;
+      return { ...this.record('', false, true), lifeLost: true };
+    }
     return this.record('', false, true);
+  }
+
+  /** Endless: time allowed for the current problem; it tightens as you solve more. */
+  problemLimit(): number {
+    const base = this.spec.kind === 'chain' ? ENDLESS_CHAIN_MS : ENDLESS_START_MS;
+    return Math.max(base * ENDLESS_FLOOR, base - this.correct * base * ENDLESS_SHRINK);
+  }
+
+  /** Endless: time left on the current problem (Infinity in other modes). */
+  problemRemaining(): number {
+    if (this.spec.mode !== 'endless') return Infinity;
+    const at = this.pausedAt ?? this.now();
+    return Math.max(0, this.problemLimit() - (at - this.shownAt));
   }
 
   private record(input: string, ok: boolean, skipped: boolean): Attempt {
@@ -213,6 +242,7 @@ export class DrillSession {
   isFinished(): boolean {
     if (this.spec.mode === 'twenty') return this.log.length >= TWENTY;
     if (this.spec.mode === 'sprint') return this.elapsed() >= this.timeLimit();
+    if (this.spec.mode === 'endless') return this.lives <= 0;
     return false;
   }
 

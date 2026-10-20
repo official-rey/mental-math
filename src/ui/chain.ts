@@ -97,7 +97,7 @@ export async function chainView(): Promise<View> {
       'article',
       { class: 'card' },
       h('h1', { class: 'display' }, 'Chains'),
-      h('p', { class: 'chain-rule mono' }, h('b', null, '( )'), ' muna, tapos ', h('b', null, '× ÷'), ', saka ', h('b', null, '+ −'), ', left to right'),
+      h('p', { class: 'chain-rule mono' }, h('b', null, '( )'), ' first, then ', h('b', null, '× ÷'), ', then ', h('b', null, '+ −'), ', left to right'),
       h('div', { class: 'chain-example' }, renderStepper(chainSteps(chainExample())), figure),
       ladder,
       h('div', { class: 'controls' }, h('div', { class: 'control' }, h('span', { class: 'control-label' }, 'Clock'), modes)),

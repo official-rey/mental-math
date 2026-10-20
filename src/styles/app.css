@@ -2046,22 +2046,6 @@
   display: none;
 }
 
-/* Who made it, on the landing page. */
-.dev {
-  margin: 28px 0 8px;
-  padding: 14px 16px;
-  background: var(--raised);
-  border-left: 3px solid var(--accent);
-}
-
-.dev h2 {
-  margin: 0 0 6px;
-  font-size: 20px;
-}
-
-.dev p {
-  margin: 0;
-}
 
 /* ---------- Home: the name as a dictionary entry ---------- */
 
@@ -2101,4 +2085,53 @@
   font-style: normal;
   font-size: 14px;
   color: var(--accent);
+}
+
+/* ---------- About: the maker ---------- */
+
+.maker {
+  margin: 22px 0 8px;
+}
+
+.maker-card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px;
+  background: var(--raised);
+  border-top: 1px solid var(--ink);
+  border-bottom: 1px solid var(--ink);
+}
+
+.maker-mark {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--paper);
+  font-family: var(--f-prose);
+  font-style: italic;
+  font-size: 36px;
+}
+
+.maker-name {
+  margin: 0;
+  font-size: 24px;
+}
+
+.maker-line {
+  margin: 2px 0 0;
+  font-family: var(--f-mono);
+  font-size: 14px;
+}
+
+.about-facts {
+  padding-left: 1.2em;
+}
+
+.about-facts li {
+  margin-bottom: 4px;
 }

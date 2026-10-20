@@ -57,10 +57,11 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
   let feedbackTimer = 0;
   let toastTimer = 0;
 
-  // Sprint targets to beat during the run: your best, and your average, on this drill.
+  // Sprint and Endless targets to beat during the run: your best, and your average, on this drill.
   const key = drillKey(spec);
-  const bestRun = spec.mode === 'sprint' ? await store.best(key, 'sprint') : null;
-  const past = spec.mode === 'sprint' ? (await store.history()).filter((r) => r.drillKey === key && r.mode === 'sprint') : [];
+  const counted = spec.mode === 'sprint' || spec.mode === 'endless';
+  const bestRun = counted ? await store.best(key, spec.mode) : null;
+  const past = counted ? (await store.history()).filter((r) => r.drillKey === key && r.mode === spec.mode) : [];
   const average = past.length >= 2 ? past.reduce((a, r) => a + r.correct, 0) / past.length : 0;
   let passedAverage = false, passedBest = false;
   let chainBest = prefs.chainBest;
@@ -71,7 +72,7 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
   const stat = h('div', { class: 'drill-stat mono', 'data-testid': 'stat' });
   const streakEl = h('span', { class: 'streak mono', 'data-testid': 'streak', hidden: true });
   const bar = h('i');
-  const progress = h('div', { class: `progress${spec.mode === 'sprint' ? ' clock' : ''}`, 'aria-hidden': 'true' }, bar);
+  const progress = h('div', { class: `progress${counted ? ' clock' : ''}`, 'aria-hidden': 'true' }, bar);
   const tag = h('div', { class: 'drill-tag' });
   const problem = h('div', { class: 'problem', 'data-testid': 'problem', role: 'status', 'aria-live': 'polite' });
   const hint = h('div', { class: 'problem-hint mono' });
@@ -139,6 +140,14 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
       bar.style.width = `${(100 * left) / session.timeLimit()}%`;
       progress.classList.toggle('low', left < 10_000);
       if (left <= 0 && state !== 'done') end();
+    } else if (spec.mode === 'endless') {
+      const lives = session.lives;
+      stat.textContent = `${'♥'.repeat(Math.max(0, lives))}${'♡'.repeat(Math.max(0, 3 - lives))} · ✓${ok}`;
+      // The bar is this problem's clock; it gets shorter the more you solve.
+      const left = session.problemRemaining();
+      bar.style.width = `${(100 * left) / session.problemLimit()}%`;
+      progress.classList.toggle('low', left < 3_000);
+      if (left <= 0 && state === 'answering') timeUp();
     } else if (spec.mode === 'twenty') {
       stat.textContent = `${Math.min(log.length + 1, TWENTY)}/${TWENTY} · ${secs(session.elapsed())}s`;
       bar.style.width = `${(100 * log.length) / TWENTY}%`;
@@ -294,12 +303,12 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
       sound.best();
       return cheer(`Level ${ROMAN[a.levelUp]} unlocked! Padayon!`);
     }
-    if (spec.mode === 'sprint' && bestRun && !passedBest && session.correct > bestRun.correct) {
+    if (counted && bestRun && !passedBest && session.correct > bestRun.correct) {
       passedBest = passedAverage = true;
       sound.best();
       return cheer('New best! Galing!');
     }
-    if (spec.mode === 'sprint' && average && !passedAverage && session.correct > average) {
+    if (counted && average && !passedAverage && session.correct > average) {
       passedAverage = true;
       sound.best();
       return cheer('Lampas na sa average mo!');
@@ -326,7 +335,11 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
       input.classList.add('is-ok');
       return next();
     }
-    // A miss is forgiven: shake, clear, and try the same problem again.
+    // A miss is forgiven: shake, clear, and try the same problem again. In Endless it costs a life.
+    if (a.done) {
+      sound.wrong();
+      return end();
+    }
     sound.wrong();
     buzz(40);
     paintStreak(0);
@@ -334,7 +347,7 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
     input.classList.remove('is-wrong');
     void input.offsetWidth;
     input.classList.add('is-wrong');
-    flash('Sayang! Try again', 'bad');
+    flash(a.lifeLost ? 'Sayang! −1 ♥ · Try again' : 'Sayang! Try again', 'bad');
     // While training, each miss also shows one more line of the method.
     if (!timed) showHint();
     input.focus();
@@ -345,11 +358,23 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
     const a = session.skip();
     paintStats();
     paintStreak(0);
+    if (session.isFinished()) return end();
     if (timed) {
       flash(`${a.problem.text} = ${fmt(a.problem.answer)}`, 'bad');
       return next();
     }
     review(a.problem.answer, a.problem.text, session.steps(a.problem));
+  }
+
+  /** Endless: the problem's clock ran out. It costs a life; the answer shows and the run moves on. */
+  function timeUp() {
+    const a = session.skip();
+    sound.wrong();
+    buzz(40);
+    paintStreak(0);
+    if (session.isFinished()) return end();
+    flash(`Time! ${a.problem.text} = ${fmt(a.problem.answer)}`, 'bad');
+    next();
   }
 
   function togglePause() {

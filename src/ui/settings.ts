@@ -84,7 +84,7 @@ export async function settingsView(): Promise<View> {
       row('Runs and bests', null, erase),
       status,
       h('h2', { class: 'section-head' }, 'About'),
-      h('p', { class: 'prose dim' }, 'Techniques adapted from A. T. Benjamin, The Secrets of Mental Math, and the Vedic mathematics tradition. Number theory, trigonometry and higher math go beyond the book.'),
+      h('a', { class: 'menu-row', href: '#/about', 'data-testid': 'about-link' }, h('span', { class: 'menu-title' }, 'Kuwenta and its maker'), h('span', { class: 'arrow' }, '→')),
     ),
   );
 

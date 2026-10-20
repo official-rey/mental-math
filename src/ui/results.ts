@@ -13,13 +13,12 @@ import { go, type View } from './router';
 import { layout } from './shell';
 
 /** Headline number for a run, and what it counts. */
-function scoreParts(run: RunRecord): { value: number; suffix: string; caption: string } {
+function scoreParts(run: RunRecord): { value: number; places: number; suffix: string; caption: string } {
   const s = scoreText(run);
-  return { value: Number(s.main), suffix: s.suffix, caption: s.caption };
+  return { value: Number(s.main), places: s.main.split('.')[1]?.length ?? 0, suffix: s.suffix, caption: s.caption };
 }
 
-function countUp(el: HTMLElement, to: number) {
-  const places = Number.isInteger(to) ? 0 : 1;
+function countUp(el: HTMLElement, to: number, places = 0) {
   if (prefersReducedMotion() || to <= 0) {
     el.textContent = to.toFixed(places);
     return;
@@ -35,8 +34,8 @@ function countUp(el: HTMLElement, to: number) {
 }
 
 /**
- * One "Share result" button; it then offers the format. The picture is shared as a file
- * through the phone's share sheet, or saved to the device where there is none. No links.
+ * One "Share result" button; it then offers the format, and the picture is saved straight to
+ * the device. No share sheet, no links, nothing uploaded.
  */
 function shareResult(run: RunRecord, best: boolean): HTMLElement {
   const status = h('div', { class: 'share-status', 'aria-live': 'polite', 'data-testid': 'share-status' });
@@ -50,8 +49,8 @@ function shareResult(run: RunRecord, best: boolean): HTMLElement {
           import('../share/share'),
           kind === 'png' ? import('../share/scorecard').then((m) => m.renderScoreCard(run, { best })) : import('../share/gif').then((m) => m.renderHighlightGif(run)),
         ]);
-        const how = await share.shareFile(blob, share.fileName(run, kind));
-        status.textContent = how === 'shared' ? 'Shared.' : how === 'saved' ? `Saved ${kind === 'png' ? 'image' : 'GIF'} (${Math.max(1, Math.round(blob.size / 1024))} KB).` : '';
+        share.saveFile(blob, share.fileName(run, kind));
+        status.textContent = `Saved ${kind === 'png' ? 'image' : 'GIF'} (${Math.max(1, Math.round(blob.size / 1024))} KB).`;
       } catch {
         status.textContent = 'Could not create the image.';
       } finally {
@@ -207,7 +206,7 @@ export async function resultsView(parts: string[]): Promise<View> {
     el: layout({ active: 'stats', back: spec ? { href: backHref(spec), label: 'Back' } : { href: '#/stats', label: 'Stats' } }, main),
     title: 'Results',
     mounted: () => {
-      countUp(big, score.value);
+      countUp(big, score.value, score.places);
       if (fresh.length || saved.isBest) window.setTimeout(() => sound.best(), 500);
     },
   };

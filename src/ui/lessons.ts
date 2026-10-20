@@ -130,12 +130,12 @@ function practise(): string {
 }
 
 export const LESSONS: { head: string; body: string; picture: () => string }[] = [
-  { head: 'Work left to right.', body: 'Unahin ang pinakamalaking parte. Lumalabas ang sagot sa parehong order na binibigkas mo.', picture: leftToRight },
-  { head: 'Look before you calculate.', body: 'Malapit sa round number? Magkalapit ang dalawa? Madaling i-factor? Piliin ang method na nagpapadali.', picture: lookFirst },
-  { head: 'Turn hard into easy.', body: 'Ang mahirap na addition, puwedeng gawing madaling subtraction, at vice versa.', picture: hardToEasy },
-  { head: 'Keep simplifying.', body: 'Hatiin ang malaking problem sa maliliit na steps na kaya mong hawakan sa isip.', picture: simplify },
-  { head: 'Check your answer.', body: 'Casting out nines: ilang segundo lang, huli agad ang karamihan ng mali.', picture: check },
-  { head: 'Practise.', body: 'Iba ang alam mo ang trick sa mabilis ka na rito. Practice lang, padayon.', picture: practise },
+  { head: 'Work left to right.', body: 'Start with the biggest part. You find the answer in the order you say it.', picture: leftToRight },
+  { head: 'Look before you calculate.', body: 'Near a round number? Close together? Easy to factor? Pick the method that makes it easy.', picture: lookFirst },
+  { head: 'Turn hard into easy.', body: 'A hard addition can be an easy subtraction, and the other way round.', picture: hardToEasy },
+  { head: 'Keep simplifying.', body: 'Break any big problem into small steps you can hold in your head.', picture: simplify },
+  { head: 'Check your answer.', body: 'Casting out nines catches most slips in a few seconds.', picture: check },
+  { head: 'Practise.', body: 'Knowing a trick is not the same as being fast at it.', picture: practise },
 ];
 
 /** The key takeaways on Learn: open to begin with, and can be folded away. */

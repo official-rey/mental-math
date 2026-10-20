@@ -34,6 +34,7 @@ export const TROPHIES: Trophy[] = [
   { id: 'chains', name: 'In the right order', how: 'Reach Chains Level V', earned: (c) => isChain(c.run) && c.run.level >= 5 },
   { id: 'chainsTop', name: 'Order master', how: 'Reach Chains Level X', earned: (c) => isChain(c.run) && c.run.level >= 10 },
   { id: 'top', name: 'Top level', how: 'A timed run at Level VI', earned: (c) => timed(c.run) && !isChain(c.run) && c.run.level === 6 && c.run.correct >= 5 },
+  { id: 'endless25', name: 'Survivor', how: '25 solved in Endless', earned: (c) => c.run.mode === 'endless' && c.run.correct >= 25 },
   { id: 'hundred', name: 'Hundred', how: '100 problems solved', earned: (c) => c.solved >= 100 },
   { id: 'thousand', name: 'Thousand', how: '1,000 problems solved', earned: (c) => c.solved >= 1000 },
 ];

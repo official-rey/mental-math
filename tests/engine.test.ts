@@ -109,6 +109,30 @@ describe('drill session', () => {
     expect(s.result().level).toBe(4);
   });
 
+  it('endless: three lives, a miss or a skip costs one, the clock tightens, the last life ends it', () => {
+    const c = clock();
+    const s = new DrillSession(spec({ mode: 'endless' }), makeRng(31), c.now);
+    s.start();
+    const first = s.problemLimit();
+    for (let i = 0; i < 10; i++) {
+      s.submit(s.current.answer);
+      s.advance();
+    }
+    expect(s.problemLimit()).toBeLessThan(first);
+    c.tick(1000);
+    expect(s.problemRemaining()).toBe(s.problemLimit() - 1000);
+    expect(s.submit('wrong')).toMatchObject({ ok: false, done: false, lifeLost: true });
+    expect(s.lives).toBe(2);
+    s.skip();
+    s.advance();
+    expect(s.lives).toBe(1);
+    expect(s.isFinished()).toBe(false);
+    const last = s.submit('wrong');
+    expect(last).toMatchObject({ done: true, lifeLost: true });
+    expect(s.isFinished()).toBe(true);
+    expect(s.result()).toMatchObject({ mode: 'endless', correct: 10, attempted: 12 });
+  });
+
   it('Level I drills start at Level I with no ramp', () => {
     const s = new DrillSession(spec({ level: 1 }), makeRng(11), clock().now);
     expect(s.start().level).toBe(1);

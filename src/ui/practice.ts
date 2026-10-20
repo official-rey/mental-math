@@ -1,5 +1,5 @@
 import { specToHash } from '../drill/spec';
-import type { DrillSpec, Mode, RunRecord } from '../drill/types';
+import { MODES, type DrillSpec, type Mode, type RunRecord } from '../drill/types';
 import { scoreText } from '../share/draw';
 import { store } from '../storage/store';
 import { byCategory, techniques } from '../techniques/registry';
@@ -114,7 +114,7 @@ export async function challengeView(): Promise<View> {
   const prefs = await store.getPrefs();
   const ids = pickedIds(prefs.mixed);
   let level = prefs.level;
-  let mode: Mode = prefs.mode === 'twenty' ? 'twenty' : 'sprint';
+  let mode: Mode = prefs.mode === 'twenty' || prefs.mode === 'endless' ? prefs.mode : 'sprint';
 
   const go = h('a', { class: 'btn primary big block', 'data-testid': 'start-challenge' }, 'Start', h('span', { class: 'arrow' }, '→'));
   const sync = () => go.setAttribute('href', specToHash(practiceSpec(ids, level, mode)));
@@ -126,7 +126,7 @@ export async function challengeView(): Promise<View> {
     return h(
       'a',
       { class: 'menu-row', href: `#/results/${r.id}` },
-      h('span', { class: 'menu-text' }, h('span', { class: 'menu-title' }, r.drillName), h('span', { class: 'menu-desc mono' }, `${r.mode === 'sprint' ? 'Sprint' : '20 problems'} · ${ROMAN[r.level]}`)),
+      h('span', { class: 'menu-text' }, h('span', { class: 'menu-title' }, r.drillName), h('span', { class: 'menu-desc mono' }, `${MODES.find((m) => m.id === r.mode)!.short} ·${ROMAN[r.level]}`)),
       h('span', { class: 'menu-score mono' }, `${s.main}${s.suffix}`),
     );
   };
@@ -143,7 +143,7 @@ export async function challengeView(): Promise<View> {
           'div',
           { class: 'control' },
           h('span', { class: 'control-label' }, 'Clock'),
-          segmented<Mode>('Clock', [{ value: 'sprint', label: 'Sprint' }, { value: 'twenty', label: '20 problems' }], mode, (m) => {
+          segmented<Mode>('Clock', [{ value: 'sprint', label: 'Sprint' }, { value: 'twenty', label: '20 problems' }, { value: 'endless', label: 'Endless' }], mode, (m) => {
             mode = m;
             store.setPrefs({ mode: m });
             sync();
