@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BONUS_MS, DrillSession, RAMP_STREAK, SPRINT_MS } from '../src/drill/engine';
+import { BONUS_MS, comboBonus, DrillSession, ladderToTechnique, nextCombo, PENALTY_MS, RAMP_STREAK, SPRINT_MS } from '../src/drill/engine';
 import type { DrillSpec, RunRecord } from '../src/drill/types';
 import { LocalStore } from '../src/storage/store';
 import { betterTechnique } from '../src/techniques/route';
@@ -53,23 +53,43 @@ describe('drill session', () => {
     expect(s.result().totalMs).toBe(SPRINT_MS);
   });
 
-  it('each correct sprint answer adds time to the clock', () => {
+  it('sprint clock: time per right answer, more at combo milestones, less for a mistake', () => {
     const c = clock();
     const s = new DrillSession(spec({ mode: 'sprint' }), makeRng(9), c.now);
     s.start();
+    const bonuses: number[] = [];
     for (let i = 0; i < 5; i++) {
       c.tick(1000);
       const a = s.submit(s.current.answer);
-      expect(a.bonusMs).toBe(BONUS_MS);
+      bonuses.push(a.bonusMs);
       s.advance();
     }
-    s.submit('wrong');
-    expect(s.timeLimit()).toBe(SPRINT_MS + 5 * BONUS_MS);
-    expect(s.remaining()).toBe(SPRINT_MS + 5 * BONUS_MS - 5000);
-    c.tick(SPRINT_MS);
+    // Four answers at the base rate, then combo 5 pays its extra.
+    expect(bonuses).toEqual([BONUS_MS, BONUS_MS, BONUS_MS, BONUS_MS, BONUS_MS + comboBonus(5)]);
+    const gained = 5 * BONUS_MS + comboBonus(5);
+    expect(s.timeLimit()).toBe(SPRINT_MS + gained);
+    // A mistake costs time and resets the combo.
+    expect(s.submit('wrong').bonusMs).toBe(-PENALTY_MS);
+    expect(s.timeLimit()).toBe(SPRINT_MS + gained - PENALTY_MS);
+    expect(s.streak).toBe(0);
+    c.tick(SPRINT_MS + gained - PENALTY_MS - 5000 - 1);
     expect(s.isFinished()).toBe(false);
-    c.tick(5 * BONUS_MS);
+    c.tick(1);
     expect(s.isFinished()).toBe(true);
+  });
+
+  it('combo milestones: 5, 12, 20, 30, then every 10', () => {
+    expect([5, 12, 20, 30, 40, 50].map(comboBonus).every((ms) => ms > 0)).toBe(true);
+    expect([4, 6, 13, 35].map(comboBonus)).toEqual([0, 0, 0, 0]);
+    expect([0, 5, 12, 29, 30, 41].map(nextCombo)).toEqual([5, 12, 20, 30, 40, 50]);
+  });
+
+  it('challenge ladder: levels I–X blend the six technique levels, I gives I and X gives VI', () => {
+    const rng = makeRng(3);
+    const seen = (l: number) => new Set(Array.from({ length: 200 }, () => ladderToTechnique(rng, l)));
+    expect([...seen(1)]).toEqual([1]);
+    expect([...seen(10)]).toEqual([6]);
+    expect([...seen(5)].sort()).toEqual([3, 4]);
   });
 
   it('a higher level starts at Level I and climbs after streaks of correct answers', () => {

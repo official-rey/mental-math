@@ -1,5 +1,6 @@
 import { sound } from '../drill/sound';
 import { specToHash } from '../drill/spec';
+import { deltaLabel, ratingLabel, title } from '../drill/rating';
 import { TROPHIES } from '../drill/trophies';
 import { TROPHY_ICON } from './stats';
 import { modeLabel, pct, scoreText, secs } from '../share/draw';
@@ -137,6 +138,17 @@ export async function resultsView(parts: string[]): Promise<View> {
           run.bestStreak && run.bestStreak >= 5 ? h('span', { class: 'badge' }, `${run.bestStreak} in a row`) : null,
         ),
       ),
+      run.rating !== undefined
+        ? h(
+            'p',
+            { class: 'rating-line', 'data-testid': 'rating' },
+            'Agility rating ',
+            h('b', { class: 'mono' }, ratingLabel(run.rating)),
+            ' ',
+            h('span', { class: `mono ${(run.ratingDelta ?? 0) >= 0 ? 'up' : 'down'}` }, deltaLabel(run.ratingDelta ?? 0)),
+            h('span', { class: 'dim' }, ` · ${title(run.rating).name}`),
+          )
+        : null,
       trophies.length
         ? h(
             'ul',

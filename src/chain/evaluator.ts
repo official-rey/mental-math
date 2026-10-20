@@ -2,7 +2,7 @@
  * Arithmetic expressions: parse, evaluate (optionally in strict integer mode), print with
  * the parentheses the order of operations requires, and trace one operation at a time.
  *
- * Accepts + - − × * ÷ / mod ^ ² ³ and parentheses. Numbers may contain thousands commas.
+ * Accepts + - − × * ÷ / mod ^ ² ³ √ and parentheses. Numbers may contain thousands commas.
  */
 
 export type BinOp = '+' | '−' | '×' | '÷' | 'mod' | '^';
@@ -10,11 +10,14 @@ export type BinOp = '+' | '−' | '×' | '÷' | 'mod' | '^';
 export type Node =
   | { kind: 'num'; value: number }
   | { kind: 'neg'; arg: Node }
+  | { kind: 'root'; arg: Node }
   | { kind: 'bin'; op: BinOp; left: Node; right: Node };
 
 export const num = (value: number): Node => ({ kind: 'num', value });
 export const bin = (op: BinOp, left: Node, right: Node): Node => ({ kind: 'bin', op, left, right });
 export const sq = (arg: Node): Node => bin('^', arg, num(2));
+/** Square root: √49, √(16 + 9). */
+export const root = (arg: Node): Node => ({ kind: 'root', arg });
 
 export class EvalError extends Error {}
 
@@ -33,7 +36,7 @@ function tokenize(src: string): Tok[] {
       continue;
     }
     if (src.startsWith('mod', i)) { out.push({ t: 'op', v: 'mod' }); i += 3; continue; }
-    const map: Record<string, string> = { '-': '−', '–': '−', '*': '×', '·': '×', '/': '÷', '−': '−', '×': '×', '÷': '÷', '+': '+', '^': '^', '²': '²', '³': '³', '(': '(', ')': ')' };
+    const map: Record<string, string> = { '-': '−', '–': '−', '*': '×', '·': '×', '/': '÷', '−': '−', '×': '×', '÷': '÷', '+': '+', '^': '^', '²': '²', '³': '³', '√': '√', '(': '(', ')': ')' };
     if (!(c in map)) throw new EvalError(`Unexpected "${c}"`);
     out.push({ t: 'op', v: map[c] });
     i++;
@@ -70,6 +73,7 @@ export function parse(src: string): Node {
   function unary(): Node {
     if (isOp('−')) { pos++; return { kind: 'neg', arg: unary() }; }
     if (isOp('+')) { pos++; return unary(); }
+    if (isOp('√')) { pos++; return { kind: 'root', arg: postfix() }; }
     return power();
   }
   function power(): Node {
@@ -125,6 +129,7 @@ export function evaluate(node: Node, o: EvalOptions = {}): number {
   let v: number;
   if (node.kind === 'num') return node.value;
   if (node.kind === 'neg') v = -evaluate(node.arg, o);
+  else if (node.kind === 'root') v = Math.sqrt(evaluate(node.arg, o));
   else v = apply(node.op, evaluate(node.left, o), evaluate(node.right, o), o);
   if (o.strict && !Number.isInteger(v)) throw new EvalError(`Non-integer intermediate ${v}`);
   o.onStep?.(v);
@@ -136,7 +141,7 @@ export function evaluateString(src: string, o: EvalOptions = {}): number {
 }
 
 const PREC: Record<BinOp, number> = { '+': 1, '−': 1, '×': 2, '÷': 2, mod: 2, '^': 4 };
-const precOf = (n: Node) => (n.kind === 'num' ? 9 : n.kind === 'neg' ? 3 : PREC[n.op]);
+const precOf = (n: Node) => (n.kind === 'num' ? 9 : n.kind === 'neg' || n.kind === 'root' ? 3 : PREC[n.op]);
 
 const fmtNum = (v: number) => {
   const s = String(Math.abs(v));
@@ -151,6 +156,7 @@ const fmtNum = (v: number) => {
  */
 export function print(node: Node): string {
   if (node.kind === 'num') return node.value < 0 ? `(${fmtNum(node.value)})` : fmtNum(node.value);
+  if (node.kind === 'root') return node.arg.kind === 'num' ? `√${print(node.arg)}` : `√(${print(node.arg)})`;
   if (node.kind === 'neg') {
     const inner = print(node.arg);
     return precOf(node.arg) < 3 ? `−(${inner})` : `−${inner}`;
@@ -172,6 +178,14 @@ export function print(node: Node): string {
 /** Replace the first ready operation (evaluation order) with its value; report what was done. */
 function reduceOnce(node: Node, o: EvalOptions, did: { text: string }): Node | null {
   if (node.kind === 'num') return null;
+  if (node.kind === 'root') {
+    if (node.arg.kind === 'num') {
+      did.text = `√${fmtNum(node.arg.value)}`;
+      return num(Math.sqrt(node.arg.value));
+    }
+    const r = reduceOnce(node.arg, o, did);
+    return r && { kind: 'root', arg: r };
+  }
   if (node.kind === 'neg') {
     if (node.arg.kind === 'num') {
       did.text = `−${fmtNum(node.arg.value)}`;

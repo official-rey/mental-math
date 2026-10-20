@@ -5,6 +5,8 @@ export interface TrophyContext {
   run: RunRecord;
   /** Problems solved on this device, all time. */
   solved: number;
+  /** Agility rating after the run. */
+  rating: number;
 }
 
 export interface Trophy {
@@ -35,6 +37,8 @@ export const TROPHIES: Trophy[] = [
   { id: 'chainsTop', name: 'Order master', how: 'Reach Chains Level X', earned: (c) => isChain(c.run) && c.run.level >= 10 },
   { id: 'top', name: 'Top level', how: 'A timed run at Level VI', earned: (c) => timed(c.run) && !isChain(c.run) && c.run.level === 6 && c.run.correct >= 5 },
   { id: 'endless25', name: 'Survivor', how: '25 solved in Endless', earned: (c) => c.run.mode === 'endless' && c.run.correct >= 25 },
+  { id: 'cm', name: 'Candidate Master', how: 'Agility rating 1400', earned: (c) => c.rating >= 1400 },
+  { id: 'gm', name: 'Grandmaster', how: 'Agility rating 2000', earned: (c) => c.rating >= 2000 },
   { id: 'hundred', name: 'Hundred', how: '100 problems solved', earned: (c) => c.solved >= 100 },
   { id: 'thousand', name: 'Thousand', how: '1,000 problems solved', earned: (c) => c.solved >= 1000 },
 ];

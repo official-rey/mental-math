@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { bin, EvalError, evaluate, evaluateString, num, parse, print, traceSteps, type Node } from '../src/chain/evaluator';
-import { CHAIN_LEVEL_IDS, CHAIN_LEVELS, MAX_OPERAND, chainExample, chainSource, generateChain } from '../src/chain/generator';
+import { bin, EvalError, evaluate, evaluateString, num, parse, print, traceSteps } from '../src/chain/evaluator';
+import { CHAIN_LEVEL_IDS, CHAIN_LEVELS, MAX_OPERAND, chainExample, chainSource, generateChain, leaves } from '../src/chain/generator';
 import { makeRng, normalize } from '../src/techniques/util';
 
 describe('precedence', () => {
@@ -33,6 +33,7 @@ describe('parentheses', () => {
     ['(47 × 6 − 38) ÷ 4 + 15²', 286],
     ['(2 + 3)²', 25],
     ['48 ÷ (4 ÷ 2)', 24],
+    ['√49 + 3 × √(16 + 9)', 22],
   ])('%s = %d', (src, value) => {
     expect(evaluateString(src)).toBe(value);
   });
@@ -81,14 +82,6 @@ describe('exact division and integer intermediates', () => {
   });
 });
 
-function leaves(n: Node): number[] {
-  if (n.kind === 'num') return [n.value];
-  if (n.kind === 'neg') return leaves(n.arg);
-  // The exponent of a square is not an operand the player types.
-  if (n.op === '^') return leaves(n.left);
-  return [...leaves(n.left), ...leaves(n.right)];
-}
-
 /** Pairs of brackets and how deep they nest. */
 function brackets(text: string): { pairs: number; depth: number } {
   let d = 0, max = 0, pairs = 0;
@@ -126,7 +119,7 @@ describe('chain generator', () => {
         expect(evaluateString(c.text, { strict: true })).toBe(c.value);
         // The order of operations matters: both kinds of operation, and the level's brackets.
         expect(c.text).toMatch(/[+−]/);
-        expect(c.text).toMatch(/[×÷²]/);
+        expect(c.text).toMatch(/[×÷²√]/);
         const b = brackets(c.text);
         expect(b.pairs).toBeGreaterThanOrEqual(groups);
         if (nested) expect(b.depth).toBeGreaterThanOrEqual(2);

@@ -11,6 +11,7 @@ export function specToHash(s: DrillSpec): string {
   const q = new URLSearchParams({ k: s.kind, l: String(s.level), m: s.mode });
   if (s.ids.length) q.set('ids', s.ids.join(','));
   if (s.known) q.set('f', String(s.known));
+  if (s.ladder) q.set('z', '1');
   return `#/drill?${q.toString().replace(/%2C/g, ',')}`;
 }
 
@@ -23,6 +24,8 @@ export function parseSpec(q: URLSearchParams): DrillSpec | null {
   if (!MODES.some((m) => m.id === mode)) return null;
   // Chains climb on their own from Level I; the highest level reached before goes by faster.
   if (kind === 'chain') return { kind, ids: [], level: CHAIN_MAX, mode, known: Math.min(CHAIN_MAX, Math.max(1, Number(q.get('f')) || 1)) };
+  // Challenge: a ladder from Level I to X, climbing on its own.
+  if (q.get('z') && (kind === 'technique' ? ids.length === 1 : ids.length > 0)) return { kind, ids, level: 10, mode, ladder: true, known: Math.min(10, Math.max(1, Number(q.get('f')) || 1)) };
   if (!LEVELS.includes(level as Level)) return null;
   if (kind === 'technique' && ids.length !== 1) return null;
   if (kind === 'mixed' && ids.length === 0) return null;

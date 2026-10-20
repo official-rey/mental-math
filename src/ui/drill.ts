@@ -1,6 +1,7 @@
-import { DrillSession, TWENTY, type Attempt } from '../drill/engine';
+import { comboBonus, DrillSession, nextCombo, TWENTY, type Attempt } from '../drill/engine';
 import { sound } from '../drill/sound';
 import { drillKey, drillName, parseSpec, ROMAN } from '../drill/spec';
+import { rateRun } from '../drill/rating';
 import { newTrophies } from '../drill/trophies';
 import type { DrillSpec } from '../drill/types';
 import { store } from '../storage/store';
@@ -11,6 +12,7 @@ import { h } from './dom';
 import { ICONS } from './icons';
 import { applyKey, keypad, type PadKey } from './keypad';
 import { go, type View } from './router';
+import { PIECE } from './ladder';
 import { soundToggle } from './shell';
 import { renderStepper, renderSteps } from './steps';
 
@@ -64,7 +66,12 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
   const past = counted ? (await store.history()).filter((r) => r.drillKey === key && r.mode === spec.mode) : [];
   const average = past.length >= 2 ? past.reduce((a, r) => a + r.correct, 0) / past.length : 0;
   let passedAverage = false, passedBest = false;
-  let chainBest = prefs.chainBest;
+  // Chains and Challenge remember the highest rung reached.
+  const climbs = spec.kind === 'chain' || !!spec.ladder;
+  const bestKey = spec.kind === 'chain' ? 'chainBest' : 'challengeBest';
+  let ladderBest = prefs[bestKey];
+  /** Time of first-try answers so far, for spotting a brilliant (unusually fast) one. */
+  let cleanMs = 0, cleanCount = 0;
 
   // ----- Elements -----
   const levelTag = h('div', { class: 'level-tag', 'data-testid': 'level' });
@@ -158,8 +165,10 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
 
   /** The streak counter beside the score: shown from 3 in a row, with a pop on each one. */
   function paintStreak(n: number) {
-    streakEl.hidden = n < 3;
-    streakEl.textContent = `${n} in a row`;
+    // Sprint shows the combo toward its next payout, like Puzzle Storm; other modes the streak from 3.
+    const sprint = spec.mode === 'sprint';
+    streakEl.hidden = sprint ? n < 1 : n < 3;
+    streakEl.textContent = sprint ? `combo ${n}/${nextCombo(n)}` : `${n} in a row`;
     streakEl.classList.remove('pop');
     void streakEl.offsetWidth;
     if (n >= 3) streakEl.classList.add('pop');
@@ -222,14 +231,15 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
   /** "Level I → III" while the drill is still climbing to the chosen level, then just the level. */
   function paintLevel() {
     const cur = session.level, target = spec.level;
-    // Chains climb as far as you can take them, so there is no target to show.
-    levelTag.textContent = cur < target && spec.kind !== 'chain' ? `Level ${ROMAN[cur]} → ${ROMAN[target]}` : `Level ${ROMAN[cur]}`;
+    // Chains and Challenge climb a ladder of pieces as far as you can take them: no target to show.
+    levelTag.textContent = climbs ? `${PIECE[cur]} Level ${ROMAN[cur]}` : cur < target ? `Level ${ROMAN[cur]} → ${ROMAN[target]}` : `Level ${ROMAN[cur]}`;
   }
 
   /** Brief "+2 s" beside the clock when a correct sprint answer adds time. */
   function showBonus(a: Attempt) {
     if (!a.bonusMs) return;
-    bonus.textContent = `+${a.bonusMs / 1000} s`;
+    bonus.textContent = a.bonusMs > 0 ? `+${a.bonusMs / 1000} s` : `−${-a.bonusMs / 1000} s`;
+    bonus.classList.toggle('minus', a.bonusMs < 0);
     bonus.classList.remove('pop');
     void bonus.offsetWidth;
     bonus.classList.add('pop');
@@ -296,12 +306,12 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
   /** Cheers for a right answer: streak milestones, and passing your average or best in a sprint. */
   function reward(a: Attempt) {
     paintStreak(a.streak);
-    // Chains: a level never reached before is unlocked for good.
-    if (spec.kind === 'chain' && a.levelUp && a.levelUp > chainBest) {
-      chainBest = a.levelUp;
-      store.setPrefs({ chainBest });
+    // A rung never reached before is unlocked for good.
+    if (climbs && a.levelUp && a.levelUp > ladderBest) {
+      ladderBest = a.levelUp;
+      store.setPrefs({ [bestKey]: ladderBest });
       sound.best();
-      return cheer(`Level ${ROMAN[a.levelUp]} unlocked! Padayon!`);
+      return cheer(`${PIECE[a.levelUp]} Level ${ROMAN[a.levelUp]} unlocked!`);
     }
     if (counted && bestRun && !passedBest && session.correct > bestRun.correct) {
       passedBest = passedAverage = true;
@@ -313,7 +323,12 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
       sound.best();
       return cheer('Lampas na sa average mo!');
     }
-    if (a.streak > 0 && isMilestone(a.streak)) {
+    // Sprint pays out at combo milestones (5, 12, 20, 30, …), with extra time.
+    if (a.combo) {
+      sound.milestone();
+      return cheer(`Combo ${a.combo}! +${comboBonus(a.combo) / 1000} s`);
+    }
+    if (spec.mode !== 'sprint' && a.streak > 0 && isMilestone(a.streak)) {
       sound.milestone();
       return cheer(`${a.streak} in a row! Galing!`);
     }
@@ -329,7 +344,11 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
     paintStats();
     if (a.ok) {
       reward(a);
-      flash(a.levelUp ? `✓ ${fmt(a.problem.answer)} · Level ${ROMAN[a.levelUp]}` : `✓ ${fmt(a.problem.answer)}`, 'ok');
+      // Chess-style: an unusually fast first try is brilliant (!!).
+      const brilliant = a.streak > 0 && cleanCount >= 3 && a.ms < 0.6 * (cleanMs / cleanCount);
+      if (a.streak > 0) (cleanMs += a.ms), cleanCount++;
+      const mark = brilliant ? ' !!' : '';
+      flash(a.levelUp ? `✓ ${fmt(a.problem.answer)}${mark} · Level ${ROMAN[a.levelUp]}` : `✓ ${fmt(a.problem.answer)}${mark}`, 'ok');
       showBonus(a);
       paintLevel();
       input.classList.add('is-ok');
@@ -347,7 +366,8 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
     input.classList.remove('is-wrong');
     void input.offsetWidth;
     input.classList.add('is-wrong');
-    flash(a.lifeLost ? 'Sayang! −1 ♥ · Try again' : 'Sayang! Try again', 'bad');
+    showBonus(a);
+    flash(a.lifeLost ? '?? −1 ♥ · try again' : '?? Sayang, try again', 'bad');
     // While training, each miss also shows one more line of the method.
     if (!timed) showHint();
     input.focus();
@@ -418,10 +438,17 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
     const run = session.result();
     const p = await store.getPrefs();
     if (p.nickname) run.player = p.nickname;
+    // Timed runs move the agility rating.
+    if (timed) {
+      const r = rateRun(p.rating, run);
+      run.rating = r.rating;
+      run.ratingDelta = r.delta;
+      await store.setPrefs({ rating: r.rating, ratingPeak: Math.max(p.ratingPeak, r.rating) });
+    }
     const saved = await store.saveRun(run);
     // Lifetime totals and trophies.
     const solved = p.solved + run.correct;
-    const earned = newTrophies({ run, solved }, p.trophies);
+    const earned = newTrophies({ run, solved, rating: run.rating ?? p.rating }, p.trophies);
     await store.setPrefs({ solved, trophies: [...p.trophies, ...earned.map((t) => t.id)] });
     app.lastResult = { run, saved, spec, trophies: earned.map((t) => t.id) };
     go('#/results');

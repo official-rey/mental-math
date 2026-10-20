@@ -38,7 +38,8 @@ test('a finished run produces a 1080×1350 PNG and a GIF under 3 MB', async ({ p
   // Total frame delay (in centiseconds) stays within 6 seconds.
   let delay = 0;
   for (let i = 0; i < gifBytes.length - 5; i++) {
-    if (gifBytes[i] === 0x21 && gifBytes[i + 1] === 0xf9 && gifBytes[i + 2] === 0x04) delay += gifBytes.readUInt16LE(i + 4);
+    // A Graphic Control Extension: 21 F9 04, four bytes, a 00 terminator, then an image descriptor (2C).
+    if (gifBytes[i] === 0x21 && gifBytes[i + 1] === 0xf9 && gifBytes[i + 2] === 0x04 && gifBytes[i + 7] === 0x00 && gifBytes[i + 8] === 0x2c) delay += gifBytes.readUInt16LE(i + 4);
   }
   expect(delay).toBeGreaterThan(0);
   expect(delay).toBeLessThanOrEqual(600);

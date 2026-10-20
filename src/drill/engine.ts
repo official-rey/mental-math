@@ -18,9 +18,41 @@ export const TWENTY = 20;
 export const RAMP_STREAK = 3;
 /** Fewer are needed to pass a level already reached before. */
 export const KNOWN_STREAK = 2;
-/** Time a correct answer adds to a sprint; chains take longer, so they earn more. */
-export const BONUS_MS = 2_000;
-export const CHAIN_BONUS_MS = 4_000;
+/**
+ * Sprint clock, in the spirit of Lichess Puzzle Storm: every first-try answer adds a little
+ * time, a growing combo adds more at milestones, and a mistake takes time away (and resets the
+ * combo). Chains take longer, so their base bonus is bigger.
+ */
+export const BONUS_MS = 1_000;
+export const CHAIN_BONUS_MS = 3_000;
+export const PENALTY_MS = 5_000;
+/** Combo lengths that pay out, and what they pay. After the last, every 10 more pays the last amount. */
+export const COMBO: readonly [number, number][] = [[5, 3_000], [12, 5_000], [20, 7_000], [30, 10_000]];
+
+/** Extra time for reaching combo 
+, or 0. */
+export function comboBonus(n: number): number {
+  const hit = COMBO.find(([k]) => k === n);
+  if (hit) return hit[1];
+  const [lastK, lastMs] = COMBO[COMBO.length - 1];
+  return n > lastK && (n - lastK) % 10 === 0 ? lastMs : 0;
+}
+
+/** The next combo milestone after 
+. */
+export function nextCombo(n: number): number {
+  const k = COMBO.find(([c]) => c > n);
+  if (k) return k[0];
+  const lastK = COMBO[COMBO.length - 1][0];
+  return lastK + Math.ceil((n + 1 - lastK) / 10) * 10;
+}
+
+/** Challenge ladder: level 1–10 maps onto technique levels 1–6, blending the two nearest. */
+export function ladderToTechnique(rng: Rng, level: number): Level {
+  const x = 1 + ((Math.min(10, Math.max(1, level)) - 1) * 5) / 9;
+  const lo = Math.floor(x);
+  return (rng.next() < x - lo ? lo + 1 : lo) as Level;
+}
 /** How many recent problems a run avoids repeating. */
 const RECENT = 30;
 
@@ -28,7 +60,9 @@ export function sourcesFor(spec: DrillSpec): ProblemSource[] {
   if (spec.kind === 'chain') return [chainSource];
   return spec.ids.map((id) => {
     const t = getTechnique(id)!;
-    return { id, name: t.meta.name, generate: (rng, level) => t.generate(rng, level as Level), steps: t.steps };
+    // Challenge runs climb a 10-rung ladder; Train uses the technique's own six levels.
+    const generate = spec.ladder ? (rng: Rng, level: number) => t.generate(rng, ladderToTechnique(rng, level)) : (rng: Rng, level: number) => t.generate(rng, level as Level);
+    return { id, name: t.meta.name, generate, steps: t.steps };
   });
 }
 
@@ -37,8 +71,10 @@ export interface Attempt {
   problem: Problem;
   input: string;
   ms: number;
-  /** Sprint time this answer added. */
+  /** Sprint time this answer added (or took away, when negative). */
   bonusMs: number;
+  /** Sprint: the combo milestone this answer reached, if any. */
+  combo?: number;
   /** Set when this answer moved the drill up a level. */
   levelUp?: number;
   /** True once the problem is over (solved or skipped); a wrong answer leaves it open to retry. */
@@ -63,6 +99,7 @@ export class DrillSession {
   private pausedAt: number | null = null;
   private pausedTotal = 0;
   private bonusTotal = 0;
+  private penaltyTotal = 0;
   /** Texts of the last few problems, to avoid repeats within a run. */
   private recent: string[] = [];
   /** Correct answers in a row toward the next level. */
@@ -130,8 +167,15 @@ export class DrillSession {
     this.rampStreak = 0;
     // Endless: a wrong answer costs a life; losing the last one ends the run on this problem.
     if (this.spec.mode === 'endless' && --this.lives <= 0) return { ...this.record(input, false, false), lifeLost: true };
+    // Sprint: a mistake costs time.
+    let bonusMs = 0;
+    if (this.spec.mode === 'sprint' && this.remaining() > 0) {
+      bonusMs = -Math.min(PENALTY_MS, this.remaining());
+      this.penaltyTotal -= bonusMs;
+      if (this.isFinished()) this.endedAt = this.now();
+    }
     const ms = Math.max(0, Math.round(this.now() - this.shownAt));
-    return { ok: false, problem: this.current, input, ms, bonusMs: 0, done: false, streak: 0, ...(this.spec.mode === 'endless' ? { lifeLost: true } : {}) };
+    return { ok: false, problem: this.current, input, ms, bonusMs, done: this.isFinished(), streak: 0, ...(this.spec.mode === 'endless' ? { lifeLost: true } : {}) };
   }
 
   /** Give up on the current problem: logged as unsolved. In Endless it costs a life. */
@@ -167,16 +211,19 @@ export class DrillSession {
       input: misses ? this.firstWrong : input,
       ok,
       ms,
+      level: this.level,
       ...(misses ? { misses } : {}),
       ...(skipped ? { skipped } : {}),
     });
     const clean = ok && !misses;
-    let bonusMs = 0;
+    this.streak = clean ? this.streak + 1 : 0;
+    let bonusMs = 0, combo: number | undefined;
     if (clean && this.spec.mode === 'sprint' && this.remaining() > 0) {
-      bonusMs = p.technique.startsWith('chain') ? CHAIN_BONUS_MS : BONUS_MS;
+      const extra = comboBonus(this.streak);
+      if (extra) combo = this.streak;
+      bonusMs = (p.technique.startsWith('chain') ? CHAIN_BONUS_MS : BONUS_MS) + extra;
       this.bonusTotal += bonusMs;
     }
-    this.streak = clean ? this.streak + 1 : 0;
     this.bestStreak = Math.max(this.bestStreak, this.streak);
     let levelUp: number | undefined;
     this.rampStreak = clean ? this.rampStreak + 1 : 0;
@@ -189,7 +236,7 @@ export class DrillSession {
       levelUp = this.level;
     }
     if (this.isFinished()) this.endedAt = this.now();
-    return { ok, problem: p, input, ms, bonusMs, done: true, streak: this.streak, ...(levelUp ? { levelUp } : {}) };
+    return { ok, problem: p, input, ms, bonusMs, done: true, streak: this.streak, ...(combo ? { combo } : {}), ...(levelUp ? { levelUp } : {}) };
   }
 
   /** Problems answered right the first time. */
@@ -231,7 +278,7 @@ export class DrillSession {
 
   /** Sprint clock: 60 s plus the bonus earned so far. */
   timeLimit(): number {
-    return SPRINT_MS + this.bonusTotal;
+    return SPRINT_MS + this.bonusTotal - this.penaltyTotal;
   }
 
   /** Milliseconds left in a sprint (0 when over); Infinity for other modes. */
@@ -267,7 +314,7 @@ export class DrillSession {
       drillName: drillName(this.spec),
       mode: this.spec.mode,
       // Chains record the level reached; techniques the level chosen.
-      level: this.spec.kind === 'chain' ? this.peak : this.spec.level,
+      level: this.spec.kind === 'chain' || this.spec.ladder ? this.peak : this.spec.level,
       correct,
       attempted,
       accuracy: attempted ? this.firstTry / attempted : 0,

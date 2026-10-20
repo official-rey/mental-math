@@ -29,6 +29,11 @@ export interface Prefs {
   solved: number;
   /** Highest Chains level reached (I–X). */
   chainBest: number;
+  /** Highest Challenge level reached (I–X). */
+  challengeBest: number;
+  /** Agility rating (Elo-style) and its highest point. */
+  rating: number;
+  ratingPeak: number;
 }
 
 export interface SaveResult {
@@ -76,6 +81,9 @@ export const DEFAULT_PREFS: Prefs = {
   trophies: [],
   solved: 0,
   chainBest: 1,
+  challengeBest: 1,
+  rating: 1000,
+  ratingPeak: 1000,
 };
 
 /** Better runs sort first. Sprint: most correct, then accuracy. Twenty: most correct, then fastest. */

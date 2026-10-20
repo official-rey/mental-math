@@ -1,6 +1,7 @@
 import { MODES, type RunEntry, type RunRecord } from '../drill/types';
 import { fmt } from '../techniques/util';
 import { APP_MEANING, APP_NAME, FONTS, PALETTE } from '../theme';
+import { deltaLabel, ratingLabel, title } from '../drill/rating';
 import { loadFonts, makeCanvas } from './draw';
 
 export const CARD_W = 1080;
@@ -122,6 +123,7 @@ export async function renderScoreCard(run: RunRecord, opts: { best?: boolean } =
 
   // Total
   const t = total(run);
+  if (opts.best) t.under = `personal best · ${t.under}`;
   ctx.fillStyle = PALETTE.ink;
   ctx.font = `700 34px ${FONTS.mono}`;
   ctx.fillText('TOTAL', L, totalY);
@@ -135,9 +137,34 @@ export async function renderScoreCard(run: RunRecord, opts: { best?: boolean } =
   ctx.textAlign = 'left';
   dashed(ctx, L, R, totalY + 92);
 
+  // Agility rating, chess-style: title, rating, and how far this run moved it.
+  let below = totalY + 92;
+  if (run.rating !== undefined) {
+    const y2 = totalY + 150;
+    ctx.fillStyle = PALETTE.ink;
+    ctx.font = `700 28px ${FONTS.mono}`;
+    ctx.fillText('AGILITY RATING', L, y2);
+    const d = run.ratingDelta ?? 0;
+    const delta = deltaLabel(d);
+    ctx.textAlign = 'right';
+    ctx.font = `600 28px ${FONTS.mono}`;
+    ctx.fillStyle = d >= 0 ? PALETTE.ok : PALETTE.bad;
+    ctx.fillText(delta, R, y2);
+    const dw = ctx.measureText(delta).width;
+    ctx.fillStyle = PALETTE.accent;
+    ctx.font = `600 44px ${FONTS.mono}`;
+    ctx.fillText(ratingLabel(run.rating), R - dw - 18, y2 + 4);
+    ctx.fillStyle = PALETTE.dim;
+    ctx.font = `italic 400 26px ${FONTS.prose}`;
+    ctx.fillText(title(run.rating).name.toLowerCase(), R, y2 + 42);
+    ctx.textAlign = 'left';
+    below = y2 + 72;
+    dashed(ctx, L, R, below);
+  }
+
   // Barcode: the run, one bar per problem, thicker = faster; retried ones in red, skipped ones left out.
   const log = run.log;
-  const bTop = totalY + 130, bH = 130;
+  const bTop = below + 38, bH = 120;
   if (log.length) {
     const slot = (R - L) / log.length;
     const quickest = Math.max(250, Math.min(...log.map((e) => e.ms)));
@@ -149,31 +176,12 @@ export async function renderScoreCard(run: RunRecord, opts: { best?: boolean } =
       ctx.fillRect(L + i * slot + (slot - w) / 2, bTop, w, bH);
     });
   }
-  ctx.textAlign = 'center';
-  ctx.fillStyle = PALETTE.ink;
-  ctx.font = `500 24px ${FONTS.mono}`;
-  ctx.fillText(run.player ? run.player.toUpperCase() : 'NO CALCULATOR', MID, bTop + bH + 44);
-  ctx.fillStyle = PALETTE.dim;
-  ctx.font = `italic 400 30px ${FONTS.prose}`;
-  ctx.fillText(run.player ? 'no calculator. salamat!' : 'salamat!', MID, bTop + bH + 96);
-  ctx.textAlign = 'left';
-
-  // A rubber stamp for a personal best, a little crooked.
-  if (opts.best) {
-    ctx.save();
-    ctx.translate(MID, Math.min(BOTTOM - 80, bTop + bH + 190));
-    ctx.rotate(-0.2);
-    ctx.strokeStyle = PALETTE.accent;
-    ctx.fillStyle = PALETTE.accent;
-    ctx.globalAlpha = 0.9;
-    ctx.lineWidth = 5;
-    ctx.strokeRect(-130, -42, 260, 84);
-    ctx.lineWidth = 2;
-    ctx.strokeRect(-120, -32, 240, 64);
-    ctx.font = `800 30px ${FONTS.head}`;
+  if (run.player) {
     ctx.textAlign = 'center';
-    ctx.fillText('PERSONAL BEST', 0, 11);
-    ctx.restore();
+    ctx.fillStyle = PALETTE.ink;
+    ctx.font = `500 26px ${FONTS.mono}`;
+    ctx.fillText(run.player.toUpperCase(), MID, bTop + bH + 48);
+    ctx.textAlign = 'left';
   }
 
   return new Promise((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error('PNG encoding failed'))), 'image/png'));

@@ -64,20 +64,22 @@ test('training: a miss keeps the problem to retry; Show answer gives the full so
   await expect(page.getByTestId('stat')).toHaveText('✓1 ✗1');
 });
 
-test('timed: a wrong answer is retried, and a streak shows from 3 in a row', async ({ page }) => {
+test('sprint: a wrong answer is retried and costs time; the combo pays out at 5', async ({ page }) => {
   await page.goto('/?e2e=1#/drill?k=technique&ids=times-11&l=1&m=sprint');
   const problem = await page.getByTestId('problem').textContent();
   await answer(page, false);
   await expect(page.getByTestId('problem')).toHaveText(problem!);
+  await expect(page.locator('.bonus')).toHaveText('−5 s');
+  // Solved after a miss: no combo yet.
   await answer(page, true);
   await expect(page.getByTestId('streak')).toBeHidden();
   await answer(page, true);
   await answer(page, true);
   await answer(page, true);
-  await expect(page.getByTestId('streak')).toHaveText('3 in a row');
+  await expect(page.getByTestId('streak')).toHaveText('combo 3/5');
   await answer(page, true);
   await answer(page, true);
-  await expect(page.getByTestId('toast')).toHaveText('5 in a row! Galing!');
+  await expect(page.getByTestId('toast')).toHaveText('Combo 5! +3 s');
 });
 
 test('timed: pause stops the clock, skip counts as a miss', async ({ page }) => {
@@ -97,11 +99,12 @@ test('timed: pause stops the clock, skip counts as a miss', async ({ page }) => 
 
 test('chains show the whole expression with brackets and take the final answer', async ({ page }) => {
   await page.goto('/?e2e=1#/chain');
-  await expect(page.locator('.stepper-problem')).toContainText('(8 + 4) × 3 − 18 ÷ (2 + 4)');
+  // No tutorial on the page: straight to the ladder and Start.
+  await expect(page.locator('.stepper')).toHaveCount(0);
   // No level to pick: the ladder shows the highest level reached, and every run starts at I.
   await expect(page.getByTestId('chain-ladder')).toContainText('I of X');
   await page.getByTestId('start-chain').click();
-  await expect(page.getByTestId('level')).toHaveText('Level I');
+  await expect(page.getByTestId('level')).toHaveText('♙ Level I');
   await expect(page.getByTestId('problem')).toHaveText(/[×÷²]/);
   await expect(page.getByTestId('problem')).toHaveText(/[+−]/);
   await answer(page, true);

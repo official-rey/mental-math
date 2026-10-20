@@ -2,12 +2,8 @@
  * The book's big lessons, in our own words, each with a small picture of it at work on a
  * real problem. Pictures use the technique SVG kit, so they follow the theme.
  */
-import { arrowHead, circle, line, path, svg, text } from '../techniques/svg';
+import { circle, line, path, svg, text } from '../techniques/svg';
 import { h } from './dom';
-
-/** Straight arrow from (x1, y1) to (x2, y2). */
-const arrow = (x1: number, y1: number, x2: number, y2: number, cls = 's-accent') =>
-  line(x1, y1, x2 - (x2 - x1) * 0.12, y2 - (y2 - y1) * 0.12, cls) + arrowHead(x2, y2, x2 - x1, y2 - y1, cls === 's-accent' ? 'f-accent' : 'f-dim', 6);
 
 /** One line of a worked column: operator, value (right-aligned), and a note beside it. */
 interface Row {
@@ -99,19 +95,19 @@ function simplify(): string {
   );
 }
 
-/** 47 × 6 = 282? Both sides shrink to the same digit, 3. */
+/** 47 × 6 = 282? Shrink both sides to one digit; they must match. */
 function check(): string {
-  const L = 72, R = 228;
-  /** A digit-sum line ending in its single digit, in accent. */
-  const shrink = (x: number, work: string) =>
-    `<text x="${x}" y="66" class="t t-sm" dominant-baseline="central">${work} → <tspan class="t-accent t-b">3</tspan></text>`;
-  let b = text(150, 11, '47 × 6 = 282 ?', 't t-sm t-dim');
-  b += text(L, 36, '47 × 6', 't') + text(R, 36, '282', 't');
-  b += arrow(L, 45, L, 56, 's-dim') + arrow(R, 45, R, 56, 's-dim');
-  b += shrink(L, '2 × 6 = 12') + shrink(R, '2+8+2 = 12');
-  b += circle(150, 66, 10, 'f-paper s-ok') + text(150, 66, '✓', 't t-ok t-b');
-  b += text(150, 88, 'add digits until one is left', 't t-sm t-dim');
-  return svg(300, 96, b, 'Check 47 times 6 equals 282: 47 adds to 11 and then 2, and 2 times 6 is 12, which adds to 3; 282 adds to 12, which adds to 3; they match');
+  return column(
+    '47 × 6 = 282 ?',
+    [
+      { v: '4 + 7 = 11 → 2', note: 'shrink 47' },
+      { op: '×', v: '6', note: 'keep the 6' },
+      { v: '12 → 3', rule: true },
+      { v: '2 + 8 + 2 = 12 → 3', note: 'shrink 282' },
+      { op: '=', v: '3 ✓', note: 'they match' },
+    ],
+    'Check 47 times 6 equals 282: 47 shrinks to 2, times 6 is 12, which shrinks to 3; 282 adds to 12, which shrinks to 3; they match',
+  );
 }
 
 /** Seconds per problem falling over ten runs. */

@@ -3,10 +3,12 @@ import { MODES, type DrillSpec, type Mode, type RunRecord } from '../drill/types
 import { scoreText } from '../share/draw';
 import { store } from '../storage/store';
 import { byCategory, techniques } from '../techniques/registry';
-import { ROMAN, type Level } from '../techniques/types';
+import { ROMAN } from '../techniques/types';
 import { levelControl, segmented } from './controls';
 import { h, reveal } from './dom';
 import type { View } from './router';
+import { ratingLabel, title } from '../drill/rating';
+import { ladder } from './ladder';
 import { layout } from './shell';
 
 /** The techniques Train and Challenge use: the ones ticked in Train, or Foundation to begin with. */
@@ -16,7 +18,7 @@ export function pickedIds(mixed: string[]): string[] {
   return ids.length ? ids : techniques.filter((t) => t.meta.tier === 'Foundation').map((t) => t.meta.id);
 }
 
-export function practiceSpec(ids: string[], level: Level, mode: Mode): DrillSpec {
+export function practiceSpec(ids: string[], level: number, mode: Mode): DrillSpec {
   return { kind: ids.length === 1 ? 'technique' : 'mixed', ids, level, mode };
 }
 
@@ -113,11 +115,12 @@ export async function trainView(): Promise<View> {
 export async function challengeView(): Promise<View> {
   const prefs = await store.getPrefs();
   const ids = pickedIds(prefs.mixed);
-  let level = prefs.level;
+  const best = prefs.challengeBest;
   let mode: Mode = prefs.mode === 'twenty' || prefs.mode === 'endless' ? prefs.mode : 'sprint';
 
   const go = h('a', { class: 'btn primary big block', 'data-testid': 'start-challenge' }, 'Start', h('span', { class: 'arrow' }, '→'));
-  const sync = () => go.setAttribute('href', specToHash(practiceSpec(ids, level, mode)));
+  // Every run starts at Level I and climbs the ladder; rungs reached before go by faster.
+  const sync = () => go.setAttribute('href', specToHash({ ...practiceSpec(ids, 10, mode), ladder: true, known: best }));
   sync();
 
   const bests = (await store.bests()).filter((r) => r.mode !== 'training').slice(0, 6);
@@ -126,7 +129,7 @@ export async function challengeView(): Promise<View> {
     return h(
       'a',
       { class: 'menu-row', href: `#/results/${r.id}` },
-      h('span', { class: 'menu-text' }, h('span', { class: 'menu-title' }, r.drillName), h('span', { class: 'menu-desc mono' }, `${MODES.find((m) => m.id === r.mode)!.short} ·${ROMAN[r.level]}`)),
+      h('span', { class: 'menu-text' }, h('span', { class: 'menu-title' }, r.drillName), h('span', { class: 'menu-desc mono' }, `${MODES.find((m) => m.id === r.mode)!.short} · ${ROMAN[r.level]}`)),
       h('span', { class: 'menu-score mono' }, `${s.main}${s.suffix}`),
     );
   };
@@ -136,6 +139,7 @@ export async function challengeView(): Promise<View> {
       'div',
       null,
       h('h1', { class: 'display' }, 'Challenge'),
+      h('p', { class: 'rating-line', 'data-testid': 'rating' }, 'Agility rating ', h('b', { class: 'mono' }, ratingLabel(prefs.rating)), h('span', { class: 'dim' }, ` · ${title(prefs.rating).name}`)),
       h(
         'div',
         { class: 'controls' },
@@ -150,11 +154,7 @@ export async function challengeView(): Promise<View> {
           }),
         ),
       ),
-      levelControl(level, (l) => {
-        level = l;
-        store.setPrefs({ level: l });
-        sync();
-      }),
+      ladder(best, (l) => `problems like Train level ${ROMAN[Math.round(1 + ((l - 1) * 5) / 9)]}`, 'challenge-ladder'),
       h('a', { class: 'menu-row selection', href: '#/train' }, h('span', { class: 'menu-title' }, 'Techniques'), h('span', { class: 'menu-score mono' }, String(ids.length))),
       go,
       bests.length ? h('section', null, h('h2', { class: 'section-head' }, 'Best'), h('div', { class: 'menu' }, bests.map(bestRow))) : null,

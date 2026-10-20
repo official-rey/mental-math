@@ -1,7 +1,7 @@
 import type { ProblemSource } from '../drill/types';
 import type { Problem, Rng, Step } from '../techniques/types';
 import { gcd } from '../techniques/util';
-import { bin, evaluate, num, print, sq, traceSteps, type BinOp, type Node } from './evaluator';
+import { bin, evaluate, num, print, root, sq, traceSteps, type BinOp, type Node } from './evaluator';
 
 /**
  * Chains: one whole expression with brackets, solved in the right order (brackets, then
@@ -37,8 +37,10 @@ export interface ChainLevel {
   factors: readonly Tier[];
   /** Also use the key factors 11, 12, 15, 25. */
   key?: boolean;
-  /** Squares of numbers up to this. */
-  squares?: number;
+  /** Squares of numbers in this range (2 to 9 early on: facts to know by heart). */
+  squares?: readonly [number, number];
+  /** Square roots of perfect squares whose roots are in this range. */
+  roots?: readonly [number, number];
   /** Operations allowed. */
   allowed: readonly BinOp[];
   /** Largest value any step may reach. */
@@ -54,15 +56,15 @@ const ALL: BinOp[] = ['+', '−', '×', '÷'];
 
 export const CHAIN_LEVELS: Record<number, ChainLevel> = {
   1: { label: 'ones · + − ×', ops: [2, 2], terms: [ONES], factors: [ONES], allowed: ['+', '−', '×'], cap: 90, groups: 0, big: 2 },
-  2: { label: 'ones · all four', ops: [2, 3], terms: [ONES], factors: [ONES], allowed: ALL, cap: 90, groups: 0, big: 2 },
-  3: { label: 'ones · brackets', ops: [3, 3], terms: [ONES], factors: [ONES], allowed: ALL, cap: 100, groups: 1, big: 2 },
-  4: { label: 'round tens', ops: [3, 3], terms: [TENS, ONES], factors: [ONES], allowed: ALL, cap: 900, groups: 1, big: 10 },
-  5: { label: 'tens and ones', ops: [3, 3], terms: [TWO], factors: [ONES], allowed: ALL, cap: 999, groups: 1, big: 11 },
-  6: { label: 'round hundreds', ops: [3, 4], terms: [HUNDREDS, TENS], factors: [ONES], allowed: ALL, cap: 9000, groups: 1, big: 100 },
-  7: { label: 'teens and squares', ops: [3, 4], terms: [TWO], factors: [ONES, TEENS], squares: 15, allowed: ALL, cap: 3000, groups: 1, big: 11 },
-  8: { label: 'three digits', ops: [4, 4], terms: [THREE, ROUND3], factors: [ONES], allowed: ALL, cap: 9999, groups: 1, big: 101 },
-  9: { label: '× 11, 12, 15, 25', ops: [4, 4], terms: [TWO, ROUND3], factors: [ONES], key: true, squares: 25, allowed: ALL, cap: 20000, groups: 2, big: 11 },
-  10: { label: 'everything · nested brackets', ops: [5, 5], terms: [THREE, TWO], factors: [ONES, TEENS], key: true, squares: 25, allowed: ALL, cap: 50000, groups: 2, nested: true, big: 101 },
+  2: { label: 'ones · all four · squares', ops: [2, 3], terms: [ONES], factors: [ONES], squares: [2, 9], allowed: ALL, cap: 120, groups: 0, big: 2 },
+  3: { label: 'ones · brackets · roots', ops: [3, 3], terms: [ONES], factors: [ONES], squares: [2, 9], roots: [2, 9], allowed: ALL, cap: 150, groups: 1, big: 2 },
+  4: { label: 'round tens · squares to 12²', ops: [3, 3], terms: [TENS, ONES], factors: [ONES], squares: [2, 12], roots: [2, 12], allowed: ALL, cap: 900, groups: 1, big: 10 },
+  5: { label: 'tens and ones', ops: [3, 3], terms: [TWO], factors: [ONES], squares: [2, 12], roots: [2, 12], allowed: ALL, cap: 999, groups: 1, big: 11 },
+  6: { label: 'round hundreds', ops: [3, 4], terms: [HUNDREDS, TENS], factors: [ONES], roots: [10, 30], allowed: ALL, cap: 9000, groups: 1, big: 100 },
+  7: { label: 'teens · squares to 15²', ops: [3, 4], terms: [TWO], factors: [ONES, TEENS], squares: [11, 15], roots: [11, 15], allowed: ALL, cap: 3000, groups: 1, big: 11 },
+  8: { label: 'three digits', ops: [4, 4], terms: [THREE, ROUND3], factors: [ONES], roots: [11, 20], allowed: ALL, cap: 9999, groups: 1, big: 101 },
+  9: { label: '× 11, 12, 15, 25 · squares to 25²', ops: [4, 4], terms: [TWO, ROUND3], factors: [ONES], key: true, squares: [11, 25], roots: [11, 25], allowed: ALL, cap: 20000, groups: 2, big: 11 },
+  10: { label: 'everything · nested brackets', ops: [5, 5], terms: [THREE, TWO], factors: [ONES, TEENS], key: true, squares: [11, 25], roots: [11, 30], allowed: ALL, cap: 50000, groups: 2, nested: true, big: 101 },
 };
 
 export const CHAIN_MAX = 10;
@@ -102,10 +104,23 @@ const factorMax = (lv: ChainLevel) => Math.max(lv.key ? 25 : 0, ...lv.factors.ma
 function grow(rng: Rng, n: number, lv: ChainLevel, factor = false): Part | null {
   if (n === 0) return leaf(factor ? factorLeaf(rng, lv) : fromTier(rng, rng.pick(lv.terms)));
   // The square of a number or a bracket, small enough to know by heart.
-  if (lv.squares && rng.chance(0.25)) {
-    const inner = n === 1 ? leaf(rng.int(11, lv.squares)) : grow(rng, n - 1, lv, true);
-    if (!inner || inner.value < 2 || inner.value > lv.squares) return null;
+  if (lv.squares && rng.chance(0.2)) {
+    const [lo, hi] = lv.squares;
+    const inner = n === 1 ? leaf(rng.int(lo, hi)) : grow(rng, n - 1, lv, true);
+    if (!inner || inner.value < 2 || inner.value > hi || inner.node.kind === 'root') return null;
     return { node: sq(inner.node), value: inner.value ** 2 };
+  }
+  // The square root of a perfect square: of a number, or of a bracket that comes to one.
+  if (lv.roots && rng.chance(0.2)) {
+    const [lo, hi] = lv.roots;
+    if (n === 1) {
+      const k = rng.int(lo, hi);
+      return { node: root(num(k * k)), value: k };
+    }
+    const inner = grow(rng, n - 1, lv);
+    const k = inner ? Math.round(Math.sqrt(inner.value)) : 0;
+    if (!inner || k * k !== inner.value || k < 2 || k > hi) return null;
+    return { node: root(inner.node), value: k };
   }
   const left = rng.int(0, n - 1);
   const right = n - 1 - left;
@@ -145,21 +160,26 @@ function grow(rng: Rng, n: number, lv: ChainLevel, factor = false): Part | null 
 /** Operations in a tree (a square counts as one). */
 function countOps(n: Node): number {
   if (n.kind === 'num') return 0;
-  if (n.kind === 'neg') return 1 + countOps(n.arg);
+  if (n.kind === 'neg' || n.kind === 'root') return 1 + countOps(n.arg);
   return 1 + countOps(n.left) + (n.op === '^' ? 0 : countOps(n.right));
 }
 
 /** The numbers written in a tree (not the 2 of a square). */
 export function leaves(n: Node): number[] {
   if (n.kind === 'num') return [n.value];
-  if (n.kind === 'neg') return leaves(n.arg);
+  if (n.kind === 'neg' || n.kind === 'root') return leaves(n.arg);
   if (n.op === '^') return leaves(n.left);
   return [...leaves(n.left), ...leaves(n.right)];
 }
 
 /** True when a division takes back a multiplication by the same number: (a × 8) ÷ 8. */
 function undoes(n: Node): boolean {
-  if (n.kind !== 'bin') return n.kind === 'neg' && undoes(n.arg);
+  // A root of a root, or of a square, adds nothing: √(√16), √((9 − 5)²).
+  if (n.kind === 'root' && (n.arg.kind === 'root' || (n.arg.kind === 'bin' && n.arg.op === '^'))) return true;
+  if (n.kind !== 'bin') return n.kind !== 'num' && undoes(n.arg);
+  // + 7 − 7 and − 7 + 7 cancel out.
+  const flip = { '+': '−', '−': '+' } as Record<string, string>;
+  if (flip[n.op] && n.left.kind === 'bin' && n.left.op === flip[n.op] && n.left.right.kind === 'num' && n.right.kind === 'num' && n.left.right.value === n.right.value) return true;
   if (n.op === '÷' && n.left.kind === 'bin' && n.left.op === '×' && n.right.kind === 'num') {
     const k = n.right.value;
     if ((n.left.left.kind === 'num' && n.left.left.value === k) || (n.left.right.kind === 'num' && n.left.right.value === k)) return true;
@@ -213,7 +233,7 @@ export function generateChain(rng: Rng, level: number): Chain {
     if (ops < lv.ops[0] || ops > lv.ops[1]) continue;
     const text = print(part.node);
     // The order of operations must matter: both kinds of operation, and the level's brackets.
-    if (!/[+−]/.test(text) || !/[×÷²]/.test(text)) continue;
+    if (!/[+−]/.test(text) || !/[×÷²√]/.test(text)) continue;
     const { pairs, depth } = brackets(text);
     if (pairs < lv.groups || (lv.nested && depth < 2)) continue;
     const written = leaves(part.node);

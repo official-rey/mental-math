@@ -18,8 +18,10 @@ export interface DrillSpec {
   /** Highest level the run may climb to: I–VI for techniques, I–X for chains. */
   level: number;
   mode: Mode;
-  /** Chains: the highest level reached before; the run climbs faster up to it. */
+  /** Chains and Challenge: the highest level reached before; the run climbs faster up to it. */
   known?: number;
+  /** Challenge: levels run I–X on a ladder that blends the techniques' six levels. */
+  ladder?: boolean;
 }
 
 /** Anything that can produce problems and explain them. */
@@ -41,6 +43,8 @@ export interface RunEntry {
   skipped?: boolean;
   /** Wrong tries before the right answer; `input` then holds the first wrong one. */
   misses?: number;
+  /** Level the problem was set at (on the run's own scale: I–VI, or I–X on a ladder). */
+  level?: number;
   ms: number;
 }
 
@@ -58,6 +62,9 @@ export interface RunRecord {
   accuracy: number;
   /** Longest run of first-try answers. */
   bestStreak?: number;
+  /** Timed runs: agility rating after this run, and how much it moved. */
+  rating?: number;
+  ratingDelta?: number;
   totalMs: number;
   avgMs: number;
   date: number;
