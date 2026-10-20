@@ -2304,3 +2304,26 @@
 .agility {
   margin-left: auto;
 }
+
+/* Queen and king are drawn taller and wider than the other pieces in the font. */
+.ladder-steps .piece.royal {
+  font-size: 16px;
+  line-height: 22px;
+}
+
+/* Typeset square roots: the bar runs over the whole radicand. */
+.rad {
+  white-space: nowrap;
+}
+
+.rad-sign {
+  padding-right: 0.02em;
+}
+
+/* An inline-block keeps the text's baseline; nested roots grow it, so their bars stack. */
+.rad-in {
+  display: inline-block;
+  border-top: 0.06em solid currentColor;
+  padding: 0.02em 0.08em 0 0.04em;
+  line-height: 1.05;
+}

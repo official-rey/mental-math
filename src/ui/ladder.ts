@@ -23,7 +23,8 @@ export interface LadderPick {
 export function ladder(best: number, label: (level: number) => string, testid: string, pick?: LadderPick): HTMLElement {
   const next = h('p', { class: 'ladder-next dim' });
   const rungs = Array.from({ length: LADDER_MAX }, (_, i) => i + 1).map((l) => {
-    const body = [h('span', { class: 'piece' }, PIECE[l]), h('span', null, ROMAN[l])];
+    // The queen and king glyphs are drawn larger than the rest; they get a smaller size to match.
+    const body = [h('span', { class: `piece${l >= 9 ? ' royal' : ''}` }, PIECE[l]), h('span', null, ROMAN[l])];
     const cls = l <= best ? 'got' : '';
     return pick
       ? h('button', { type: 'button', class: `rung ${cls}`, title: `${ROMAN[l]}: ${label(l)}`, 'data-level': String(l), onclick: () => choose(l) }, body)

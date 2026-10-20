@@ -1,5 +1,6 @@
 import type { Step } from '../techniques/types';
 import { h } from './dom';
+import { mathHTML } from './math';
 
 interface Line {
   op: string;
@@ -57,7 +58,7 @@ function block(s: Step, i: number, last: boolean): HTMLElement {
     const gutter = r === 0 && op !== '=' ? op : l.op;
     cells.push(
       h('span', { class: `op${rule ? ' ruled' : ''}`, style: { gridRow: String(r + 1) }, 'aria-hidden': gutter ? null : 'true' }, gutter),
-      h('span', { class: `ex${rule ? ' rule' : ''}`, style: { gridRow: String(r + 1) } }, l.term),
+      h('span', { class: `ex${rule ? ' rule' : ''}`, style: { gridRow: String(r + 1) }, html: mathHTML(l.term) }),
     );
   });
   return h(
@@ -137,7 +138,7 @@ export function renderStepper(input: Step[]): HTMLElement {
 
   // The problem stays in view above the steps, so you never have to look back for it.
   lines[0]?.classList.add('problem-line');
-  const statement = h('div', { class: 'stepper-problem' }, h('span', { class: 'label' }, 'Example'), h('span', { class: 'expr' }, problemStatement(steps[0]?.expr ?? '')));
+  const statement = h('div', { class: 'stepper-problem' }, h('span', { class: 'label' }, 'Example'), h('span', { class: 'expr', html: mathHTML(problemStatement(steps[0]?.expr ?? '')) }));
   const el = h(
     'div',
     { class: 'stepper', tabindex: '0', 'aria-label': 'Worked example, step by step' },

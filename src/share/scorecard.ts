@@ -2,6 +2,7 @@ import { MODES, type RunEntry, type RunRecord } from '../drill/types';
 import { fmt } from '../techniques/util';
 import { APP_MEANING, APP_NAME, FONTS, PALETTE } from '../theme';
 import { deltaLabel, ratingLabel, title } from '../drill/rating';
+import { drawMath } from '../ui/math';
 import { loadFonts, makeCanvas } from './draw';
 
 export const CARD_W = 1080;
@@ -115,7 +116,9 @@ export async function renderScoreCard(run: RunRecord, opts: { best?: boolean } =
     const item = `${e.text} = ${fmt(e.answer)}`;
     fit(ctx, item, R - L - tw - 30, 30, 20, i === 0 ? 600 : 500);
     ctx.fillStyle = i === 0 ? PALETTE.accent : PALETTE.ink;
-    ctx.fillText(clip(ctx, item, R - L - tw - 30), L, y);
+    // Roots get a bar over the radicand, as in the app.
+    if (item.includes('√')) drawMath(ctx, item, L, y);
+    else ctx.fillText(clip(ctx, item, R - L - tw - 30), L, y);
     y += 56;
   });
   const totalY = Math.max(y + 20, 720);

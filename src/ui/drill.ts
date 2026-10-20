@@ -13,6 +13,7 @@ import { ICONS } from './icons';
 import { applyKey, keypad, type PadKey } from './keypad';
 import { go, type View } from './router';
 import { PIECE } from './ladder';
+import { setMath } from './math';
 import { soundToggle } from './shell';
 import { renderStepper, renderSteps } from './steps';
 
@@ -209,7 +210,7 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
 
   function showProblem() {
     const p = session.current;
-    problem.textContent = p.text;
+    setMath(problem, p.text);
     problem.className = `problem ${sizeClass(p.text)}`;
     fitProblem();
     void problem.offsetWidth;
