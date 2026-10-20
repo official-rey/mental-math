@@ -34,8 +34,11 @@ function countUp(el: HTMLElement, to: number) {
   requestAnimationFrame(step);
 }
 
-/** Save the score card (PNG) or the replay (GIF) to the device. The drawing code loads on first use. */
-function shareButtons(run: RunRecord): HTMLElement[] {
+/**
+ * One "Share result" button; it then offers the format. The picture is shared as a file
+ * through the phone's share sheet, or saved to the device where there is none. No links.
+ */
+function shareResult(run: RunRecord, best: boolean): HTMLElement {
   const status = h('div', { class: 'share-status', 'aria-live': 'polite', 'data-testid': 'share-status' });
   const make = (kind: 'png' | 'gif', label: string) => {
     const btn = h('button', { class: 'btn', type: 'button', 'data-testid': `share-${kind}` }, label);
@@ -43,15 +46,12 @@ function shareButtons(run: RunRecord): HTMLElement[] {
       btn.disabled = true;
       status.textContent = 'Drawing…';
       try {
-        const [share, render] = await Promise.all([
+        const [share, blob] = await Promise.all([
           import('../share/share'),
-          kind === 'png'
-            ? import('../share/scorecard').then((m) => m.renderScoreCard)
-            : import('../share/gif').then((m) => m.renderHighlightGif),
+          kind === 'png' ? import('../share/scorecard').then((m) => m.renderScoreCard(run, { best })) : import('../share/gif').then((m) => m.renderHighlightGif(run)),
         ]);
-        const blob = await render(run);
-        share.saveFile(blob, share.fileName(run, kind));
-        status.textContent = `Saved ${kind.toUpperCase()} (${Math.max(1, Math.round(blob.size / 1024))} KB).`;
+        const how = await share.shareFile(blob, share.fileName(run, kind));
+        status.textContent = how === 'shared' ? 'Shared.' : how === 'saved' ? `Saved ${kind === 'png' ? 'image' : 'GIF'} (${Math.max(1, Math.round(blob.size / 1024))} KB).` : '';
       } catch {
         status.textContent = 'Could not create the image.';
       } finally {
@@ -60,7 +60,13 @@ function shareButtons(run: RunRecord): HTMLElement[] {
     });
     return btn;
   };
-  return [make('png', 'Save image'), make('gif', 'Save GIF'), status];
+  const choices = h('div', { class: 'share-choices', hidden: true, 'data-testid': 'share-choices' }, make('png', 'Image'), make('gif', 'GIF'));
+  const open = h('button', { class: 'btn block', type: 'button', 'data-testid': 'share', 'aria-expanded': 'false' }, 'Share result');
+  open.addEventListener('click', () => {
+    choices.hidden = !choices.hidden;
+    open.setAttribute('aria-expanded', String(!choices.hidden));
+  });
+  return h('div', { class: 'share-row' }, open, choices, status);
 }
 
 export async function resultsView(parts: string[]): Promise<View> {
@@ -150,7 +156,7 @@ export async function resultsView(parts: string[]): Promise<View> {
         'div',
         { class: 'result-actions' },
         spec ? h('a', { class: 'btn primary big block', href: specToHash(spec), 'data-testid': 'again' }, 'Again', h('span', { class: 'arrow' }, '→')) : null,
-        h('div', { class: 'share-row' }, shareButtons(run)),
+        shareResult(run, saved.isBest),
       ),
       board.length
         ? h(

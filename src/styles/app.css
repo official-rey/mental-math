@@ -1981,3 +1981,84 @@
 .trophy-list.fresh .trophy.got {
   animation: rise 0.5s ease-out both;
 }
+
+/* ---------- Chains ladder ---------- */
+
+.ladder {
+  margin: 18px 0 6px;
+}
+
+.ladder-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+}
+
+.ladder-level {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--accent);
+}
+
+.ladder-level .dim {
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.ladder-steps {
+  display: grid;
+  grid-template-columns: repeat(10, 1fr);
+  gap: 3px;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.ladder-steps li {
+  padding: 6px 0;
+  text-align: center;
+  font-family: var(--f-mono);
+  font-size: 11px;
+  color: var(--dim);
+  background: var(--raised);
+  border: 1px solid var(--rule);
+}
+
+.ladder-steps li.got {
+  color: var(--paper);
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.ladder-next {
+  margin: 6px 0 0;
+  font-size: 15px;
+}
+
+.share-choices {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.share-choices[hidden] {
+  display: none;
+}
+
+/* Who made it, on the landing page. */
+.dev {
+  margin: 28px 0 8px;
+  padding: 14px 16px;
+  background: var(--raised);
+  border-left: 3px solid var(--accent);
+}
+
+.dev h2 {
+  margin: 0 0 6px;
+  font-size: 20px;
+}
+
+.dev p {
+  margin: 0;
+}

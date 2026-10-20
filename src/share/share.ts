@@ -7,7 +7,7 @@ export function fileName(run: RunRecord, ext: 'png' | 'gif'): string {
   return `mental-math-${slug}-${stamp}.${ext}`;
 }
 
-/** Save the image to the device. No share sheet, no links, nothing sent anywhere. */
+/** Save the image to the device. Nothing is sent anywhere. */
 export function saveFile(blob: Blob, name: string): void {
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
@@ -17,4 +17,23 @@ export function saveFile(blob: Blob, name: string): void {
   a.click();
   a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 10_000);
+}
+
+/**
+ * Hand the picture itself to the device's share sheet (phones), or save it where there is
+ * no share sheet for files. Never a link. Returns what happened; 'cancelled' if the sheet was closed.
+ */
+export async function shareFile(blob: Blob, name: string): Promise<'shared' | 'saved' | 'cancelled'> {
+  const file = new File([blob], name, { type: blob.type });
+  const testing = new URLSearchParams(location.search).has('e2e');
+  if (!testing && navigator.canShare?.({ files: [file] })) {
+    try {
+      await navigator.share({ files: [file] });
+      return 'shared';
+    } catch (e) {
+      if ((e as DOMException).name === 'AbortError') return 'cancelled';
+    }
+  }
+  saveFile(blob, name);
+  return 'saved';
 }

@@ -1,4 +1,4 @@
-import type { Level, Problem, Rng, Step } from '../techniques/types';
+import type { Problem, Rng, Step } from '../techniques/types';
 
 export type Mode = 'training' | 'sprint' | 'twenty';
 
@@ -14,15 +14,18 @@ export interface DrillSpec {
   kind: DrillKind;
   /** Technique ids (one for kind "technique", several for "mixed", none for "chain"). */
   ids: string[];
-  level: Level;
+  /** Highest level the run may climb to: I–VI for techniques, I–X for chains. */
+  level: number;
   mode: Mode;
+  /** Chains: the highest level reached before; the run climbs faster up to it. */
+  known?: number;
 }
 
 /** Anything that can produce problems and explain them. */
 export interface ProblemSource {
   id: string;
   name: string;
-  generate(rng: Rng, level: Level): Problem;
+  generate(rng: Rng, level: number): Problem;
   steps(p: Problem): Step[];
 }
 
@@ -46,7 +49,7 @@ export interface RunRecord {
   drillKey: string;
   drillName: string;
   mode: Mode;
-  level: Level;
+  level: number;
   /** Problems solved (skipped ones are not). */
   correct: number;
   attempted: number;

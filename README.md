@@ -1,4 +1,4 @@
-# Mental Math
+# Carry the One
 
 A mental-arithmetic trainer: learn a technique from one card (idea, worked example, picture), then drill it. Static site, Vite + vanilla TypeScript, no backend.
 

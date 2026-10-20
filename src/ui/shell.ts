@@ -1,6 +1,6 @@
 import { sound } from '../drill/sound';
 import { store } from '../storage/store';
-import { DEV_CREDIT } from '../theme';
+import { APP_NAME, DEV_CREDIT, DEV_PLACE } from '../theme';
 import { h, type Child } from './dom';
 import { ICONS } from './icons';
 
@@ -39,7 +39,7 @@ export function soundToggle(): HTMLButtonElement {
 export function topbar(opts: { back?: { href: string; label: string }; active?: Section } = {}): HTMLElement {
   const left = opts.back
     ? h('a', { class: 'iconbtn back', href: opts.back.href, html: `${ICONS.back}<span>${opts.back.label}</span>` })
-    : h('a', { class: 'wordmark', href: '#/' }, 'Mental Math');
+    : h('a', { class: 'wordmark', href: '#/' }, APP_NAME);
   const nav = h(
     'nav',
     { class: 'topnav', 'aria-label': 'Sections' },
@@ -72,7 +72,7 @@ export function tabbar(active?: Section): HTMLElement {
 }
 
 export function footer(): HTMLElement {
-  return h('footer', { class: 'footer' }, h('span', null, DEV_CREDIT), h('a', { href: '#/about' }, 'About'));
+  return h('footer', { class: 'footer' }, h('span', null, `${DEV_CREDIT} · ${DEV_PLACE}`), h('a', { href: '#/about' }, 'About'));
 }
 
 /** Standard page: top bar, content, footer, tab bar. */

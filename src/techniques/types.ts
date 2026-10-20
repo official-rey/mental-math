@@ -1,7 +1,8 @@
 /** Difficulty within a technique, I (gentlest) to VI (hardest). */
 export type Level = 1 | 2 | 3 | 4 | 5 | 6;
 export const LEVELS: Level[] = [1, 2, 3, 4, 5, 6];
-export const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI'] as const;
+/** Roman numerals for levels; techniques use I–VI, chains go up to X. */
+export const ROMAN = ['', 'I', 'II', 'III', 'IV', 'V', 'VI', 'VII', 'VIII', 'IX', 'X'] as const;
 
 /** Where a technique sits in the overall catalog. */
 export type Tier = 'Foundation' | 'Core' | 'Advanced';

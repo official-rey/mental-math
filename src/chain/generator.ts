@@ -1,69 +1,135 @@
 import type { ProblemSource } from '../drill/types';
-import type { Level, Problem, Rng, Step } from '../techniques/types';
+import type { Problem, Rng, Step } from '../techniques/types';
+import { gcd } from '../techniques/util';
 import { bin, evaluate, num, print, sq, traceSteps, type BinOp, type Node } from './evaluator';
 
 /**
- * Chains: one whole expression, shown at once, with brackets, to be solved in the right order
- * (brackets, then × and ÷, then + and −) as fast as possible. Operands stay small; the work is
- * in the order of operations. Every intermediate is a whole number from 0 to the level's cap,
- * and every division comes out exact.
+ * Chains: one whole expression with brackets, solved in the right order (brackets, then
+ * × and ÷, then + and −) as fast as possible.
+ *
+ * The ten levels grow mainly in the size of the numbers: ones, then round tens, then any two
+ * digits, round hundreds, three digits. Spotting the size of each part (ones, tens, hundreds)
+ * is half the skill. Higher levels add a few factors worth knowing by heart (11, 12, 15, 25
+ * and squares), and only the last level nests brackets. Every intermediate is a whole number
+ * from 0 to the level's cap, every division is exact, and no step comes to 0 or 1.
  */
-export const CHAIN_LEVELS: Record<
-  Level,
-  { label: string; ops: [number, number]; leaf: number; cap: number; groups: number; nested?: boolean; squares?: boolean }
-> = {
-  1: { label: '2 operations · single digits', ops: [2, 2], leaf: 9, cap: 60, groups: 0 },
-  2: { label: '3 operations · one pair of brackets', ops: [3, 3], leaf: 9, cap: 100, groups: 1 },
-  3: { label: '3–4 operations · numbers to 12', ops: [3, 4], leaf: 12, cap: 150, groups: 1 },
-  4: { label: '4–5 operations · with squares', ops: [4, 5], leaf: 15, cap: 300, groups: 1, squares: true },
-  5: { label: '5–6 operations · two pairs of brackets', ops: [5, 6], leaf: 20, cap: 600, groups: 2, squares: true },
-  6: { label: '6–7 operations · brackets inside brackets', ops: [6, 7], leaf: 25, cap: 1000, groups: 2, nested: true, squares: true },
+
+/** Numbers of one size: from lo to hi in steps of `step` (10 gives round tens). */
+type Tier = readonly [lo: number, hi: number, step: number];
+
+const ONES: Tier = [2, 9, 1];
+const TENS: Tier = [10, 90, 10];
+const TWO: Tier = [11, 99, 1];
+const HUNDREDS: Tier = [100, 900, 100];
+const ROUND3: Tier = [110, 990, 10];
+const THREE: Tier = [101, 999, 1];
+const TEENS: Tier = [11, 19, 1];
+/** Factors worth knowing by heart: × 11, × 12, × 15, × 25. */
+const KEY = [11, 12, 15, 25] as const;
+
+export interface ChainLevel {
+  label: string;
+  /** Operations in an expression, inclusive. */
+  ops: readonly [number, number];
+  /** Sizes of the numbers being added, taken away and divided. */
+  terms: readonly Tier[];
+  /** Sizes of multipliers and divisors. */
+  factors: readonly Tier[];
+  /** Also use the key factors 11, 12, 15, 25. */
+  key?: boolean;
+  /** Squares of numbers up to this. */
+  squares?: number;
+  /** Operations allowed. */
+  allowed: readonly BinOp[];
+  /** Largest value any step may reach. */
+  cap: number;
+  /** At least this many pairs of brackets. */
+  groups: number;
+  nested?: boolean;
+  /** At least one number this big, so each level really uses its size. */
+  big: number;
+}
+
+const ALL: BinOp[] = ['+', '−', '×', '÷'];
+
+export const CHAIN_LEVELS: Record<number, ChainLevel> = {
+  1: { label: 'ones · + − ×', ops: [2, 2], terms: [ONES], factors: [ONES], allowed: ['+', '−', '×'], cap: 90, groups: 0, big: 2 },
+  2: { label: 'ones · all four', ops: [2, 3], terms: [ONES], factors: [ONES], allowed: ALL, cap: 90, groups: 0, big: 2 },
+  3: { label: 'ones · brackets', ops: [3, 3], terms: [ONES], factors: [ONES], allowed: ALL, cap: 100, groups: 1, big: 2 },
+  4: { label: 'round tens', ops: [3, 3], terms: [TENS, ONES], factors: [ONES], allowed: ALL, cap: 900, groups: 1, big: 10 },
+  5: { label: 'tens and ones', ops: [3, 3], terms: [TWO], factors: [ONES], allowed: ALL, cap: 999, groups: 1, big: 11 },
+  6: { label: 'round hundreds', ops: [3, 4], terms: [HUNDREDS, TENS], factors: [ONES], allowed: ALL, cap: 9000, groups: 1, big: 100 },
+  7: { label: 'teens and squares', ops: [3, 4], terms: [TWO], factors: [ONES, TEENS], squares: 15, allowed: ALL, cap: 3000, groups: 1, big: 11 },
+  8: { label: 'three digits', ops: [4, 4], terms: [THREE, ROUND3], factors: [ONES], allowed: ALL, cap: 9999, groups: 1, big: 101 },
+  9: { label: '× 11, 12, 15, 25', ops: [4, 4], terms: [TWO, ROUND3], factors: [ONES], key: true, squares: 25, allowed: ALL, cap: 20000, groups: 2, big: 11 },
+  10: { label: 'everything · nested brackets', ops: [5, 5], terms: [THREE, TWO], factors: [ONES, TEENS], key: true, squares: 25, allowed: ALL, cap: 50000, groups: 2, nested: true, big: 101 },
 };
 
-/** Largest operand at any level. */
-export const MAX_OPERAND = 25;
+export const CHAIN_MAX = 10;
+export const CHAIN_LEVEL_IDS = Array.from({ length: CHAIN_MAX }, (_, i) => i + 1);
+
+/** Largest number written in any chain. */
+export const MAX_OPERAND = 999;
 
 interface Part {
   node: Node;
   value: number;
 }
 
-const OPS: BinOp[] = ['+', '−', '×', '÷', '+', '−', '×', '÷', '×'];
-
 const isSum = (p: Part) => p.node.kind === 'bin' && (p.node.op === '+' || p.node.op === '−');
+const leaf = (v: number): Part => ({ node: num(v), value: v });
 
-/** A random expression with exactly `n` operations, or null when the numbers do not work out. */
-function grow(rng: Rng, n: number, lv: (typeof CHAIN_LEVELS)[Level]): Part | null {
-  if (n === 0) {
-    const v = rng.int(2, lv.leaf);
-    return { node: num(v), value: v };
-  }
-  // The square of a number or a bracket that comes to at most 15.
-  if (lv.squares && rng.chance(0.15)) {
-    const inner = grow(rng, n - 1, lv);
-    if (!inner || inner.value < 2 || inner.value > 15) return null;
+function fromTier(rng: Rng, [lo, hi, step]: Tier): number {
+  return step * rng.int(Math.ceil(lo / step), Math.floor(hi / step));
+}
+
+/** A number of one of the level's term sizes that `d` divides, or null if none fits. */
+function multipleOf(rng: Rng, d: number, lv: ChainLevel): number | null {
+  const [lo, hi, step] = rng.pick(lv.terms);
+  const m = (d * step) / gcd(d, step);
+  const k0 = Math.max(2, Math.ceil(lo / m)), k1 = Math.floor(hi / m);
+  return k0 > k1 ? null : m * rng.int(k0, k1);
+}
+
+function factorLeaf(rng: Rng, lv: ChainLevel): number {
+  if (lv.key && rng.chance(0.35)) return rng.pick(KEY);
+  return fromTier(rng, rng.pick(lv.factors));
+}
+
+const factorMax = (lv: ChainLevel) => Math.max(lv.key ? 25 : 0, ...lv.factors.map((t) => t[1]));
+
+/** A random expression with exactly `n` operations; `factor` asks for a small multiplier or divisor. */
+function grow(rng: Rng, n: number, lv: ChainLevel, factor = false): Part | null {
+  if (n === 0) return leaf(factor ? factorLeaf(rng, lv) : fromTier(rng, rng.pick(lv.terms)));
+  // The square of a number or a bracket, small enough to know by heart.
+  if (lv.squares && rng.chance(0.25)) {
+    const inner = n === 1 ? leaf(rng.int(11, lv.squares)) : grow(rng, n - 1, lv, true);
+    if (!inner || inner.value < 2 || inner.value > lv.squares) return null;
     return { node: sq(inner.node), value: inner.value ** 2 };
   }
   const left = rng.int(0, n - 1);
   const right = n - 1 - left;
-  const op = rng.pick(OPS);
-  let a = grow(rng, left, lv);
-  if (!a) return null;
+  const op = rng.pick(lv.allowed);
   // No step comes to 0 or 1: nothing like 7 − 6 or 8 ÷ 8 that wastes a move.
   if (op === '÷') {
-    // The divisor is a small number or a small bracket that divides exactly.
+    const b = grow(rng, right, lv, true);
+    if (!b || b.value < 2 || b.value > factorMax(lv)) return null;
     for (let i = 0; i < 12; i++) {
-      const b = grow(rng, right, lv);
-      if (b && b.value <= 12 && a.value % b.value === 0 && a.value >= 2 * b.value) return { node: bin('÷', a.node, b.node), value: a.value / b.value };
+      const a = left === 0 ? (() => { const v = multipleOf(rng, b.value, lv); return v === null ? null : leaf(v); })() : grow(rng, left, lv);
+      if (a && a.value % b.value === 0 && a.value >= 2 * b.value) return { node: bin('÷', a.node, b.node), value: a.value / b.value };
     }
     return null;
   }
-  let b = grow(rng, right, lv);
-  if (!b) return null;
   if (op === '×') {
-    if (Math.min(a.value, b.value) > 12) return null;
-    return { node: bin('×', a.node, b.node), value: a.value * b.value };
+    const a = grow(rng, left, lv), b = grow(rng, right, lv, true);
+    if (!a || !b || b.value < 2 || b.value > factorMax(lv)) return null;
+    // Sometimes the small factor comes first: 6 × 47.
+    return rng.chance(0.3) && b.node.kind === 'num'
+      ? { node: bin('×', b.node, a.node), value: a.value * b.value }
+      : { node: bin('×', a.node, b.node), value: a.value * b.value };
   }
+  let a = grow(rng, left, lv), b = grow(rng, right, lv);
+  if (!a || !b) return null;
   if (op === '−') {
     if (Math.abs(a.value - b.value) < 2) return null;
     return a.value > b.value ? { node: bin('−', a.node, b.node), value: a.value - b.value } : { node: bin('−', b.node, a.node), value: b.value - a.value };
@@ -83,8 +149,26 @@ function countOps(n: Node): number {
   return 1 + countOps(n.left) + (n.op === '^' ? 0 : countOps(n.right));
 }
 
+/** The numbers written in a tree (not the 2 of a square). */
+export function leaves(n: Node): number[] {
+  if (n.kind === 'num') return [n.value];
+  if (n.kind === 'neg') return leaves(n.arg);
+  if (n.op === '^') return leaves(n.left);
+  return [...leaves(n.left), ...leaves(n.right)];
+}
+
+/** True when a division takes back a multiplication by the same number: (a × 8) ÷ 8. */
+function undoes(n: Node): boolean {
+  if (n.kind !== 'bin') return n.kind === 'neg' && undoes(n.arg);
+  if (n.op === '÷' && n.left.kind === 'bin' && n.left.op === '×' && n.right.kind === 'num') {
+    const k = n.right.value;
+    if ((n.left.left.kind === 'num' && n.left.left.value === k) || (n.left.right.kind === 'num' && n.left.right.value === k)) return true;
+  }
+  return undoes(n.left) || undoes(n.right);
+}
+
 /** Pairs of brackets in the printed text, and how deep they nest. */
-function brackets(text: string): { pairs: number; depth: number } {
+export function brackets(text: string): { pairs: number; depth: number } {
   let depth = 0, max = 0, pairs = 0;
   for (const c of text) {
     if (c === '(') {
@@ -120,8 +204,8 @@ export function audit(node: Node, cap: number): { value: number; max: number } |
   }
 }
 
-export function generateChain(rng: Rng, level: Level): Chain {
-  const lv = CHAIN_LEVELS[level];
+export function generateChain(rng: Rng, level: number): Chain {
+  const lv = CHAIN_LEVELS[Math.min(CHAIN_MAX, Math.max(1, level))];
   for (;;) {
     const part = grow(rng, rng.int(lv.ops[0], lv.ops[1]), lv);
     if (!part || part.value < 3) continue;
@@ -132,6 +216,13 @@ export function generateChain(rng: Rng, level: Level): Chain {
     if (!/[+−]/.test(text) || !/[×÷²]/.test(text)) continue;
     const { pairs, depth } = brackets(text);
     if (pairs < lv.groups || (lv.nested && depth < 2)) continue;
+    const written = leaves(part.node);
+    if (Math.max(...written) < lv.big) continue;
+    // A number of two digits or more written twice usually means one move undoes another
+    // (900 − (900 − 80), 95 ÷ (95 ÷ 5)).
+    const big = written.filter((v) => v >= 10);
+    if (new Set(big).size < big.length) continue;
+    if (undoes(part.node)) continue;
     const checked = audit(part.node, lv.cap);
     if (!checked) continue;
     return { node: part.node, text, value: checked.value, ops, maxIntermediate: checked.max };
@@ -140,13 +231,13 @@ export function generateChain(rng: Rng, level: Level): Chain {
 
 const nodes = new WeakMap<Problem, Node>();
 
-function toProblem(c: Chain, level: Level): Problem {
+function toProblem(c: Chain, level: number): Problem {
   const p: Problem = {
     technique: 'chain',
-    level,
+    level: Math.min(6, level) as Problem['level'],
     text: c.text,
     answer: String(c.value),
-    data: { ops: c.ops, max: c.maxIntermediate },
+    data: { ops: c.ops, max: c.maxIntermediate, level },
   };
   nodes.set(p, c.node);
   return p;
@@ -173,5 +264,5 @@ export const chainExampleNode = (): Node =>
 export function chainExample(): Problem {
   const node = chainExampleNode();
   const a = audit(node, 1000)!;
-  return toProblem({ node, text: print(node), value: a.value, ops: countOps(node), maxIntermediate: a.max }, 2);
+  return toProblem({ node, text: print(node), value: a.value, ops: countOps(node), maxIntermediate: a.max }, 3);
 }

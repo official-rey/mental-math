@@ -27,6 +27,8 @@ export interface Prefs {
   trophies: string[];
   /** Problems solved on this device, all time. */
   solved: number;
+  /** Highest Chains level reached (I–X). */
+  chainBest: number;
 }
 
 export interface SaveResult {
@@ -73,6 +75,7 @@ export const DEFAULT_PREFS: Prefs = {
   visits: 0,
   trophies: [],
   solved: 0,
+  chainBest: 1,
 };
 
 /** Better runs sort first. Sprint: most correct, then accuracy. Twenty: most correct, then fastest. */

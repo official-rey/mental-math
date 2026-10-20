@@ -1,3 +1,4 @@
+import { APP_NAME } from '../theme';
 export interface View {
   el: HTMLElement;
   title?: string;
@@ -26,7 +27,7 @@ export function startRouter(root: HTMLElement, routes: Record<string, RouteFn>, 
     current?.destroy?.();
     current = view;
     root.replaceChildren(view.el);
-    document.title = view.title ? `${view.title} · Mental Math` : 'Mental Math';
+    document.title = view.title ? `${view.title} · ${APP_NAME}` : APP_NAME;
     window.scrollTo(0, 0);
     view.mounted?.();
   }

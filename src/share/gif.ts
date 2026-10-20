@@ -1,7 +1,7 @@
 import { applyPalette, GIFEncoder, quantize } from 'gifenc';
 import type { RunEntry, RunRecord } from '../drill/types';
-import { DEV_CREDIT, FONTS, PALETTE } from '../theme';
-import { doubleRule, drawMotif, loadFonts, makeCanvas, modeLabel, motifK, pct, scoreText, secs, wrap } from './draw';
+import { APP_NAME, FONTS, PALETTE } from '../theme';
+import { doubleRule, drawMotif, drawSplits, loadFonts, makeCanvas, modeLabel, motifK, pct, scoreText, secs, wrap } from './draw';
 
 export const GIF_W = 432;
 export const GIF_H = 540;
@@ -41,11 +41,8 @@ export async function renderHighlightGif(run: RunRecord): Promise<Blob> {
     ctx.fillRect(0, 0, W, H);
     drawMotif(ctx, art, 2 + (finalK - 2) * progress);
     ctx.fillStyle = PALETTE.dim;
-    ctx.font = `500 13px ${FONTS.mono}`;
-    ctx.fillText('MENTAL MATH', M, 42);
-    ctx.textAlign = 'right';
-    ctx.fillText(DEV_CREDIT, W - M, H - 26);
-    ctx.textAlign = 'left';
+    ctx.font = `800 18px ${FONTS.head}`;
+    ctx.fillText(APP_NAME, M, 44);
   };
 
   const title = (ctx: CanvasRenderingContext2D, size: number, y0: number) => {
@@ -119,11 +116,11 @@ export async function renderHighlightGif(run: RunRecord): Promise<Blob> {
       ctx.fillText(s.suffix, M + mw, y + 150);
       ctx.font = `400 16px ${FONTS.mono}`;
       ctx.fillText(s.caption, M, y + 182);
+      // The run as bars, taller = faster, then the first-try rate.
+      drawSplits(ctx, { x: M, y: y + 200, w: W - 2 * M, h: 90 }, run);
       ctx.fillStyle = PALETTE.ink;
-      ctx.fillRect(M, y + 204, W - 2 * M, 1.5);
-      ctx.font = `500 19px ${FONTS.mono}`;
-      ctx.fillText(`${pct(run.accuracy)} accuracy`, M, y + 236);
-      ctx.fillText(`${secs(run.avgMs)} / problem`, M, y + 264);
+      ctx.font = `500 17px ${FONTS.mono}`;
+      ctx.fillText(`${pct(run.accuracy)} first try · ${secs(run.avgMs)} each`, M, y + 322);
     },
   });
 

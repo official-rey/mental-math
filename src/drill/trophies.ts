@@ -16,6 +16,7 @@ export interface Trophy {
 }
 
 const timed = (r: RunRecord) => r.mode !== 'training';
+const isChain = (r: RunRecord) => r.drillKey.startsWith('chain');
 
 export const TROPHIES: Trophy[] = [
   { id: 'first', name: 'First run', how: 'Finish a run', earned: () => true },
@@ -30,8 +31,9 @@ export const TROPHIES: Trophy[] = [
   { id: 'minute', name: 'Under a minute', how: '20 problems in under 60 s', earned: (c) => c.run.mode === 'twenty' && c.run.correct === 20 && c.run.totalMs < 60_000 },
   { id: 'sprint20', name: 'Quick hands', how: '20 right in one sprint', earned: (c) => c.run.mode === 'sprint' && c.run.correct >= 20 },
   { id: 'sprint40', name: 'Lightning', how: '40 right in one sprint', earned: (c) => c.run.mode === 'sprint' && c.run.correct >= 40 },
-  { id: 'chains', name: 'In the right order', how: 'A timed Chains run', earned: (c) => timed(c.run) && c.run.drillKey.startsWith('chain') && c.run.correct >= 5 },
-  { id: 'top', name: 'Top level', how: 'A timed run at Level VI', earned: (c) => timed(c.run) && c.run.level === 6 && c.run.correct >= 5 },
+  { id: 'chains', name: 'In the right order', how: 'Reach Chains Level V', earned: (c) => isChain(c.run) && c.run.level >= 5 },
+  { id: 'chainsTop', name: 'Order master', how: 'Reach Chains Level X', earned: (c) => isChain(c.run) && c.run.level >= 10 },
+  { id: 'top', name: 'Top level', how: 'A timed run at Level VI', earned: (c) => timed(c.run) && !isChain(c.run) && c.run.level === 6 && c.run.correct >= 5 },
   { id: 'hundred', name: 'Hundred', how: '100 problems solved', earned: (c) => c.solved >= 100 },
   { id: 'thousand', name: 'Thousand', how: '1,000 problems solved', earned: (c) => c.solved >= 1000 },
 ];

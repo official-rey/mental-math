@@ -1,10 +1,11 @@
 import { evaluate, print, type Node } from '../chain/evaluator';
-import { chainExample, chainExampleNode, chainSteps } from '../chain/generator';
+import { CHAIN_LEVEL_IDS, CHAIN_LEVELS, CHAIN_MAX, chainExample, chainExampleNode, chainSteps } from '../chain/generator';
+import { ROMAN } from '../techniques/types';
 import { specToHash } from '../drill/spec';
 import { MODES, type Mode } from '../drill/types';
 import { store } from '../storage/store';
 import { circle, line, svg, text } from '../techniques/svg';
-import { levelControl, segmented } from './controls';
+import { segmented } from './controls';
 import { h, reveal } from './dom';
 import type { View } from './router';
 import { layout } from './shell';
@@ -55,12 +56,31 @@ function treeSvg(root: Node): string {
 /** Chains: a whole expression with brackets, solved in the right order as fast as you can. */
 export async function chainView(): Promise<View> {
   const prefs = await store.getPrefs();
-  let level = prefs.level;
+  const best = prefs.chainBest;
   let mode: Mode = prefs.mode;
 
   const btn = h('a', { class: 'btn primary big block', 'data-testid': 'start-chain' }, 'Start', h('span', { class: 'arrow' }, '→'));
-  const setHref = () => btn.setAttribute('href', specToHash({ kind: 'chain', ids: [], level, mode }));
+  // Every run starts at Level I and climbs; levels reached before go by faster.
+  const setHref = () => btn.setAttribute('href', specToHash({ kind: 'chain', ids: [], level: CHAIN_MAX, mode, known: best }));
   setHref();
+
+  /** The ten levels as a ladder: reached ones filled, the next one named. */
+  const ladder = h(
+    'div',
+    { class: 'ladder', 'data-testid': 'chain-ladder' },
+    h(
+      'div',
+      { class: 'ladder-head' },
+      h('span', { class: 'control-label' }, 'Highest level'),
+      h('span', { class: 'ladder-level mono' }, `${ROMAN[best]} `, h('span', { class: 'dim' }, `of ${ROMAN[CHAIN_MAX]}`)),
+    ),
+    h(
+      'ol',
+      { class: 'ladder-steps', 'aria-label': `Level ${best} of ${CHAIN_MAX} reached` },
+      CHAIN_LEVEL_IDS.map((l) => h('li', { class: l <= best ? 'got' : '', title: `${ROMAN[l]}: ${CHAIN_LEVELS[l].label}` }, ROMAN[l])),
+    ),
+    best < CHAIN_MAX ? h('p', { class: 'ladder-next dim' }, `Next: ${CHAIN_LEVELS[best + 1].label}`) : null,
+  );
 
   const figure = h('figure', { class: 'figure' });
   figure.innerHTML = treeSvg(chainExampleNode());
@@ -77,13 +97,9 @@ export async function chainView(): Promise<View> {
       'article',
       { class: 'card' },
       h('h1', { class: 'display' }, 'Chains'),
-      h('p', { class: 'chain-rule mono' }, h('b', null, '( )'), ' first, then ', h('b', null, '× ÷'), ', then ', h('b', null, '+ −'), ', left to right'),
+      h('p', { class: 'chain-rule mono' }, h('b', null, '( )'), ' muna, tapos ', h('b', null, '× ÷'), ', saka ', h('b', null, '+ −'), ', left to right'),
       h('div', { class: 'chain-example' }, renderStepper(chainSteps(chainExample())), figure),
-      levelControl(level, (l) => {
-        level = l;
-        store.setPrefs({ level: l });
-        setHref();
-      }),
+      ladder,
       h('div', { class: 'controls' }, h('div', { class: 'control' }, h('span', { class: 'control-label' }, 'Clock'), modes)),
       btn,
     ),

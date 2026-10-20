@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { bin, EvalError, evaluate, evaluateString, num, parse, print, traceSteps, type Node } from '../src/chain/evaluator';
-import { CHAIN_LEVELS, MAX_OPERAND, chainExample, chainSource, generateChain } from '../src/chain/generator';
-import { LEVELS } from '../src/techniques/types';
+import { CHAIN_LEVEL_IDS, CHAIN_LEVELS, MAX_OPERAND, chainExample, chainSource, generateChain } from '../src/chain/generator';
 import { makeRng, normalize } from '../src/techniques/util';
 
 describe('precedence', () => {
@@ -101,10 +100,10 @@ function brackets(text: string): { pairs: number; depth: number } {
 }
 
 describe('chain generator', () => {
-  for (const level of LEVELS) {
+  for (const level of CHAIN_LEVEL_IDS) {
     it(`level ${level}: 500 chains are well-formed PEMDAS practice`, () => {
       const rng = makeRng(31 + level);
-      const { ops, cap, groups, nested } = CHAIN_LEVELS[level];
+      const { ops, cap, groups, nested, big } = CHAIN_LEVELS[level];
       const texts = new Set<string>();
       for (let i = 0; i < 500; i++) {
         const c = generateChain(rng, level);
@@ -131,8 +130,10 @@ describe('chain generator', () => {
         const b = brackets(c.text);
         expect(b.pairs).toBeGreaterThanOrEqual(groups);
         if (nested) expect(b.depth).toBeGreaterThanOrEqual(2);
+        // Each level uses numbers of its own size.
+        expect(Math.max(...leaves(c.node))).toBeGreaterThanOrEqual(big);
       }
-      expect(texts.size).toBeGreaterThan(level === 1 ? 150 : 400);
+      expect(texts.size).toBeGreaterThan(level <= 2 ? 150 : 400);
     });
   }
 

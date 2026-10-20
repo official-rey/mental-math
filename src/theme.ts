@@ -18,3 +18,8 @@ export const FONTS = {
 } as const;
 
 export const DEV_CREDIT = 'dev: Rey S.';
+/** Where the dev is from, for the footer. */
+export const DEV_PLACE = 'BS Math · CMU, Bukidnon';
+
+/** The app's name: header, page titles and shared images. */
+export const APP_NAME = 'Carry the One';

@@ -94,6 +94,21 @@ describe('drill session', () => {
     expect(s.result().level).toBe(3);
   });
 
+  it('chains start at Level I, pass levels reached before faster, and record the level reached', () => {
+    const s = new DrillSession(spec({ kind: 'chain', ids: [], level: 10, mode: 'training', known: 3 }), makeRng(21), clock().now);
+    s.start();
+    const right = () => {
+      const a = s.submit(s.current.answer);
+      s.advance();
+      return a.levelUp;
+    };
+    // Levels I and II were reached before: 2 in a row each. From III on: 3 in a row.
+    expect([right(), right()]).toEqual([undefined, 2]);
+    expect([right(), right()]).toEqual([undefined, 3]);
+    expect([right(), right(), right()]).toEqual([undefined, undefined, 4]);
+    expect(s.result().level).toBe(4);
+  });
+
   it('Level I drills start at Level I with no ramp', () => {
     const s = new DrillSession(spec({ level: 1 }), makeRng(11), clock().now);
     expect(s.start().level).toBe(1);

@@ -1,104 +1,125 @@
-import type { RunRecord } from '../drill/types';
-import { DEV_CREDIT, FONTS, PALETTE } from '../theme';
-import { doubleRule, drawMotif, loadFonts, makeCanvas, modeLabel, motifCaption, motifK, pct, scoreText, secs, wrap } from './draw';
+import { MODES, type RunRecord } from '../drill/types';
+import { ROMAN } from '../techniques/types';
+import { APP_NAME, FONTS, PALETTE } from '../theme';
+import { drawSplits, loadFonts, longestStreak, makeCanvas, pct, wrap } from './draw';
 
 export const CARD_W = 1080;
 export const CARD_H = 1350;
 
+/** The headline: what you did, as big as possible, with a few words under it. */
+function hero(run: RunRecord): { value: string; unit: string; label: string } {
+  if (run.mode === 'sprint') return { value: String(run.correct), unit: '', label: `SOLVED IN ${Math.round(run.totalMs / 1000)} S` };
+  if (run.mode === 'twenty') return { value: (run.totalMs / 1000).toFixed(1), unit: 's', label: `${run.correct} PROBLEMS` };
+  return { value: String(run.correct), unit: '', label: 'SOLVED' };
+}
+
 /**
- * 1080×1350 PNG score card. The times-table figure (k = the score) has its own circle in the
- * top right; the title sits in the column beside it, so nothing is drawn behind text.
+ * 1080×1350 PNG to post, laid out like a workout summary: few words, the result made big,
+ * and a bar per problem so the run itself is the picture.
  */
-export async function renderScoreCard(run: RunRecord): Promise<Blob> {
+export async function renderScoreCard(run: RunRecord, opts: { best?: boolean } = {}): Promise<Blob> {
   await loadFonts();
   const [canvas, ctx] = makeCanvas(CARD_W, CARD_H);
-  const M = 88;
+  const M = 84;
   const W = CARD_W - 2 * M;
-  const R = 196;
-  const art = { cx: CARD_W - M - R, cy: 150 + R, r: R };
-  const titleW = art.cx - R - M - 40;
 
   ctx.fillStyle = PALETTE.paper;
   ctx.fillRect(0, 0, CARD_W, CARD_H);
   ctx.textBaseline = 'alphabetic';
 
-  // Figure and its caption
-  const k = motifK(run);
-  drawMotif(ctx, art, k);
-  ctx.font = `400 22px ${FONTS.mono}`;
-  ctx.fillStyle = PALETTE.dim;
-  ctx.textAlign = 'center';
-  ctx.fillText(motifCaption(k), art.cx, art.cy + R + 42);
-  ctx.textAlign = 'left';
-
-  // Kicker, title, mode
-  ctx.font = `500 28px ${FONTS.mono}`;
-  ctx.fillText('MENTAL MATH', M, 120);
+  // Brand and date
   ctx.fillStyle = PALETTE.ink;
-  ctx.font = `800 74px ${FONTS.head}`;
-  let y = 240;
-  for (const l of wrap(ctx, run.drillName, titleW, 4)) {
-    ctx.fillText(l, M, y);
-    y += 80;
-  }
+  ctx.font = `800 46px ${FONTS.head}`;
+  ctx.fillText(APP_NAME, M, 130);
+  ctx.textAlign = 'right';
   ctx.fillStyle = PALETTE.dim;
   ctx.font = `500 26px ${FONTS.mono}`;
-  for (const l of wrap(ctx, modeLabel(run).toUpperCase(), titleW, 2)) {
-    ctx.fillText(l, M, y + 4);
-    y += 36;
-  }
-  if (run.player) {
-    ctx.fillStyle = PALETTE.accent;
-    ctx.font = `600 30px ${FONTS.mono}`;
-    ctx.fillText(run.player, M, y + 20);
-  }
-  doubleRule(ctx, M, 640, W, 2);
+  ctx.fillText(new Date(run.date).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }).toUpperCase(), CARD_W - M, 128);
+  ctx.textAlign = 'left';
+  ctx.fillStyle = PALETTE.ink;
+  ctx.fillRect(M, 162, W, 3);
 
-  // Score
-  const s = scoreText(run);
-  const scoreY = 960;
-  ctx.font = `600 300px ${FONTS.mono}`;
-  ctx.fillStyle = PALETTE.accent;
-  ctx.fillText(s.main, M - 12, scoreY);
-  const mainW = ctx.measureText(s.main).width;
-  ctx.font = `500 112px ${FONTS.mono}`;
+  // What was played
+  const mode = MODES.find((m) => m.id === run.mode)!.short.toUpperCase();
   ctx.fillStyle = PALETTE.dim;
-  ctx.fillText(s.suffix, M + mainW, scoreY);
-  ctx.font = `400 36px ${FONTS.mono}`;
-  ctx.fillText(s.caption, M, scoreY + 62);
+  ctx.font = `500 28px ${FONTS.mono}`;
+  ctx.fillText(`${wrap(ctx, run.drillName.toUpperCase(), W - 260, 1)[0]}`, M, 222);
+  ctx.textAlign = 'right';
+  ctx.fillText(`${mode} · LVL ${ROMAN[run.level]}`, CARD_W - M, 222);
+  ctx.textAlign = 'left';
 
-  // Stats row
-  const rowY = 1066;
+  // The result, huge
+  const h = hero(run);
+  ctx.fillStyle = PALETTE.accent;
+  ctx.font = `600 300px ${FONTS.mono}`;
+  ctx.fillText(h.value, M - 14, 520);
+  const vw = ctx.measureText(h.value).width;
+  if (h.unit) {
+    ctx.font = `500 120px ${FONTS.mono}`;
+    ctx.fillText(h.unit, M + vw - 10, 520);
+  }
+  ctx.fillStyle = PALETTE.ink;
+  ctx.font = `600 34px ${FONTS.mono}`;
+  ctx.fillText(h.label, M, 584);
+  if (opts.best) {
+    // A stamp for a personal best.
+    const label = 'PERSONAL BEST';
+    ctx.font = `700 28px ${FONTS.mono}`;
+    const lw = ctx.measureText(label).width + 40;
+    const lx = CARD_W - M - lw, ly = 548;
+    ctx.fillStyle = PALETTE.accent;
+    ctx.beginPath();
+    ctx.roundRect(lx, ly, lw, 50, 25);
+    ctx.fill();
+    ctx.fillStyle = PALETTE.paper;
+    ctx.fillText(label, lx + 20, ly + 35);
+  }
+
+  // The run, one bar per problem
+  drawSplits(ctx, { x: M, y: 660, w: W, h: 330 }, run, 2);
+  ctx.fillStyle = PALETTE.dim;
+  ctx.font = `500 22px ${FONTS.mono}`;
+  ctx.fillText('EACH PROBLEM · TALLER = FASTER', M, 1032);
+  const streak = longestStreak(run);
+  if (streak && streak[1] - streak[0] >= 2) {
+    ctx.textAlign = 'right';
+    ctx.fillText(`${streak[1] - streak[0] + 1} IN A ROW`, CARD_W - M, 1032);
+    ctx.textAlign = 'left';
+  }
+
+  // Three numbers
+  const cols: [string, string][] = [
+    [pct(run.accuracy), 'FIRST TRY'],
+    [String(run.bestStreak ?? (streak ? streak[1] - streak[0] + 1 : 0)), 'BEST STREAK'],
+    [`${(run.avgMs / 1000).toFixed(1)}s`, 'PER PROBLEM'],
+  ];
+  const rowY = 1090;
   ctx.fillStyle = PALETTE.ink;
   ctx.fillRect(M, rowY, W, 2);
-  ctx.fillRect(M, rowY + 150, W, 2);
-  const cols = [
-    ['ACCURACY', pct(run.accuracy)],
-    ['AVG / PROBLEM', secs(run.avgMs)],
-    ['ANSWERED', String(run.attempted)],
-  ];
-  cols.forEach(([label, v], i) => {
+  cols.forEach(([v, label], i) => {
     const x = M + (i * W) / 3;
     if (i) {
       ctx.fillStyle = PALETTE.rule;
-      ctx.fillRect(x - 2, rowY + 20, 2, 112);
+      ctx.fillRect(x - 2, rowY + 24, 2, 110);
     }
     const tx = x + (i ? 28 : 0);
-    ctx.fillStyle = PALETTE.dim;
-    ctx.font = `500 25px ${FONTS.mono}`;
-    ctx.fillText(label, tx, rowY + 54);
     ctx.fillStyle = PALETTE.ink;
-    ctx.font = `500 56px ${FONTS.mono}`;
-    ctx.fillText(v, tx, rowY + 120);
+    ctx.font = `600 64px ${FONTS.mono}`;
+    ctx.fillText(v, tx, rowY + 92);
+    ctx.fillStyle = PALETTE.dim;
+    ctx.font = `500 22px ${FONTS.mono}`;
+    ctx.fillText(label, tx, rowY + 130);
   });
 
-  // Footer
-  const fy = CARD_H - 62;
-  ctx.font = `400 26px ${FONTS.mono}`;
-  ctx.fillStyle = PALETTE.dim;
-  ctx.fillText(new Date(run.date).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }), M, fy);
+  // Who, and the brag
+  const fy = CARD_H - 60;
+  ctx.fillStyle = PALETTE.accent;
+  ctx.font = `600 30px ${FONTS.mono}`;
+  if (run.player) ctx.fillText(run.player, M, fy);
   ctx.textAlign = 'right';
-  ctx.fillText(DEV_CREDIT, CARD_W - M, fy);
+  ctx.fillStyle = PALETTE.ink;
+  ctx.font = `800 34px ${FONTS.head}`;
+  ctx.fillText('No calculator.', CARD_W - M, fy);
   ctx.textAlign = 'left';
 
   return new Promise((res, rej) => canvas.toBlob((b) => (b ? res(b) : rej(new Error('PNG encoding failed'))), 'image/png'));

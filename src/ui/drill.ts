@@ -63,6 +63,7 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
   const past = spec.mode === 'sprint' ? (await store.history()).filter((r) => r.drillKey === key && r.mode === 'sprint') : [];
   const average = past.length >= 2 ? past.reduce((a, r) => a + r.correct, 0) / past.length : 0;
   let passedAverage = false, passedBest = false;
+  let chainBest = prefs.chainBest;
 
   // ----- Elements -----
   const levelTag = h('div', { class: 'level-tag', 'data-testid': 'level' });
@@ -212,7 +213,8 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
   /** "Level I → III" while the drill is still climbing to the chosen level, then just the level. */
   function paintLevel() {
     const cur = session.level, target = spec.level;
-    levelTag.textContent = cur < target ? `Level ${ROMAN[cur]} → ${ROMAN[target]}` : `Level ${ROMAN[cur]}`;
+    // Chains climb as far as you can take them, so there is no target to show.
+    levelTag.textContent = cur < target && spec.kind !== 'chain' ? `Level ${ROMAN[cur]} → ${ROMAN[target]}` : `Level ${ROMAN[cur]}`;
   }
 
   /** Brief "+2 s" beside the clock when a correct sprint answer adds time. */
@@ -285,19 +287,26 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
   /** Cheers for a right answer: streak milestones, and passing your average or best in a sprint. */
   function reward(a: Attempt) {
     paintStreak(a.streak);
+    // Chains: a level never reached before is unlocked for good.
+    if (spec.kind === 'chain' && a.levelUp && a.levelUp > chainBest) {
+      chainBest = a.levelUp;
+      store.setPrefs({ chainBest });
+      sound.best();
+      return cheer(`Level ${ROMAN[a.levelUp]} unlocked! Padayon!`);
+    }
     if (spec.mode === 'sprint' && bestRun && !passedBest && session.correct > bestRun.correct) {
       passedBest = passedAverage = true;
       sound.best();
-      return cheer('New best!');
+      return cheer('New best! Galing!');
     }
     if (spec.mode === 'sprint' && average && !passedAverage && session.correct > average) {
       passedAverage = true;
       sound.best();
-      return cheer('Past your average');
+      return cheer('Lampas na sa average mo!');
     }
     if (a.streak > 0 && isMilestone(a.streak)) {
       sound.milestone();
-      return cheer(`${a.streak} in a row!`);
+      return cheer(`${a.streak} in a row! Galing!`);
     }
     sound.correct(a.streak);
   }
@@ -311,7 +320,7 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
     paintStats();
     if (a.ok) {
       reward(a);
-      flash(a.levelUp ? `✓ ${fmt(a.problem.answer)} · up to Level ${ROMAN[a.levelUp]}` : `✓ ${fmt(a.problem.answer)}`, 'ok');
+      flash(a.levelUp ? `✓ ${fmt(a.problem.answer)} · Level ${ROMAN[a.levelUp]}` : `✓ ${fmt(a.problem.answer)}`, 'ok');
       showBonus(a);
       paintLevel();
       input.classList.add('is-ok');
@@ -325,7 +334,7 @@ export async function drillView(_parts: string[], q: URLSearchParams): Promise<V
     input.classList.remove('is-wrong');
     void input.offsetWidth;
     input.classList.add('is-wrong');
-    flash('Not quite, try again', 'bad');
+    flash('Sayang! Try again', 'bad');
     // While training, each miss also shows one more line of the method.
     if (!timed) showHint();
     input.focus();

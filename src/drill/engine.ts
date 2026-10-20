@@ -10,6 +10,8 @@ export const SPRINT_MS = 60_000;
 export const TWENTY = 20;
 /** Correct answers in a row at a level before the drill steps up toward the chosen level. */
 export const RAMP_STREAK = 3;
+/** Fewer are needed to pass a level already reached before. */
+export const KNOWN_STREAK = 2;
 /** Time a correct answer adds to a sprint; chains take longer, so they earn more. */
 export const BONUS_MS = 2_000;
 export const CHAIN_BONUS_MS = 4_000;
@@ -20,7 +22,7 @@ export function sourcesFor(spec: DrillSpec): ProblemSource[] {
   if (spec.kind === 'chain') return [chainSource];
   return spec.ids.map((id) => {
     const t = getTechnique(id)!;
-    return { id, name: t.meta.name, generate: t.generate, steps: t.steps };
+    return { id, name: t.meta.name, generate: (rng, level) => t.generate(rng, level as Level), steps: t.steps };
   });
 }
 
@@ -32,7 +34,7 @@ export interface Attempt {
   /** Sprint time this answer added. */
   bonusMs: number;
   /** Set when this answer moved the drill up a level. */
-  levelUp?: Level;
+  levelUp?: number;
   /** True once the problem is over (solved or skipped); a wrong answer leaves it open to retry. */
   done: boolean;
   /** Right answers in a row after this one (first tries only). */
@@ -67,7 +69,9 @@ export class DrillSession {
    * Level problems are generated at. Starts at I and climbs one level after every
    * RAMP_STREAK correct answers in a row, until it reaches the level the player chose.
    */
-  level: Level = 1;
+  level = 1;
+  /** Highest level reached in this run. */
+  peak = 1;
 
   constructor(
     readonly spec: DrillSpec,
@@ -145,10 +149,13 @@ export class DrillSession {
     }
     this.streak = clean ? this.streak + 1 : 0;
     this.bestStreak = Math.max(this.bestStreak, this.streak);
-    let levelUp: Level | undefined;
+    let levelUp: number | undefined;
     this.rampStreak = clean ? this.rampStreak + 1 : 0;
-    if (this.rampStreak >= RAMP_STREAK && this.level < this.spec.level) {
-      this.level = (this.level + 1) as Level;
+    // Levels already reached in an earlier run (chains) go by faster.
+    const need = this.level < (this.spec.known ?? 0) ? KNOWN_STREAK : RAMP_STREAK;
+    if (this.rampStreak >= need && this.level < this.spec.level) {
+      this.level++;
+      this.peak = Math.max(this.peak, this.level);
       this.rampStreak = 0;
       levelUp = this.level;
     }
@@ -229,7 +236,8 @@ export class DrillSession {
       drillKey: drillKey(this.spec),
       drillName: drillName(this.spec),
       mode: this.spec.mode,
-      level: this.spec.level,
+      // Chains record the level reached; techniques the level chosen.
+      level: this.spec.kind === 'chain' ? this.peak : this.spec.level,
       correct,
       attempted,
       accuracy: attempted ? this.firstTry / attempted : 0,

@@ -18,6 +18,9 @@ async function save(d: Download): Promise<Buffer> {
 
 test('a finished run produces a 1080×1350 PNG and a GIF under 3 MB', async ({ page }) => {
   await playTwenty(page, 'square-5', [2, 11]);
+  // One "Share result" button; the formats appear after it is tapped.
+  await expect(page.getByTestId('share-png')).toBeHidden();
+  await page.getByTestId('share').click();
 
   const [png] = await Promise.all([page.waitForEvent('download'), page.getByTestId('share-png').click()]);
   expect(png.suggestedFilename()).toMatch(/\.png$/);
